@@ -25,6 +25,9 @@ if (!app_config()) {
 }
 
 start_session();
+migrate_schema();
+
+const HISTORY_DAYS = 60;
 
 $action = (string)($_GET['a'] ?? '');
 $isPost = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
@@ -202,6 +205,25 @@ function completions_map(string $from, string $to): array
     return $map;
 }
 
+/** "kullanıcı|tarih" => izin kaydı */
+function leaves_map(string $from, string $to): array
+{
+    $map = [];
+    foreach (q('SELECT user_id, leave_date, note FROM leaves WHERE leave_date BETWEEN ? AND ?', [$from, $to])->fetchAll() as $r) {
+        $map[$r['user_id'] . '|' . substr((string)$r['leave_date'], 0, 10)] = $r;
+    }
+    return $map;
+}
+
+/** Sched::status + izin: sorumlu kişi o gün izinliyse ve iş yapılmamışsa "leave". */
+function occ_status(Sched $S, array $p, int $occ, ?array $c, int $today, string $nowHm, array $leaves): string
+{
+    if (!$c && $p['user_id'] !== null && isset($leaves[$p['user_id'] . '|' . Sched::ymd($occ)])) {
+        return 'leave';
+    }
+    return $S->status($p, $occ, $c, $today, $nowHm);
+}
+
 function item_out(array $p, int $occ, ?array $c, string $status): array
 {
     $occYmd = Sched::ymd($occ);
@@ -253,6 +275,7 @@ function day_items(Sched $S, array $plans, int $day): array
         $prepped[] = $p;
     }
     $cmap = completions_map(Sched::ymd($day - $maxLb), Sched::ymd($day));
+    $leaves = leaves_map(Sched::ymd($day - $maxLb), Sched::ymd($day));
     $items = [];
     foreach ($prepped as $p) {
         $occ = $S->latest($p, $day);
@@ -266,8 +289,8 @@ function day_items(Sched $S, array $plans, int $day): array
                 continue;
             }
         }
-        $st = $S->status($p, $occ, $c, $today, $nowHm);
-        if ($st === 'missed' && $occ < $day) {
+        $st = occ_status($S, $p, $occ, $c, $today, $nowHm, $leaves);
+        if (($st === 'missed' || $st === 'leave') && $occ < $day) {
             continue;
         }
         $items[] = item_out($p, $occ, $c, $st);
@@ -277,13 +300,15 @@ function day_items(Sched $S, array $plans, int $day): array
 
 function tally(array $items): array
 {
-    $t = ['total' => 0, 'done' => 0, 'issue' => 0, 'pending' => 0, 'overdue' => 0, 'missed' => 0, 'upcoming' => 0];
+    $t = ['total' => 0, 'done' => 0, 'issue' => 0, 'pending' => 0, 'overdue' => 0, 'missed' => 0, 'upcoming' => 0, 'leave' => 0];
     foreach ($items as $i) {
         $t['total']++;
         $t[$i['status']]++;
     }
+    // İzinli günlerdeki işler başarı oranını etkilemez.
     $closed = $t['done'] + $t['issue'];
-    $t['rate'] = $t['total'] ? round($closed * 100 / $t['total']) : 0;
+    $base = $t['total'] - $t['leave'];
+    $t['rate'] = $base > 0 ? round($closed * 100 / $base) : ($t['total'] ? 100 : 0);
     return $t;
 }
 
@@ -386,14 +411,103 @@ try {
             $u = need_user();
             $S = Sched::fromSettings();
             [$today] = today_ctx();
+            $day = Sched::dn(d_in('date') ?? Sched::ymd($today));
+            $day = max($today - HISTORY_DAYS, min($day, $today));
             $plans = plans_query('p.active = 1 AND (p.user_id = ? OR p.user_id IS NULL)', [$u['id']]);
-            $items = day_items($S, $plans, $today);
+            if ($day < $today) {
+                // Geçmiş günlerde, sonradan kaldırılmış atamalar da görünsün.
+                $plans = plans_query('p.start_date <= ? AND (p.end_date IS NULL OR p.end_date >= ?) AND (p.user_id = ? OR p.user_id IS NULL)',
+                    [Sched::ymd($day), Sched::ymd($day), $u['id']]);
+            }
+            $items = day_items($S, $plans, $day);
+            $leave = q('SELECT note FROM leaves WHERE user_id = ? AND leave_date = ?', [$u['id'], Sched::ymd($day)])->fetch();
             out([
-                'date' => Sched::ymd($today),
-                'workday' => $S->isWorkday($today),
+                'date' => Sched::ymd($day),
+                'today' => Sched::ymd($today),
+                'workday' => $S->isWorkday($day),
+                'on_leave' => (bool)$leave,
+                'leave_note' => $leave['note'] ?? null,
                 'items' => $items,
                 'tally' => tally($items),
             ]);
+        }
+
+        case 'my_history': {
+            // Son günlerin özet durumu (personel ekranındaki gün şeridi için).
+            $u = need_user();
+            $S = Sched::fromSettings();
+            [$today, $nowHm] = today_ctx();
+            $from = $today - 13;
+            $cmap = completions_map(Sched::ymd($from), Sched::ymd($today));
+            $leaves = leaves_map(Sched::ymd($from), Sched::ymd($today));
+            $days = [];
+            for ($d = $from; $d <= $today; $d++) {
+                $days[$d] = ['date' => Sched::ymd($d), 'workday' => $S->isWorkday($d), 'on_leave' => isset($leaves[$u['id'] . '|' . Sched::ymd($d)]), 'items' => []];
+            }
+            $plans = plans_query('p.start_date <= ? AND (p.end_date IS NULL OR p.end_date >= ?) AND (p.user_id = ? OR p.user_id IS NULL)',
+                [Sched::ymd($today), Sched::ymd($from), $u['id']]);
+            foreach ($plans as $p) {
+                $p = $S->prep($p);
+                foreach ($S->occurrences($p, $from, $today) as $o) {
+                    $c = $cmap[$p['id'] . '|' . Sched::ymd($o)] ?? null;
+                    $days[$o]['items'][] = ['status' => occ_status($S, $p, $o, $c, $today, $nowHm, $leaves)];
+                }
+            }
+            out(array_values(array_map(function ($d) {
+                $t = tally($d['items']);
+                unset($d['items']);
+                return $d + ['tally' => $t];
+            }, $days)));
+        }
+
+        case 'leave_set': case 'leave_delete': {
+            need_post();
+            $u = need_user();
+            $uid = (int)$u['id'];
+            if ($u['role'] === 'admin' && i_in('user_id')) {
+                $uid = (int)i_in('user_id');
+            }
+            $date = d_in('date', true);
+            [$today] = today_ctx();
+            if ($u['role'] !== 'admin' && Sched::dn($date) < $today) {
+                fail('Geçmiş günler için izin yalnızca yönetici tarafından girilebilir.');
+            }
+            if (Sched::dn($date) > $today + 365) {
+                fail('En fazla bir yıl sonrası için izin girilebilir.');
+            }
+            if ($action === 'leave_delete') {
+                q('DELETE FROM leaves WHERE user_id = ? AND leave_date = ?', [$uid, $date]);
+                out();
+            }
+            $to = d_in('to') ?? $date;
+            if ($to < $date || Sched::dn($to) - Sched::dn($date) > 60) {
+                fail('İzin aralığı en fazla 61 gün olabilir.');
+            }
+            $note = s_in('note', 255);
+            $n = 0;
+            for ($d = Sched::dn($date); $d <= Sched::dn($to); $d++) {
+                if (!q('SELECT 1 FROM leaves WHERE user_id = ? AND leave_date = ?', [$uid, Sched::ymd($d)])->fetchColumn()) {
+                    q('INSERT INTO leaves (user_id, leave_date, note, created_by, created_at) VALUES (?, ?, ?, ?, ?)',
+                        [$uid, Sched::ymd($d), $note, $u['id'], now_str()]);
+                    $n++;
+                }
+            }
+            out(['count' => $n]);
+        }
+
+        case 'leaves': {
+            // Personel kendi izinlerini, yönetici herkesin (veya seçilen kişinin) bugünden sonraki izinlerini görür.
+            $u = need_user();
+            $uid = $u['role'] === 'admin' ? i_in('user_id') : (int)$u['id'];
+            $from = d_in('from') ?? date('Y-m-d');
+            $rows = q('SELECT l.user_id, l.leave_date, l.note, u.name FROM leaves l JOIN users u ON u.id = l.user_id
+                       WHERE l.leave_date >= ?' . ($uid ? ' AND l.user_id = ?' : '') . ' ORDER BY l.leave_date, u.name LIMIT 300',
+                $uid ? [$from, $uid] : [$from])->fetchAll();
+            foreach ($rows as &$r) {
+                $r['leave_date'] = substr((string)$r['leave_date'], 0, 10);
+                $r['user_id'] = (int)$r['user_id'];
+            }
+            out($rows);
         }
 
         case 'complete': {
@@ -472,11 +586,12 @@ try {
             $missed = [];
             $from = $day - 7;
             $cmap = completions_map(Sched::ymd($from), Sched::ymd($day));
+            $leaves = leaves_map(Sched::ymd($from), Sched::ymd($day));
             foreach (plans_query('p.start_date <= ?', [Sched::ymd($day)]) as $p) {
                 $p = $S->prep($p);
                 foreach ($S->occurrences($p, $from, $day - 1) as $o) {
                     $c = $cmap[$p['id'] . '|' . Sched::ymd($o)] ?? null;
-                    if (!$c && $S->status($p, $o, null, $today, $nowHm) === 'missed') {
+                    if (!$c && occ_status($S, $p, $o, null, $today, $nowHm, $leaves) === 'missed') {
                         $missed[] = item_out($p, $o, null, 'missed');
                     }
                 }
@@ -495,6 +610,8 @@ try {
                 'missed' => array_slice($missed, 0, 200),
                 'missed_count' => count($missed),
                 'staff_count' => (int)q("SELECT COUNT(*) FROM users WHERE active = 1 AND role = 'staff'")->fetchColumn(),
+                'on_leave' => q('SELECT u.id, u.name, l.note FROM leaves l JOIN users u ON u.id = l.user_id WHERE l.leave_date = ? AND u.active = 1 ORDER BY u.name',
+                    [Sched::ymd($day)])->fetchAll(),
             ]);
         }
 
@@ -513,6 +630,7 @@ try {
             $userF = i_in('user_id');
             $locF = i_in('location_id');
             $cmap = completions_map(Sched::ymd($from), Sched::ymd($to));
+            $leaves = leaves_map(Sched::ymd($from), Sched::ymd($to));
             $items = [];
             foreach (plans_query('p.start_date <= ?', [Sched::ymd($to)]) as $p) {
                 if ($userF && (int)$p['user_id'] !== $userF) {
@@ -524,14 +642,14 @@ try {
                 $p = $S->prep($p);
                 foreach ($S->occurrences($p, $from, $to) as $o) {
                     $c = $cmap[$p['id'] . '|' . Sched::ymd($o)] ?? null;
-                    $items[] = item_out($p, $o, $c, $S->status($p, $o, $c, $today, $nowHm));
+                    $items[] = item_out($p, $o, $c, occ_status($S, $p, $o, $c, $today, $nowHm, $leaves));
                 }
             }
             usort($items, fn($a, $b) => strcmp($a['occ_date'], $b['occ_date']) ?: strcmp($a['location'], $b['location']));
 
             if ($action === 'report_csv') {
                 $labels = ['done' => 'Yapıldı', 'issue' => 'Sorun bildirildi', 'pending' => 'Bekliyor',
-                    'overdue' => 'Gecikti', 'missed' => 'Yapılmadı', 'upcoming' => 'Planlandı'];
+                    'overdue' => 'Gecikti', 'missed' => 'Yapılmadı', 'upcoming' => 'Planlandı', 'leave' => 'İzinli'];
                 header('Content-Type: text/csv; charset=utf-8');
                 header('Content-Disposition: attachment; filename="is-raporu-' . Sched::ymd($from) . '_' . Sched::ymd($to) . '.csv"');
                 $fh = fopen('php://output', 'w');
@@ -551,13 +669,13 @@ try {
 
             $daily = [];
             for ($d = $from; $d <= $to; $d++) {
-                $daily[Sched::ymd($d)] = ['date' => Sched::ymd($d), 'total' => 0, 'done' => 0, 'issue' => 0, 'missed' => 0, 'open' => 0];
+                $daily[Sched::ymd($d)] = ['date' => Sched::ymd($d), 'total' => 0, 'done' => 0, 'issue' => 0, 'missed' => 0, 'leave' => 0, 'open' => 0];
             }
             $lateDone = 0;
             foreach ($items as $i) {
                 $r = &$daily[$i['occ_date']];
                 $r['total']++;
-                if (in_array($i['status'], ['done', 'issue', 'missed'], true)) {
+                if (in_array($i['status'], ['done', 'issue', 'missed', 'leave'], true)) {
                     $r[$i['status']]++;
                 } else {
                     $r['open']++;
@@ -850,8 +968,9 @@ try {
         case 'users': {
             need_admin();
             out(q("SELECT u.id, u.name, u.username, u.role, u.phone, u.created_at,
-                          (SELECT COUNT(*) FROM plans p WHERE p.user_id = u.id AND p.active = 1) AS plan_count
-                   FROM users u WHERE u.active = 1 ORDER BY u.role, u.name")->fetchAll());
+                          (SELECT COUNT(*) FROM plans p WHERE p.user_id = u.id AND p.active = 1) AS plan_count,
+                          (SELECT COUNT(*) FROM leaves l WHERE l.user_id = u.id AND l.leave_date = ?) AS on_leave
+                   FROM users u WHERE u.active = 1 ORDER BY u.role, u.name", [date('Y-m-d')])->fetchAll());
         }
 
         case 'user_save': {

@@ -89,7 +89,7 @@
   App.greeting = () => { const h = new Date().getHours(); return h < 6 ? 'İyi geceler' : h < 12 ? 'Günaydın' : h < 18 ? 'İyi günler' : 'İyi akşamlar'; };
 
   App.STATUS = {
-    done: 'Yapıldı', issue: 'Sorun bildirildi', pending: 'Bekliyor', overdue: 'Gecikti', missed: 'Yapılmadı', upcoming: 'Planlandı',
+    done: 'Yapıldı', issue: 'Sorun bildirildi', pending: 'Bekliyor', overdue: 'Gecikti', missed: 'Yapılmadı', upcoming: 'Planlandı', leave: 'İzinli',
   };
   App.badge = (st, txt) => `<span class="badge ${st}">${App.h(txt || App.STATUS[st] || st)}</span>`;
 
@@ -420,7 +420,8 @@
         ${carried ? `<span class="tag">${icon('calendar')}${h(App.fmtDate(it.occ_date, true))}</span>` : ''}
         ${it.user ? `<span class="tag">${icon('user')}${h(it.user)}</span>` : '<span class="tag">' + icon('users') + 'Ortak iş</span>'}</div>
       ${it.task_desc ? `<p class="muted">${h(it.task_desc)}</p>` : ''}
-      ${it.note ? `<div class="alert info">${h(it.note)}</div>` : ''}`;
+      ${it.note ? `<div class="alert info">${h(it.note)}</div>` : ''}
+      ${it.status === 'leave' ? `<div class="alert leave">${h(it.user || 'Sorumlu')} bu gün izinli; iş “yapılmadı” sayılmaz. Yine de yapıldıysa işaretleyebilirsiniz.</div>` : ''}`;
     if (c) {
       body += `<div class="glass card" style="padding:14px">
         <div style="display:flex;gap:10px;align-items:center">${App.avatar(c.by || '?')}<div><b>${h(c.by || '')}</b>

@@ -149,7 +149,7 @@
       const chip = (k, l, n) => `<button class="chip ${filter === k ? 'active' : ''}" data-chip="${k}">${l}<span class="n">${n}</span></button>`;
       const t = data.tally;
       let html = `<div class="card-head"><h3>İş listesi</h3><input type="search" placeholder="Ara: iş, mekan, kişi" value="${h(q)}" data-q style="max-width:240px;min-height:38px"></div>
-        <div class="chips" style="margin-bottom:8px">${chip('all', 'Tümü', t.total)}${chip('overdue', 'Geciken', t.overdue)}${chip('pending', 'Bekleyen', t.pending)}${chip('closed', 'Tamamlanan', t.done + t.issue)}${chip('issue', 'Sorunlu', t.issue)}</div>`;
+        <div class="chips" style="margin-bottom:8px">${chip('all', 'Tümü', t.total)}${chip('overdue', 'Geciken', t.overdue)}${chip('pending', 'Bekleyen', t.pending)}${chip('closed', 'Tamamlanan', t.done + t.issue)}${chip('issue', 'Sorunlu', t.issue)}${t.leave ? chip('leave', 'İzinli', t.leave) : ''}</div>`;
       if (!data.items.length) {
         html += emptyBox(data.workday ? '🗂️' : '🌴', data.workday ? 'Bu gün için planlanmış iş yok' : 'Bu gün iş günü değil',
           data.workday ? 'İş paketlerinden atama yaparak başlayın.' : 'Çalışma günlerini Ayarlar’dan değiştirebilirsiniz.',
@@ -185,9 +185,9 @@
       if (!list.length) return `<p class="muted small">${h(emptyText)}</p>`;
       return '<div class="bars">' + list.map((g) => {
         const w = (n) => (g.total ? (n * 100) / g.total : 0).toFixed(1);
-        return `<div class="bar-row" title="${g.done} yapıldı · ${g.issue} sorun · ${g.overdue} gecikmiş · ${g.pending} bekliyor">
+        return `<div class="bar-row" title="${g.done} yapıldı · ${g.issue} sorun · ${g.overdue} gecikmiş · ${g.pending} bekliyor${g.leave ? ' · ' + g.leave + ' izinli' : ''}">
           <div class="meta"><b>${h(g.name)}</b><span>${g.done + g.issue}/${g.total} · %${g.rate}</span></div>
-          <div class="track-h"><i class="ok" data-w="${w(g.done)}"></i><i class="issue" data-w="${w(g.issue)}"></i><i class="warn" data-w="${w(g.overdue)}"></i><i class="bad" data-w="${w(g.missed)}"></i></div></div>`;
+          <div class="track-h"><i class="ok" data-w="${w(g.done)}"></i><i class="issue" data-w="${w(g.issue)}"></i><i class="warn" data-w="${w(g.overdue)}"></i><i class="bad" data-w="${w(g.missed)}"></i><i class="leave" data-w="${w(g.leave)}"></i></div></div>`;
       }).join('') + '</div>';
     }
 
@@ -200,7 +200,8 @@
           <div class="grid" style="gap:6px"><h3>Genel ilerleme</h3>
             <p class="muted small">${t.done + t.issue} / ${t.total} iş kapandı</p>
             <div class="legend"><span><i style="background:var(--ok)"></i>Yapıldı</span><span><i style="background:var(--issue)"></i>Sorun</span><span><i style="background:var(--warn)"></i>Gecikti</span></div>
-            <p class="muted small">${data.staff_count} aktif personel</p></div></div>
+            <p class="muted small">${data.staff_count} aktif personel</p>
+            ${data.on_leave.length ? `<div class="small"><span class="badge leave">İzinli</span> ${data.on_leave.map((u) => h(u.name)).join(', ')}</div>` : ''}</div></div>
         <div class="glass card"><div class="card-head"><h3>Mekanlara göre</h3></div>${bars(data.by_location, 'Veri yok')}</div>
         <div class="glass card"><div class="card-head"><h3>Personele göre</h3></div>${bars(data.by_user, 'Veri yok')}</div>
         <div class="glass card" data-missed><div class="card-head"><h3>Son 7 günde yapılmayanlar</h3><span class="badge missed">${data.missed_count}</span></div>
@@ -556,13 +557,15 @@
     box.innerHTML = '<div class="pkg-grid stagger">' + users.map((u) => `<div class="glass pkg lift" data-tilt="5">
       <div class="head">${App.avatar(u.name, 46)}<div style="flex:1;min-width:0"><h3>${h(u.name)}</h3>
         <div class="muted small">@${h(u.username)} · ${u.role === 'admin' ? 'Yönetici' : 'Personel'}</div></div></div>
-      <div class="small muted" style="display:flex;gap:12px;flex-wrap:wrap">${u.phone ? `<span>${icon('phone')} ${h(u.phone)}</span>` : ''}<span>${icon('list')} ${u.plan_count} aktif iş</span></div>
+      <div class="small muted" style="display:flex;gap:12px;flex-wrap:wrap">${u.phone ? `<span>${icon('phone')} ${h(u.phone)}</span>` : ''}<span>${icon('list')} ${u.plan_count} aktif iş</span>${+u.on_leave ? '<span class="badge leave">Bugün izinli</span>' : ''}</div>
       <div class="foot">
         <a class="btn sm ghost" href="#/atamalar" data-plans="${u.id}">${icon('list')}<span>İşleri</span></a>
+        ${u.role !== 'admin' ? `<button class="btn sm ghost" data-leave="${u.id}">${icon('calendar')}<span>İzin</span></button>` : ''}
         <button class="btn sm ghost" data-edit="${u.id}">${icon('edit')}<span>Düzenle</span></button>
         ${u.id !== me.id ? `<button class="btn sm ghost danger" data-del="${u.id}">${icon('trash')}</button>` : ''}</div></div>`).join('') + '</div>';
     $$('[data-plans]', box).forEach((a) => (a.onclick = () => { sessionStorage.setItem('istakip.pu', a.dataset.plans); sessionStorage.removeItem('istakip.pl'); }));
     $$('[data-edit]', box).forEach((b) => (b.onclick = () => edit(users.find((u) => u.id == b.dataset.edit))));
+    $$('[data-leave]', box).forEach((b) => (b.onclick = () => leaveModal(users.find((u) => u.id == b.dataset.leave))));
     $$('[data-del]', box).forEach((b) => (b.onclick = async () => {
       const u = users.find((x) => x.id == b.dataset.del);
       if (u.plan_count) {
@@ -582,6 +585,40 @@
       if (!(await App.confirm(u.name + ' silinecek. Geçmiş kayıtları raporlarda kalır.', { ok: 'Sil' }))) return;
       try { await api('user_delete', { id: u.id }); invalidate('users'); App.toast('Silindi'); route(); } catch (e) { App.err(e); }
     }));
+  }
+
+  function leaveModal(u) {
+    const t = App.today();
+    const m = App.modal({
+      title: u.name + ' — izin',
+      body: `<form class="form">
+        <div class="grid2"><label class="field"><span>Başlangıç</span><input type="date" name="date" value="${t}"></label>
+        <label class="field"><span>Bitiş</span><input type="date" name="to" value="${t}"></label></div>
+        <label class="field"><span>Açıklama (isteğe bağlı)</span><input name="note" placeholder="Örn. Yıllık izin, rapor"></label>
+        <p class="muted small">İzinli günlerde bu kişiye atanmış işler “yapılmadı” yerine <b>İzinli</b> sayılır. Geçmiş tarihler için de girilebilir.</p>
+        <div class="field"><span>Bugünden itibaren kayıtlı izinler</span><div data-list class="list"><div class="skeleton" style="height:40px"></div></div></div></form>`,
+      actions: [{ label: 'Kapat', cls: 'ghost' }, { label: 'İzni kaydet', cls: 'primary', icon: 'check', onClick: async (mm) => {
+        const f = $('form', mm.body);
+        if (f.to.value < f.date.value) throw new Error('Bitiş tarihi başlangıçtan önce olamaz.');
+        const r = await api('leave_set', { user_id: u.id, date: f.date.value, to: f.to.value, note: f.note.value });
+        App.toast(`${r.count} gün izin kaydedildi`);
+        route();
+      } }],
+    });
+    const f = $('form', m.body);
+    f.date.onchange = () => { if (f.to.value < f.date.value) f.to.value = f.date.value; };
+    const list = $('[data-list]', m.body);
+    const draw = async () => {
+      const rows = await api('leaves', null, { user_id: u.id });
+      list.innerHTML = rows.length ? rows.map((r) => `<div class="row"><span class="dot" style="background:var(--leave)"></span>
+        <div><div class="title">${h(App.fmtDate(r.leave_date, true))}</div>${r.note ? `<div class="sub"><span>${h(r.note)}</span></div>` : ''}</div>
+        <div class="actions"><button type="button" class="btn sm ghost danger" data-del="${r.leave_date}">Sil</button></div></div>`).join('')
+        : '<p class="muted small">Kayıtlı izin yok.</p>';
+      $$('[data-del]', list).forEach((b) => (b.onclick = async () => {
+        try { await api('leave_delete', { user_id: u.id, date: b.dataset.del }); App.toast('İzin silindi', 'info'); draw(); } catch (e) { App.err(e); }
+      }));
+    };
+    draw().catch(App.err);
   }
 
   /* =========================================================
@@ -628,8 +665,8 @@
 
     function table(list, title, col) {
       return `<div class="glass card"><div class="card-head"><h3>${h(title)}</h3></div><div class="table-wrap"><table>
-        <thead><tr><th>${h(col)}</th><th>Toplam</th><th>Yapıldı</th><th>Sorun</th><th>Yapılmadı</th><th>Oran</th></tr></thead><tbody>
-        ${list.map((g) => `<tr><td><b>${h(g.name)}</b></td><td>${g.total}</td><td>${g.done}</td><td>${g.issue}</td><td>${g.missed ? `<b style="color:var(--bad)">${g.missed}</b>` : 0}</td>
+        <thead><tr><th>${h(col)}</th><th>Toplam</th><th>Yapıldı</th><th>Sorun</th><th>Yapılmadı</th><th>İzinli</th><th>Oran</th></tr></thead><tbody>
+        ${list.map((g) => `<tr><td><b>${h(g.name)}</b></td><td>${g.total}</td><td>${g.done}</td><td>${g.issue}</td><td>${g.missed ? `<b style="color:var(--bad)">${g.missed}</b>` : 0}</td><td>${g.leave || 0}</td>
           <td style="min-width:120px"><div class="track-h"><i class="ok" data-w="${g.rate}"></i></div><small class="muted">%${g.rate}</small></td></tr>`).join('')}
         </tbody></table></div></div>`;
     }
@@ -645,10 +682,10 @@
           ${stat('Geç yapıldı', s.late_done, '#f59e0b', 'clock')}
           <div class="glass stat lift" style="--c:#06b6d4;place-items:center">${App.ring(s.rate, 92, undefined, 'başarı')}</div></div>
         <div class="glass card" style="margin-bottom:16px"><div class="card-head"><h3>Günlük dağılım</h3>
-          <div class="legend"><span><i style="background:var(--ok)"></i>Yapıldı</span><span><i style="background:var(--issue)"></i>Sorun</span><span><i style="background:var(--bad)"></i>Yapılmadı</span><span><i style="background:var(--line)"></i>Açık</span></div></div>
+          <div class="legend"><span><i style="background:var(--ok)"></i>Yapıldı</span><span><i style="background:var(--issue)"></i>Sorun</span><span><i style="background:var(--bad)"></i>Yapılmadı</span><span><i style="background:var(--leave)"></i>İzinli</span><span><i style="background:var(--line)"></i>Açık</span></div></div>
           <div class="colchart">${r.daily.map((d, i) => `<div class="col">
-            <span class="tip">${h(App.fmtDate(d.date))}: ${d.done} yapıldı, ${d.issue} sorun, ${d.missed} yapılmadı${d.open ? ', ' + d.open + ' açık' : ''}</span>
-            ${['done:ok', 'issue:issue', 'missed:bad', 'open:open'].map((k) => { const [f, c] = k.split(':'); return d[f] ? `<i class="${c}" style="height:${(d[f] * 100) / max}%;animation-delay:${i * 0.02}s"></i>` : ''; }).join('')}</div>`).join('')}</div>
+            <span class="tip">${h(App.fmtDate(d.date))}: ${d.done} yapıldı, ${d.issue} sorun, ${d.missed} yapılmadı${d.leave ? ', ' + d.leave + ' izinli' : ''}${d.open ? ', ' + d.open + ' açık' : ''}</span>
+            ${['done:ok', 'issue:issue', 'missed:bad', 'leave:leave', 'open:open'].map((k) => { const [f, c] = k.split(':'); return d[f] ? `<i class="${c}" style="height:${(d[f] * 100) / max}%;animation-delay:${i * 0.02}s"></i>` : ''; }).join('')}</div>`).join('')}</div>
           <div class="axis">${r.daily.map((d, i) => `<span>${r.daily.length <= 16 || i % Math.ceil(r.daily.length / 12) === 0 ? h(App.fmtShort(d.date)) : ''}</span>`).join('')}</div></div>
         <div class="grid cols-2" style="margin-bottom:16px">${table(r.by_user, 'Personele göre', 'Personel')}${table(r.by_location, 'Mekanlara göre', 'Mekan')}</div>
         <div class="grid cols-2">${table(r.by_task.slice(0, 15), 'En çok aksayan işler', 'İş')}

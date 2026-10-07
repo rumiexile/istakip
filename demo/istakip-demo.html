@@ -32,6 +32,7 @@
   --warn: #f59e0b;
   --bad: #ef4444;
   --info: #3b82f6;
+  --leave: #0ea5e9;
   --radius: 22px;
   --radius-sm: 14px;
   --spring: cubic-bezier(.34, 1.56, .64, 1);
@@ -292,6 +293,8 @@ input[type=color]::-webkit-color-swatch { border: 2px solid var(--glass-border);
 .alert { padding: 12px 14px; border-radius: var(--radius-sm); font-size: 14px; border: 1px solid; animation: pop .4s var(--spring); }
 .alert.bad { color: #b91c1c; background: rgba(239,68,68,.1); border-color: rgba(239,68,68,.3); }
 .alert.info { color: var(--text-2); background: rgba(59,130,246,.08); border-color: rgba(59,130,246,.25); }
+.alert.leave { color: var(--text-2); background: color-mix(in srgb, var(--leave) 12%, transparent); border-color: color-mix(in srgb, var(--leave) 35%, transparent); display: flex; gap: 8px; align-items: flex-start; margin-bottom: 4px; }
+.alert.leave .ico { color: var(--leave); margin-top: 2px; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .alert.bad { color: #fca5a5; } }
 :root[data-theme="dark"] .alert.bad { color: #fca5a5; }
 
@@ -435,6 +438,7 @@ input[type=color]::-webkit-color-swatch { border: 2px solid var(--glass-border);
 .track-h i.issue { background: var(--issue); }
 .track-h i.warn { background: var(--warn); }
 .track-h i.bad { background: var(--bad); }
+.track-h i.leave { background: var(--leave); opacity: .7; }
 
 /* sütun grafik */
 .colchart { display: flex; align-items: flex-end; gap: 4px; height: 160px; padding-top: 10px; }
@@ -444,6 +448,7 @@ input[type=color]::-webkit-color-swatch { border: 2px solid var(--glass-border);
 .colchart .col i.issue { background: var(--issue); }
 .colchart .col i.bad { background: linear-gradient(180deg, #f87171, #ef4444); }
 .colchart .col i.open { background: var(--line); }
+.colchart .col i.leave { background: color-mix(in srgb, var(--leave) 70%, transparent); }
 .colchart .col:hover i { filter: brightness(1.12) saturate(1.2); }
 .colchart .col .tip {
   position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%) translateY(4px); opacity: 0; pointer-events: none;
@@ -464,7 +469,7 @@ input[type=color]::-webkit-color-swatch { border: 2px solid var(--glass-border);
 }
 .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--c); }
 .badge.done { --c: var(--ok); } .badge.issue { --c: var(--issue); } .badge.pending { --c: var(--pending); }
-.badge.overdue { --c: var(--warn); } .badge.missed { --c: var(--bad); } .badge.upcoming { --c: var(--info); }
+.badge.overdue { --c: var(--warn); } .badge.missed { --c: var(--bad); } .badge.upcoming { --c: var(--info); } .badge.leave { --c: var(--leave); }
 .badge.overdue::before, .badge.missed::before { animation: blink 1.6s infinite; }
 .badge.plain::before { display: none; }
 @keyframes blink { 50% { opacity: .25; } }
@@ -587,6 +592,30 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
 .hero p { color: var(--muted); font-size: 14px; margin-top: 4px; }
 .hero .mini { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .hero .mini .badge { font-size: 11.5px; }
+.hero-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+/* gün şeridi */
+.daystrip { display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 12px; margin-bottom: 4px; scrollbar-width: none; scroll-behavior: smooth; }
+.daystrip::-webkit-scrollbar { display: none; }
+.day {
+  --dc: var(--muted);
+  flex: none; width: 54px; display: grid; justify-items: center; gap: 2px; padding: 8px 0 9px; cursor: pointer;
+  border-radius: 18px; border: 1px solid var(--glass-border); background: var(--glass);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  transition: transform .4s var(--spring), background .3s, box-shadow .3s;
+}
+.day:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+.day:active { transform: scale(.94); }
+.day small { font-size: 10.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.day b { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.day i { display: block; width: 26px; height: 4px; border-radius: 4px; background: var(--line); overflow: hidden; position: relative; }
+.day i::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--p); background: var(--dc); border-radius: 4px; }
+.day.ok { --dc: var(--ok); } .day.warn { --dc: var(--warn); } .day.bad { --dc: var(--bad); } .day.live { --dc: var(--accent); }
+.day.leave { --dc: var(--leave); } .day.leave i::after { width: 100%; }
+.day.off { opacity: .55; }
+.day.active { background: var(--text); border-color: transparent; box-shadow: 0 10px 22px -10px rgba(15,23,42,.6); }
+.day.active small, .day.active b { color: var(--bg); }
+.day.active i { background: rgba(255,255,255,.25); }
 .loc-group { margin: 18px 0 8px; }
 .loc-head { display: flex; align-items: center; gap: 8px; padding: 0 4px 8px; position: sticky; top: 0; z-index: 5; }
 .loc-head h3 { font-size: 14px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-2); }
@@ -605,6 +634,10 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
 .task .t-sub { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; font-size: 12px; color: var(--muted); }
 .task .t-sub .late { color: var(--warn); font-weight: 700; }
 .task .t-sub .miss { color: var(--bad); font-weight: 700; }
+.task .t-sub .lv { color: var(--leave); font-weight: 700; }
+.task.is-leave, .task.is-missed { opacity: .7; }
+.tick.missed { --c: var(--bad); border-style: dashed; }
+.tick.missed svg { stroke: var(--bad); stroke-dashoffset: 0; }
 .task .stripe { position: absolute; left: 0; top: 14px; bottom: 14px; width: 4px; border-radius: 0 4px 4px 0; background: var(--c, transparent); }
 .task.is-done, .task.is-issue { opacity: .72; }
 .task.is-done .t-title { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--ok) 70%, transparent); text-decoration-thickness: 2px; }
@@ -680,7 +713,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v1';
+  const KEY = 'istakip-demo-v2';
   const store = {
     get() {
       try { const v = localStorage.getItem(KEY); if (v) return JSON.parse(v); } catch (e) { /* yoksay */ }
@@ -827,7 +860,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
 
   function seed() {
     const now = nowStr();
-    const S = { seq: 1, users: [], locations: [], tasks: [], packages: [], package_items: [], plans: [], completions: [], photos: {},
+    const S = { seq: 1, users: [], locations: [], tasks: [], packages: [], package_items: [], plans: [], completions: [], leaves: [], photos: {},
       settings: { company_name: 'Merkez Bina Destek Hizmetleri', work_days: '1,2,3,4,5', holidays: '' } };
     const id = () => S.seq++;
     const add = (tbl, row) => { row.id = id(); S[tbl].push(row); return row; };
@@ -893,8 +926,16 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
     apply('Destek Hizmetleri', 'Asansör', ahmet, ['Asansör temizliği']);
     S.plans.find((p) => p.task_id === T['Kapıların açılması'].id).note = 'Anahtarlar güvenlik kulübesinde.';
 
-    // Geçmiş kayıtlar
+    // Örnek izinler
     const sch = new Sched([1, 2, 3, 4, 5], []);
+    const workdayBack = (n) => { let d = dn(localToday()); while (n > 0) { d--; if (sch.isWorkday(d)) n--; } return ymd(d); };
+    const workdayFwd = (n) => { let d = dn(localToday()); while (n > 0) { d++; if (sch.isWorkday(d)) n--; } return ymd(d); };
+    add('leaves', { user_id: ahmet.id, leave_date: workdayBack(4), note: 'Yıllık izin', created_by: ahmet.id, created_at: now });
+    add('leaves', { user_id: ayse.id, leave_date: workdayBack(2), note: 'Sağlık raporu', created_by: admin.id, created_at: now });
+    add('leaves', { user_id: mehmet.id, leave_date: workdayFwd(3), note: 'Mazeret izni', created_by: mehmet.id, created_at: now });
+    const onLeave = new Set(S.leaves.map((l) => l.user_id + '|' + l.leave_date));
+
+    // Geçmiş kayıtlar
     const r = rng(20261007);
     const today = dn(localToday());
     const hm = nowHm();
@@ -904,6 +945,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
       const p = sch.prep(p0);
       sch.occurrences(p, p._start, today).forEach((o) => {
         const isToday = o === today;
+        if (p0.user_id && onLeave.has(p0.user_id + '|' + ymd(o))) return;
         const due = p.due_time || '16:00';
         if (isToday && due > hm) return;
         const x = r();
@@ -952,6 +994,15 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
     });
     return m;
   }
+  function lmap(from, to) {
+    const m = {};
+    S.leaves.forEach((l) => { if (l.leave_date >= from && l.leave_date <= to) m[l.user_id + '|' + l.leave_date] = l; });
+    return m;
+  }
+  function occStatus(sc, p, occ, c, today, hm, lv) {
+    if (!c && p.user_id && lv[p.user_id + '|' + ymd(occ)]) return 'leave';
+    return sc.status(p, occ, c, today, hm);
+  }
   function itemOut(p, occ, c, status) {
     const o = ymd(occ);
     let late = false;
@@ -968,22 +1019,24 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
     let lb = 20;
     const pp = plans.map((p) => { const q = sc.prep(p); lb = Math.max(lb, sc.lookback(q)); return q; });
     const cm = cmap(ymd(day - lb), ymd(day));
+    const lv = lmap(ymd(day - lb), ymd(day));
     const items = [];
     pp.forEach((p) => {
       const occ = sc.latest(p, day);
       if (occ === null) return;
       const c = cm[p.id + '|' + ymd(occ)] || null;
       if (occ < day && c && c.created_at.slice(0, 10) < ymd(day)) return;
-      const st = sc.status(p, occ, c, today, hm);
-      if (st === 'missed' && occ < day) return;
+      const st = occStatus(sc, p, occ, c, today, hm, lv);
+      if ((st === 'missed' || st === 'leave') && occ < day) return;
       items.push(itemOut(p, occ, c, st));
     });
     return items;
   }
   function tally(items) {
-    const t = { total: 0, done: 0, issue: 0, pending: 0, overdue: 0, missed: 0, upcoming: 0 };
+    const t = { total: 0, done: 0, issue: 0, pending: 0, overdue: 0, missed: 0, upcoming: 0, leave: 0 };
     items.forEach((i) => { t.total++; t[i.status]++; });
-    t.rate = t.total ? Math.round(((t.done + t.issue) * 100) / t.total) : 0;
+    const base = t.total - t.leave;
+    t.rate = base > 0 ? Math.round(((t.done + t.issue) * 100) / base) : (t.total ? 100 : 0);
     return t;
   }
   function groupTally(items, key, empty) {
@@ -1021,15 +1074,66 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
   const validDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || '') && !isNaN(Date.parse(s));
   const fileToDataUrl = (f) => new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => res(null); r.readAsDataURL(f); });
 
+  function leaveOp(kind, b) {
+    const u = me();
+    const uid = u.role === 'admin' && +b.user_id ? +b.user_id : u.id;
+    if (!validDate(b.date)) err('Tarih gerekli.');
+    const today = dn(localToday());
+    if (u.role !== 'admin' && dn(b.date) < today) err('Geçmiş günler için izin yalnızca yönetici tarafından girilebilir.');
+    if (dn(b.date) > today + 365) err('En fazla bir yıl sonrası için izin girilebilir.');
+    if (kind === 'delete') { S.leaves = S.leaves.filter((l) => !(l.user_id === uid && l.leave_date === b.date)); save(); return null; }
+    const to = validDate(b.to) ? b.to : b.date;
+    if (to < b.date || dn(to) - dn(b.date) > 60) err('İzin aralığı en fazla 61 gün olabilir.');
+    let count = 0;
+    for (let d = dn(b.date); d <= dn(to); d++) {
+      if (S.leaves.some((l) => l.user_id === uid && l.leave_date === ymd(d))) continue;
+      S.leaves.push({ id: nid(), user_id: uid, leave_date: ymd(d), note: str(b.note), created_by: u.id, created_at: nowStr() });
+      count++;
+    }
+    save();
+    return { count };
+  }
+
   function me() { return byId('users', MODE === 'admin' ? 1 : 2); }
   function needAdmin() { if (me().role !== 'admin') err('Bu işlem için yönetici yetkisi gerekli.'); }
 
   /* ---------- işlemler ---------- */
   const A = {
-    async my_day() {
+    async my_day(b, q) {
       const u = me(), sc = sched(), [today] = todayCtx();
-      const items = dayItems(sc, plansQuery((p) => p.active && (p.user_id === u.id || p.user_id === null)), today);
-      return { date: ymd(today), workday: sc.isWorkday(today), items, tally: tally(items) };
+      let day = validDate(q.date) ? dn(q.date) : today;
+      day = Math.max(today - 60, Math.min(day, today));
+      const D = ymd(day);
+      const plans = day < today
+        ? plansQuery((p) => p.start_date <= D && (!p.end_date || p.end_date >= D) && (p.user_id === u.id || p.user_id === null))
+        : plansQuery((p) => p.active && (p.user_id === u.id || p.user_id === null));
+      const items = dayItems(sc, plans, day);
+      const lv = S.leaves.find((l) => l.user_id === u.id && l.leave_date === D);
+      return { date: D, today: ymd(today), workday: sc.isWorkday(day), on_leave: !!lv, leave_note: lv ? lv.note : null, items, tally: tally(items) };
+    },
+    async my_history() {
+      const u = me(), sc = sched(), [today, hm] = todayCtx();
+      const from = today - 13;
+      const cm = cmap(ymd(from), ymd(today)), lv = lmap(ymd(from), ymd(today));
+      const days = {};
+      for (let d = from; d <= today; d++) days[d] = { date: ymd(d), workday: sc.isWorkday(d), on_leave: !!lv[u.id + '|' + ymd(d)], items: [] };
+      plansQuery((p) => p.start_date <= ymd(today) && (!p.end_date || p.end_date >= ymd(from)) && (p.user_id === u.id || p.user_id === null)).forEach((p0) => {
+        const p = sc.prep(p0);
+        sc.occurrences(p, from, today).forEach((o) => {
+          days[o].items.push({ status: occStatus(sc, p, o, cm[p.id + '|' + ymd(o)] || null, today, hm, lv) });
+        });
+      });
+      return Object.values(days).map((d) => { const t = tally(d.items); delete d.items; return Object.assign(d, { tally: t }); });
+    },
+    async leave_set(b) { return leaveOp('set', b); },
+    async leave_delete(b) { return leaveOp('delete', b); },
+    async leaves(b, q) {
+      const u = me();
+      const uid = u.role === 'admin' ? +q.user_id || null : u.id;
+      const from = validDate(q.from) ? q.from : localToday();
+      return S.leaves.filter((l) => l.leave_date >= from && (!uid || l.user_id === uid))
+        .sort((a, c) => cmpTr(a.leave_date, c.leave_date))
+        .map((l) => ({ user_id: l.user_id, leave_date: l.leave_date, note: l.note, name: byId('users', l.user_id).name }));
     },
     async complete(b) {
       const u = me();
@@ -1071,18 +1175,20 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
       const day = Math.min(validDate(q.date) ? dn(q.date) : today, today);
       const items = dayItems(sc, plansQuery((p) => p.active), day);
       const missed = [];
-      const from = day - 7, cm = cmap(ymd(from), ymd(day));
+      const from = day - 7, cm = cmap(ymd(from), ymd(day)), lv = lmap(ymd(from), ymd(day));
       plansQuery((p) => p.start_date <= ymd(day)).forEach((p0) => {
         const p = sc.prep(p0);
         sc.occurrences(p, from, day - 1).forEach((o) => {
-          if (!cm[p.id + '|' + ymd(o)] && sc.status(p, o, null, today, hm) === 'missed') missed.push(itemOut(p, o, null, 'missed'));
+          if (!cm[p.id + '|' + ymd(o)] && occStatus(sc, p, o, null, today, hm, lv) === 'missed') missed.push(itemOut(p, o, null, 'missed'));
         });
       });
       missed.sort((a, b2) => cmpTr(b2.occ_date, a.occ_date));
       return { date: ymd(day), today: ymd(today), now: hm, workday: sc.isWorkday(day), items, tally: tally(items),
         by_location: groupTally(items, 'location', '-'), by_user: groupTally(items, 'user', 'Ortak (herkes)'),
         missed: missed.slice(0, 200), missed_count: missed.length,
-        staff_count: S.users.filter((u) => u.active && u.role === 'staff').length };
+        staff_count: S.users.filter((u) => u.active && u.role === 'staff').length,
+        on_leave: S.leaves.filter((l) => l.leave_date === ymd(day)).map((l) => byId('users', l.user_id)).filter((u) => u.active)
+          .map((u) => ({ id: u.id, name: u.name })) };
     },
     async report(b, q) {
       needAdmin();
@@ -1091,7 +1197,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
       let from = validDate(q.from) ? dn(q.from) : to - 6;
       if (from > to) [from, to] = [to, from];
       if (to - from > 92) err('Rapor aralığı en fazla 93 gün olabilir.');
-      const cm = cmap(ymd(from), ymd(to));
+      const cm = cmap(ymd(from), ymd(to)), lv = lmap(ymd(from), ymd(to));
       const items = [];
       plansQuery((p) => p.start_date <= ymd(to)).forEach((p0) => {
         if (q.user_id && p0.user_id !== +q.user_id) return;
@@ -1099,17 +1205,17 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
         const p = sc.prep(p0);
         sc.occurrences(p, from, to).forEach((o) => {
           const c = cm[p.id + '|' + ymd(o)] || null;
-          items.push(itemOut(p, o, c, sc.status(p, o, c, today, hm)));
+          items.push(itemOut(p, o, c, occStatus(sc, p, o, c, today, hm, lv)));
         });
       });
       items.sort((a, b2) => cmpTr(a.occ_date, b2.occ_date) || cmpTr(a.location, b2.location));
       const daily = {};
-      for (let d = from; d <= to; d++) daily[ymd(d)] = { date: ymd(d), total: 0, done: 0, issue: 0, missed: 0, open: 0 };
+      for (let d = from; d <= to; d++) daily[ymd(d)] = { date: ymd(d), total: 0, done: 0, issue: 0, missed: 0, leave: 0, open: 0 };
       let lateDone = 0;
       items.forEach((i) => {
         const r = daily[i.occ_date];
         r.total++;
-        if (['done', 'issue', 'missed'].includes(i.status)) r[i.status]++; else r.open++;
+        if (['done', 'issue', 'missed', 'leave'].includes(i.status)) r[i.status]++; else r.open++;
         if (i.completion && i.completion.late) lateDone++;
       });
       const problems = items.filter((i) => ['missed', 'issue', 'overdue'].includes(i.status)).sort((a, b2) => cmpTr(b2.occ_date, a.occ_date));
@@ -1249,7 +1355,8 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
     async users() {
       needAdmin();
       return S.users.filter((u) => u.active).sort((a, b) => cmpTr(a.role, b.role) || cmpTr(a.name, b.name))
-        .map((u) => Object.assign({}, u, { plan_count: S.plans.filter((p) => p.user_id === u.id && p.active).length }));
+        .map((u) => Object.assign({}, u, { plan_count: S.plans.filter((p) => p.user_id === u.id && p.active).length,
+          on_leave: S.leaves.some((l) => l.user_id === u.id && l.leave_date === localToday()) ? 1 : 0 }));
     },
     async user_save(b) {
       needAdmin();
@@ -1405,7 +1512,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
   App.greeting = () => { const h = new Date().getHours(); return h < 6 ? 'İyi geceler' : h < 12 ? 'Günaydın' : h < 18 ? 'İyi günler' : 'İyi akşamlar'; };
 
   App.STATUS = {
-    done: 'Yapıldı', issue: 'Sorun bildirildi', pending: 'Bekliyor', overdue: 'Gecikti', missed: 'Yapılmadı', upcoming: 'Planlandı',
+    done: 'Yapıldı', issue: 'Sorun bildirildi', pending: 'Bekliyor', overdue: 'Gecikti', missed: 'Yapılmadı', upcoming: 'Planlandı', leave: 'İzinli',
   };
   App.badge = (st, txt) => `<span class="badge ${st}">${App.h(txt || App.STATUS[st] || st)}</span>`;
 
@@ -1736,7 +1843,8 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
         ${carried ? `<span class="tag">${icon('calendar')}${h(App.fmtDate(it.occ_date, true))}</span>` : ''}
         ${it.user ? `<span class="tag">${icon('user')}${h(it.user)}</span>` : '<span class="tag">' + icon('users') + 'Ortak iş</span>'}</div>
       ${it.task_desc ? `<p class="muted">${h(it.task_desc)}</p>` : ''}
-      ${it.note ? `<div class="alert info">${h(it.note)}</div>` : ''}`;
+      ${it.note ? `<div class="alert info">${h(it.note)}</div>` : ''}
+      ${it.status === 'leave' ? `<div class="alert leave">${h(it.user || 'Sorumlu')} bu gün izinli; iş “yapılmadı” sayılmaz. Yine de yapıldıysa işaretleyebilirsiniz.</div>` : ''}`;
     if (c) {
       body += `<div class="glass card" style="padding:14px">
         <div style="display:flex;gap:10px;align-items:center">${App.avatar(c.by || '?')}<div><b>${h(c.by || '')}</b>
@@ -1946,7 +2054,7 @@ window.__runAdmin = function () {
       const chip = (k, l, n) => `<button class="chip ${filter === k ? 'active' : ''}" data-chip="${k}">${l}<span class="n">${n}</span></button>`;
       const t = data.tally;
       let html = `<div class="card-head"><h3>İş listesi</h3><input type="search" placeholder="Ara: iş, mekan, kişi" value="${h(q)}" data-q style="max-width:240px;min-height:38px"></div>
-        <div class="chips" style="margin-bottom:8px">${chip('all', 'Tümü', t.total)}${chip('overdue', 'Geciken', t.overdue)}${chip('pending', 'Bekleyen', t.pending)}${chip('closed', 'Tamamlanan', t.done + t.issue)}${chip('issue', 'Sorunlu', t.issue)}</div>`;
+        <div class="chips" style="margin-bottom:8px">${chip('all', 'Tümü', t.total)}${chip('overdue', 'Geciken', t.overdue)}${chip('pending', 'Bekleyen', t.pending)}${chip('closed', 'Tamamlanan', t.done + t.issue)}${chip('issue', 'Sorunlu', t.issue)}${t.leave ? chip('leave', 'İzinli', t.leave) : ''}</div>`;
       if (!data.items.length) {
         html += emptyBox(data.workday ? '🗂️' : '🌴', data.workday ? 'Bu gün için planlanmış iş yok' : 'Bu gün iş günü değil',
           data.workday ? 'İş paketlerinden atama yaparak başlayın.' : 'Çalışma günlerini Ayarlar’dan değiştirebilirsiniz.',
@@ -1982,9 +2090,9 @@ window.__runAdmin = function () {
       if (!list.length) return `<p class="muted small">${h(emptyText)}</p>`;
       return '<div class="bars">' + list.map((g) => {
         const w = (n) => (g.total ? (n * 100) / g.total : 0).toFixed(1);
-        return `<div class="bar-row" title="${g.done} yapıldı · ${g.issue} sorun · ${g.overdue} gecikmiş · ${g.pending} bekliyor">
+        return `<div class="bar-row" title="${g.done} yapıldı · ${g.issue} sorun · ${g.overdue} gecikmiş · ${g.pending} bekliyor${g.leave ? ' · ' + g.leave + ' izinli' : ''}">
           <div class="meta"><b>${h(g.name)}</b><span>${g.done + g.issue}/${g.total} · %${g.rate}</span></div>
-          <div class="track-h"><i class="ok" data-w="${w(g.done)}"></i><i class="issue" data-w="${w(g.issue)}"></i><i class="warn" data-w="${w(g.overdue)}"></i><i class="bad" data-w="${w(g.missed)}"></i></div></div>`;
+          <div class="track-h"><i class="ok" data-w="${w(g.done)}"></i><i class="issue" data-w="${w(g.issue)}"></i><i class="warn" data-w="${w(g.overdue)}"></i><i class="bad" data-w="${w(g.missed)}"></i><i class="leave" data-w="${w(g.leave)}"></i></div></div>`;
       }).join('') + '</div>';
     }
 
@@ -1997,7 +2105,8 @@ window.__runAdmin = function () {
           <div class="grid" style="gap:6px"><h3>Genel ilerleme</h3>
             <p class="muted small">${t.done + t.issue} / ${t.total} iş kapandı</p>
             <div class="legend"><span><i style="background:var(--ok)"></i>Yapıldı</span><span><i style="background:var(--issue)"></i>Sorun</span><span><i style="background:var(--warn)"></i>Gecikti</span></div>
-            <p class="muted small">${data.staff_count} aktif personel</p></div></div>
+            <p class="muted small">${data.staff_count} aktif personel</p>
+            ${data.on_leave.length ? `<div class="small"><span class="badge leave">İzinli</span> ${data.on_leave.map((u) => h(u.name)).join(', ')}</div>` : ''}</div></div>
         <div class="glass card"><div class="card-head"><h3>Mekanlara göre</h3></div>${bars(data.by_location, 'Veri yok')}</div>
         <div class="glass card"><div class="card-head"><h3>Personele göre</h3></div>${bars(data.by_user, 'Veri yok')}</div>
         <div class="glass card" data-missed><div class="card-head"><h3>Son 7 günde yapılmayanlar</h3><span class="badge missed">${data.missed_count}</span></div>
@@ -2353,13 +2462,15 @@ window.__runAdmin = function () {
     box.innerHTML = '<div class="pkg-grid stagger">' + users.map((u) => `<div class="glass pkg lift" data-tilt="5">
       <div class="head">${App.avatar(u.name, 46)}<div style="flex:1;min-width:0"><h3>${h(u.name)}</h3>
         <div class="muted small">@${h(u.username)} · ${u.role === 'admin' ? 'Yönetici' : 'Personel'}</div></div></div>
-      <div class="small muted" style="display:flex;gap:12px;flex-wrap:wrap">${u.phone ? `<span>${icon('phone')} ${h(u.phone)}</span>` : ''}<span>${icon('list')} ${u.plan_count} aktif iş</span></div>
+      <div class="small muted" style="display:flex;gap:12px;flex-wrap:wrap">${u.phone ? `<span>${icon('phone')} ${h(u.phone)}</span>` : ''}<span>${icon('list')} ${u.plan_count} aktif iş</span>${+u.on_leave ? '<span class="badge leave">Bugün izinli</span>' : ''}</div>
       <div class="foot">
         <a class="btn sm ghost" href="#/atamalar" data-plans="${u.id}">${icon('list')}<span>İşleri</span></a>
+        ${u.role !== 'admin' ? `<button class="btn sm ghost" data-leave="${u.id}">${icon('calendar')}<span>İzin</span></button>` : ''}
         <button class="btn sm ghost" data-edit="${u.id}">${icon('edit')}<span>Düzenle</span></button>
         ${u.id !== me.id ? `<button class="btn sm ghost danger" data-del="${u.id}">${icon('trash')}</button>` : ''}</div></div>`).join('') + '</div>';
     $$('[data-plans]', box).forEach((a) => (a.onclick = () => { sessionStorage.setItem('istakip.pu', a.dataset.plans); sessionStorage.removeItem('istakip.pl'); }));
     $$('[data-edit]', box).forEach((b) => (b.onclick = () => edit(users.find((u) => u.id == b.dataset.edit))));
+    $$('[data-leave]', box).forEach((b) => (b.onclick = () => leaveModal(users.find((u) => u.id == b.dataset.leave))));
     $$('[data-del]', box).forEach((b) => (b.onclick = async () => {
       const u = users.find((x) => x.id == b.dataset.del);
       if (u.plan_count) {
@@ -2379,6 +2490,40 @@ window.__runAdmin = function () {
       if (!(await App.confirm(u.name + ' silinecek. Geçmiş kayıtları raporlarda kalır.', { ok: 'Sil' }))) return;
       try { await api('user_delete', { id: u.id }); invalidate('users'); App.toast('Silindi'); route(); } catch (e) { App.err(e); }
     }));
+  }
+
+  function leaveModal(u) {
+    const t = App.today();
+    const m = App.modal({
+      title: u.name + ' — izin',
+      body: `<form class="form">
+        <div class="grid2"><label class="field"><span>Başlangıç</span><input type="date" name="date" value="${t}"></label>
+        <label class="field"><span>Bitiş</span><input type="date" name="to" value="${t}"></label></div>
+        <label class="field"><span>Açıklama (isteğe bağlı)</span><input name="note" placeholder="Örn. Yıllık izin, rapor"></label>
+        <p class="muted small">İzinli günlerde bu kişiye atanmış işler “yapılmadı” yerine <b>İzinli</b> sayılır. Geçmiş tarihler için de girilebilir.</p>
+        <div class="field"><span>Bugünden itibaren kayıtlı izinler</span><div data-list class="list"><div class="skeleton" style="height:40px"></div></div></div></form>`,
+      actions: [{ label: 'Kapat', cls: 'ghost' }, { label: 'İzni kaydet', cls: 'primary', icon: 'check', onClick: async (mm) => {
+        const f = $('form', mm.body);
+        if (f.to.value < f.date.value) throw new Error('Bitiş tarihi başlangıçtan önce olamaz.');
+        const r = await api('leave_set', { user_id: u.id, date: f.date.value, to: f.to.value, note: f.note.value });
+        App.toast(`${r.count} gün izin kaydedildi`);
+        route();
+      } }],
+    });
+    const f = $('form', m.body);
+    f.date.onchange = () => { if (f.to.value < f.date.value) f.to.value = f.date.value; };
+    const list = $('[data-list]', m.body);
+    const draw = async () => {
+      const rows = await api('leaves', null, { user_id: u.id });
+      list.innerHTML = rows.length ? rows.map((r) => `<div class="row"><span class="dot" style="background:var(--leave)"></span>
+        <div><div class="title">${h(App.fmtDate(r.leave_date, true))}</div>${r.note ? `<div class="sub"><span>${h(r.note)}</span></div>` : ''}</div>
+        <div class="actions"><button type="button" class="btn sm ghost danger" data-del="${r.leave_date}">Sil</button></div></div>`).join('')
+        : '<p class="muted small">Kayıtlı izin yok.</p>';
+      $$('[data-del]', list).forEach((b) => (b.onclick = async () => {
+        try { await api('leave_delete', { user_id: u.id, date: b.dataset.del }); App.toast('İzin silindi', 'info'); draw(); } catch (e) { App.err(e); }
+      }));
+    };
+    draw().catch(App.err);
   }
 
   /* =========================================================
@@ -2425,8 +2570,8 @@ window.__runAdmin = function () {
 
     function table(list, title, col) {
       return `<div class="glass card"><div class="card-head"><h3>${h(title)}</h3></div><div class="table-wrap"><table>
-        <thead><tr><th>${h(col)}</th><th>Toplam</th><th>Yapıldı</th><th>Sorun</th><th>Yapılmadı</th><th>Oran</th></tr></thead><tbody>
-        ${list.map((g) => `<tr><td><b>${h(g.name)}</b></td><td>${g.total}</td><td>${g.done}</td><td>${g.issue}</td><td>${g.missed ? `<b style="color:var(--bad)">${g.missed}</b>` : 0}</td>
+        <thead><tr><th>${h(col)}</th><th>Toplam</th><th>Yapıldı</th><th>Sorun</th><th>Yapılmadı</th><th>İzinli</th><th>Oran</th></tr></thead><tbody>
+        ${list.map((g) => `<tr><td><b>${h(g.name)}</b></td><td>${g.total}</td><td>${g.done}</td><td>${g.issue}</td><td>${g.missed ? `<b style="color:var(--bad)">${g.missed}</b>` : 0}</td><td>${g.leave || 0}</td>
           <td style="min-width:120px"><div class="track-h"><i class="ok" data-w="${g.rate}"></i></div><small class="muted">%${g.rate}</small></td></tr>`).join('')}
         </tbody></table></div></div>`;
     }
@@ -2442,10 +2587,10 @@ window.__runAdmin = function () {
           ${stat('Geç yapıldı', s.late_done, '#f59e0b', 'clock')}
           <div class="glass stat lift" style="--c:#06b6d4;place-items:center">${App.ring(s.rate, 92, undefined, 'başarı')}</div></div>
         <div class="glass card" style="margin-bottom:16px"><div class="card-head"><h3>Günlük dağılım</h3>
-          <div class="legend"><span><i style="background:var(--ok)"></i>Yapıldı</span><span><i style="background:var(--issue)"></i>Sorun</span><span><i style="background:var(--bad)"></i>Yapılmadı</span><span><i style="background:var(--line)"></i>Açık</span></div></div>
+          <div class="legend"><span><i style="background:var(--ok)"></i>Yapıldı</span><span><i style="background:var(--issue)"></i>Sorun</span><span><i style="background:var(--bad)"></i>Yapılmadı</span><span><i style="background:var(--leave)"></i>İzinli</span><span><i style="background:var(--line)"></i>Açık</span></div></div>
           <div class="colchart">${r.daily.map((d, i) => `<div class="col">
-            <span class="tip">${h(App.fmtDate(d.date))}: ${d.done} yapıldı, ${d.issue} sorun, ${d.missed} yapılmadı${d.open ? ', ' + d.open + ' açık' : ''}</span>
-            ${['done:ok', 'issue:issue', 'missed:bad', 'open:open'].map((k) => { const [f, c] = k.split(':'); return d[f] ? `<i class="${c}" style="height:${(d[f] * 100) / max}%;animation-delay:${i * 0.02}s"></i>` : ''; }).join('')}</div>`).join('')}</div>
+            <span class="tip">${h(App.fmtDate(d.date))}: ${d.done} yapıldı, ${d.issue} sorun, ${d.missed} yapılmadı${d.leave ? ', ' + d.leave + ' izinli' : ''}${d.open ? ', ' + d.open + ' açık' : ''}</span>
+            ${['done:ok', 'issue:issue', 'missed:bad', 'leave:leave', 'open:open'].map((k) => { const [f, c] = k.split(':'); return d[f] ? `<i class="${c}" style="height:${(d[f] * 100) / max}%;animation-delay:${i * 0.02}s"></i>` : ''; }).join('')}</div>`).join('')}</div>
           <div class="axis">${r.daily.map((d, i) => `<span>${r.daily.length <= 16 || i % Math.ceil(r.daily.length / 12) === 0 ? h(App.fmtShort(d.date)) : ''}</span>`).join('')}</div></div>
         <div class="grid cols-2" style="margin-bottom:16px">${table(r.by_user, 'Personele göre', 'Personel')}${table(r.by_location, 'Mekanlara göre', 'Mekan')}</div>
         <div class="grid cols-2">${table(r.by_task.slice(0, 15), 'En çok aksayan işler', 'İş')}
@@ -2514,11 +2659,14 @@ window.__runStaff = function () {
   document.body.classList.add('role-staff');
 
   let data = null;
+  let history = [];
+  let day = null; // null = bugün
   let filter = 'todo';
   let celebrated = false;
   try { filter = localStorage.getItem('istakip.filter') || 'todo'; } catch (e) { /* yoksay */ }
 
-  const ORDER = { overdue: 0, pending: 1, upcoming: 2, issue: 3, done: 4, missed: 5 };
+  const ORDER = { overdue: 0, pending: 1, upcoming: 2, issue: 3, done: 4, missed: 5, leave: 6 };
+  const isPast = () => data && data.date !== data.today;
 
   function shell() {
     root.innerHTML = `<div class="staff">
@@ -2529,6 +2677,7 @@ window.__runStaff = function () {
         <button class="btn icon" data-menu aria-label="Menü">${icon('user')}</button>
       </div>
       <section class="glass hero" data-tilt="4"><div class="hero-ring"></div><div class="hero-text"></div></section>
+      <div class="daystrip" role="tablist" aria-label="Son günler"></div>
       <div class="chips" role="tablist"></div>
       <div class="list-area"></div>
     </div>`;
@@ -2537,10 +2686,12 @@ window.__runStaff = function () {
       const m = App.modal({
         title: me.name,
         body: `<div class="grid"><p class="muted">Kullanıcı adı: <b>${h(me.username)}</b></p>
+          <button class="btn block" data-leave>${icon('calendar')}<span>İzin bildir / izinlerim</span></button>
           <button class="btn block" data-pw>${icon('key')}<span>Şifre değiştir</span></button>
           <button class="btn block danger" data-out>${icon('logout')}<span>Çıkış yap</span></button>
           <p class="muted small">İpucu: Tarayıcı menüsünden “Ana ekrana ekle” diyerek uygulama gibi kullanabilirsiniz.</p></div>`,
       });
+      $('[data-leave]', m.body).onclick = () => { m.close(); leaveModal(); };
       $('[data-pw]', m.body).onclick = () => { m.close(); App.changePassword(); };
       $('[data-out]', m.body).onclick = App.logout;
     };
@@ -2552,44 +2703,154 @@ window.__runStaff = function () {
 
   async function load() {
     try {
-      data = await App.api('my_day');
+      const [d, hist] = await Promise.all([App.api('my_day', null, { date: day }), App.api('my_history')]);
+      data = d; history = hist;
       render();
     } catch (e) { App.err(e); }
   }
 
+  function goDay(d) {
+    day = !d || d === (data && data.today) ? null : d;
+    celebrated = true; // geçmişe bakarken konfeti patlamasın
+    skeleton();
+    load().then(() => { if (!day) celebrated = data.tally.pending + data.tally.overdue === 0; });
+  }
+
+  /* ---------- izin ---------- */
+  async function setLeave(date, to, note) {
+    await App.api('leave_set', { date, to: to || date, note: note || '' });
+    App.toast(date === to || !to ? 'İzin kaydedildi' : 'İzin günleri kaydedildi');
+    load();
+  }
+  async function cancelLeave(date) {
+    await App.api('leave_delete', { date });
+    App.toast('İzin kaldırıldı', 'info');
+    load();
+  }
+
+  function quickLeave() {
+    App.modal({
+      title: 'Bugün izinliyim',
+      body: `<form class="form"><p class="muted">Bugünkü işleriniz yöneticinize <b>İzinli</b> olarak görünür ve “yapılmadı” sayılmaz.</p>
+        <label class="field"><span>Açıklama (isteğe bağlı)</span><input name="note" placeholder="Örn. Yıllık izin, rapor, mazeret"></label></form>`,
+      actions: [{ label: 'Vazgeç', cls: 'ghost' }, { label: 'İzinli olarak işaretle', cls: 'primary', icon: 'calendar', onClick: async (m) => {
+        await setLeave(data.today, data.today, $('input[name=note]', m.body).value);
+      } }],
+    });
+  }
+
+  async function leaveModal() {
+    const today = (data && data.today) || App.today();
+    const m = App.modal({
+      title: 'İzin bildir',
+      body: `<form class="form">
+        <div class="grid2"><label class="field"><span>Başlangıç</span><input type="date" name="date" min="${today}" value="${today}"></label>
+        <label class="field"><span>Bitiş</span><input type="date" name="to" min="${today}" value="${today}"></label></div>
+        <label class="field"><span>Açıklama (isteğe bağlı)</span><input name="note" placeholder="Örn. Yıllık izin"></label>
+        <div class="field"><span>Kayıtlı izinlerim</span><div data-list class="list"><div class="skeleton" style="height:40px"></div></div></div></form>`,
+      actions: [{ label: 'Kapat', cls: 'ghost' }, { label: 'İzni kaydet', cls: 'primary', icon: 'check', onClick: async (mm) => {
+        const f = $('form', mm.body);
+        if (f.to.value < f.date.value) throw new Error('Bitiş tarihi başlangıçtan önce olamaz.');
+        await setLeave(f.date.value, f.to.value, f.note.value);
+      } }],
+    });
+    const f = $('form', m.body);
+    f.date.onchange = () => { if (f.to.value < f.date.value) f.to.value = f.date.value; };
+    const list = $('[data-list]', m.body);
+    const draw = async () => {
+      try {
+        const rows = await App.api('leaves');
+        list.innerHTML = rows.length ? rows.map((r) => `<div class="row"><span class="dot" style="background:var(--leave)"></span>
+          <div><div class="title">${h(App.fmtDate(r.leave_date, true))}</div>${r.note ? `<div class="sub"><span>${h(r.note)}</span></div>` : ''}</div>
+          <div class="actions"><button type="button" class="btn sm ghost danger" data-del="${r.leave_date}">İptal</button></div></div>`).join('')
+          : '<p class="muted small">Bugünden sonra kayıtlı izniniz yok.</p>';
+        $$('[data-del]', list).forEach((b) => (b.onclick = async () => {
+          try { await cancelLeave(b.dataset.del); draw(); } catch (e) { App.err(e); }
+        }));
+      } catch (e) { list.innerHTML = ''; App.err(e); }
+    };
+    draw();
+  }
+
+  /* ---------- çizim ---------- */
   function counts() {
     const t = data.tally;
-    return { todo: t.pending + t.overdue, all: t.total, done: t.done + t.issue, overdue: t.overdue };
+    return { todo: t.pending + t.overdue, all: t.total, done: t.done + t.issue, open: t.pending + t.overdue + t.missed };
   }
 
   function renderHero() {
     const t = data.tally;
     const closed = t.done + t.issue;
-    const pct = t.total ? Math.round((closed * 100) / t.total) : 0;
-    $('.hero-ring', root).innerHTML = App.ring(pct, 104, undefined, 'tamam');
-    $('.hero-text', root).innerHTML = `<h1>${h(App.fmtDate(data.date))}</h1>
+    const past = isPast();
+    $('.hero-ring', root).innerHTML = App.ring(t.rate, 104, undefined, 'tamam');
+    let actions = '';
+    if (past) actions = `<button class="btn sm" data-back>${icon('chev')}<span>Bugüne dön</span></button>`;
+    if (data.on_leave && !past) actions += `<button class="btn sm ghost" data-unleave>İzni iptal et</button>`;
+    if (!data.on_leave && !past && data.workday) actions += `<button class="btn sm" data-leave>${icon('calendar')}<span>Bugün izinliyim</span></button>`;
+    $('.hero-text', root).innerHTML = `<h1>${past ? '' : 'Bugün · '}${h(App.fmtDate(data.date))}</h1>
       <p>${h(App.dayName(data.date))} · <b>${closed}</b> / ${t.total} iş tamamlandı</p>
-      <div class="mini">${t.overdue ? App.badge('overdue', t.overdue + ' gecikmiş') : ''}
+      <div class="mini">${data.on_leave ? App.badge('leave', 'İzinli' + (data.leave_note ? ' · ' + data.leave_note : '')) : ''}
+        ${t.overdue ? App.badge('overdue', t.overdue + ' gecikmiş') : ''}
         ${t.pending ? App.badge('pending', t.pending + ' bekliyor') : ''}
+        ${t.missed ? App.badge('missed', t.missed + ' yapılmadı') : ''}
         ${t.issue ? App.badge('issue', t.issue + ' sorun') : ''}
-        ${!t.overdue && !t.pending && t.total ? App.badge('done', 'Hepsi bitti') : ''}</div>`;
+        ${!data.on_leave && !t.overdue && !t.pending && !t.missed && t.total ? App.badge('done', 'Hepsi bitti') : ''}</div>
+      ${actions ? `<div class="hero-actions">${actions}</div>` : ''}`;
+    const back = $('[data-back]', root); if (back) { back.querySelector('svg').style.transform = 'rotate(180deg)'; back.onclick = () => goDay(null); }
+    const lv = $('[data-leave]', root); if (lv) lv.onclick = quickLeave;
+    const ul = $('[data-unleave]', root); if (ul) ul.onclick = async () => {
+      if (await App.confirm('Bugünkü izin kaydınız silinecek ve işleriniz yeniden “bekliyor” olarak görünecek.', { ok: 'İzni iptal et', danger: false, title: 'İzni iptal et' })) {
+        try { await cancelLeave(data.today); } catch (e) { App.err(e); }
+      }
+    };
     App.animateRings($('.hero', root));
+  }
+
+  function renderStrip() {
+    const strip = $('.daystrip', root);
+    strip.innerHTML = history.map((d) => {
+      const t = d.tally;
+      let cls = 'off', title = 'İş yok';
+      if (d.on_leave) { cls = 'leave'; title = 'İzinli'; } else if (!d.workday && !t.total) { cls = 'off'; title = 'İş günü değil'; } else if (t.total) {
+        const open = t.pending + t.overdue;
+        cls = t.missed ? 'bad' : open ? (d.date === data.today ? 'live' : 'warn') : 'ok';
+        title = `${t.done + t.issue}/${t.total} tamam${t.missed ? ', ' + t.missed + ' yapılmadı' : ''}`;
+      }
+      const isToday = d.date === data.today;
+      return `<button class="day ${cls} ${d.date === data.date ? 'active' : ''}" data-day="${d.date}" title="${h(title)}" role="tab" aria-selected="${d.date === data.date}">
+        <small>${isToday ? 'Bugün' : h(App.DAY_SHORT[((App.parseDate(d.date).getDay() + 6) % 7) + 1])}</small>
+        <b>${App.parseDate(d.date).getDate()}</b>
+        <i style="--p:${t.total - t.leave > 0 ? t.rate : 0}%"></i></button>`;
+    }).join('');
+    $$('[data-day]', strip).forEach((b) => (b.onclick = () => goDay(b.dataset.day)));
+    const act = $('.day.active', strip);
+    if (act) requestAnimationFrame(() => { strip.scrollLeft = act.offsetLeft - strip.clientWidth / 2 + act.clientWidth / 2; });
+  }
+
+  function chipDefs() {
+    return isPast() ? [['all', 'Tümü'], ['done', 'Tamamlanan'], ['open', 'Yapılmayan']] : [['todo', 'Yapılacak'], ['all', 'Tümü'], ['done', 'Tamamlanan']];
+  }
+  function activeFilter() {
+    const keys = chipDefs().map((c) => c[0]);
+    return keys.includes(filter) ? filter : keys[0];
   }
 
   function renderChips() {
     const c = counts();
-    const chip = (k, lbl) => `<button class="chip ${filter === k ? 'active' : ''}" data-f="${k}">${lbl}<span class="n">${c[k]}</span></button>`;
-    $('.chips', root).innerHTML = chip('todo', 'Yapılacak') + chip('all', 'Tümü') + chip('done', 'Tamamlanan');
+    const f = activeFilter();
+    $('.chips', root).innerHTML = chipDefs().map(([k, l]) => `<button class="chip ${f === k ? 'active' : ''}" data-f="${k}">${l}<span class="n">${c[k]}</span></button>`).join('');
     $$('.chip', root).forEach((b) => (b.onclick = () => {
       filter = b.dataset.f;
-      try { localStorage.setItem('istakip.filter', filter); } catch (e) { /* yoksay */ }
+      try { if (!isPast()) localStorage.setItem('istakip.filter', filter); } catch (e) { /* yoksay */ }
       renderChips(); renderList();
     }));
   }
 
   function visible(it) {
-    if (filter === 'todo') return it.status === 'pending' || it.status === 'overdue';
-    if (filter === 'done') return it.status === 'done' || it.status === 'issue';
+    const f = activeFilter();
+    if (f === 'todo') return it.status === 'pending' || it.status === 'overdue' || (data.on_leave && it.status === 'leave');
+    if (f === 'done') return it.status === 'done' || it.status === 'issue';
+    if (f === 'open') return ['pending', 'overdue', 'missed'].includes(it.status);
     return true;
   }
 
@@ -2599,14 +2860,16 @@ window.__runStaff = function () {
     let sub = '';
     if (it.due_time) sub += `<span>${icon('clock')} ${h(it.due_time)}</span>`;
     sub += `<span>${h(it.freq)}</span>`;
-    if (carried && !done) sub += `<span class="late">${App.relDay(it.occ_date) === 'Dün' ? 'Dünden kalan' : 'Kalan iş · ' + h(App.fmtDate(it.occ_date))}</span>`;
-    else if (it.status === 'overdue') sub += '<span class="late">Saati geçti</span>';
-    if (done && it.completion) sub += `<span>${h(it.completion.by || '')} · ${h(App.fmtTime(it.completion.at))}</span>`;
+    if (it.status === 'missed') sub += '<span class="miss">Yapılmadı</span>';
+    else if (it.status === 'leave') sub += '<span class="lv">İzinli</span>';
+    else if (carried && !done) sub += `<span class="late">${App.relDay(it.occ_date) === 'Dün' ? 'Dünden kalan' : 'Kalan iş · ' + h(App.fmtDate(it.occ_date))}</span>`;
+    else if (it.status === 'overdue') sub += `<span class="late">${isPast() ? 'Hâlâ yapılabilir' : 'Saati geçti'}</span>`;
+    if (done && it.completion) sub += `<span>${h(it.completion.by || '')} · ${h(App.fmtTime(it.completion.at))}${it.completion.late ? ' · geç' : ''}</span>`;
     if (!it.user_id) sub += '<span>Ortak</span>';
-    const tickCls = it.status === 'done' ? 'on' : it.status === 'issue' ? 'issue' : it.status === 'overdue' ? 'overdue' : '';
+    const tickCls = it.status === 'done' ? 'on' : it.status === 'issue' ? 'issue' : it.status === 'overdue' ? 'overdue' : it.status === 'missed' ? 'missed' : '';
     return `<div class="task glass is-${it.status}" data-key="${it.plan_id}|${it.occ_date}" style="${it.color ? '--c:' + h(it.color) : ''}">
       <span class="stripe"></span>
-      <button class="tick ${tickCls}" aria-label="${done ? 'Tamamlandı' : 'Tamamla'}"><svg viewBox="0 0 24 24">${it.status === 'issue' ? '<path d="M12 6v7M12 17.5v.5"/>' : '<path d="M5 12.5l4.5 4.5L19 7.5"/>'}</svg><span class="burst"></span></button>
+      <button class="tick ${tickCls}" aria-label="${done ? 'Tamamlandı' : 'Tamamla'}"><svg viewBox="0 0 24 24">${it.status === 'issue' ? '<path d="M12 6v7M12 17.5v.5"/>' : it.status === 'missed' ? '<path d="M7 7l10 10M17 7L7 17"/>' : '<path d="M5 12.5l4.5 4.5L19 7.5"/>'}</svg><span class="burst"></span></button>
       <div class="t-body"><div class="t-title">${h(it.task)}</div><div class="t-sub">${sub}</div></div>
       <span class="chev">${icon('chev')}</span></div>`;
   }
@@ -2614,22 +2877,26 @@ window.__runStaff = function () {
   function renderList() {
     const area = $('.list-area', root);
     const items = data.items.filter(visible);
+    const past = isPast();
+    const leaveNote = data.on_leave && data.items.length
+      ? `<div class="alert leave">${icon('calendar')}<span>${past ? 'Bu gün izinliydiniz' : 'Bugün izinli olarak işaretlisiniz'}. Yapılmayan işleriniz <b>yapılmadı</b> sayılmaz.</span></div>` : '';
     if (!data.items.length) {
-      area.innerHTML = `<div class="glass empty"><div class="big">${data.workday ? '☕' : '🌴'}</div>
-        <b>${data.workday ? 'Bugün size atanmış iş yok' : 'Bugün iş günü değil'}</b><span>İyi dinlenmeler!</span></div>`;
+      area.innerHTML = `<div class="glass empty"><div class="big">${data.on_leave ? '🏖️' : data.workday ? '☕' : '🌴'}</div>
+        <b>${data.on_leave ? 'İzinli' : data.workday ? (past ? 'Bu gün size atanmış iş yoktu' : 'Bugün size atanmış iş yok') : (past ? 'İş günü değildi' : 'Bugün iş günü değil')}</b>
+        <span>${past ? '' : 'İyi dinlenmeler!'}</span></div>`;
       return;
     }
     if (!items.length) {
-      const allDone = filter === 'todo';
-      area.innerHTML = `<div class="glass done-banner"><div class="big">${allDone ? '🎉' : '🗒️'}</div>
-        <b>${allDone ? 'Tebrikler! Bugünkü tüm işler tamam.' : 'Burada henüz bir şey yok.'}</b>
-        <span class="muted">${allDone ? 'Emeğiniz için teşekkürler.' : ''}</span></div>`;
+      const allDone = activeFilter() === 'todo' || (past && activeFilter() === 'open');
+      area.innerHTML = leaveNote + `<div class="glass done-banner"><div class="big">${allDone ? '🎉' : '🗒️'}</div>
+        <b>${allDone ? (past ? 'Bu günün tüm işleri tamamlanmış.' : 'Tebrikler! Bugünkü tüm işler tamam.') : 'Burada bir şey yok.'}</b>
+        <span class="muted">${allDone && !past ? 'Emeğiniz için teşekkürler.' : ''}</span></div>`;
       return;
     }
     const groups = new Map();
     items.sort((a, b) => (ORDER[a.status] - ORDER[b.status]) || String(a.due_time || '99').localeCompare(String(b.due_time || '99')) || a.task.localeCompare(b.task, 'tr'));
     items.forEach((it) => { if (!groups.has(it.location)) groups.set(it.location, []); groups.get(it.location).push(it); });
-    let html = '';
+    let html = leaveNote;
     let gi = 0;
     for (const [loc, list] of groups) {
       const all = data.items.filter((i) => i.location === loc);
@@ -2641,9 +2908,9 @@ window.__runStaff = function () {
   }
 
   function render() {
-    renderHero(); renderChips(); renderList();
+    renderHero(); renderStrip(); renderChips(); renderList();
     const t = data.tally;
-    if (t.total && t.pending + t.overdue === 0 && !celebrated) {
+    if (!isPast() && !data.on_leave && t.total && t.pending + t.overdue === 0 && !celebrated) {
       celebrated = true;
       setTimeout(() => App.confetti(innerWidth / 2, innerHeight / 3, 60), 300);
     }
@@ -2652,13 +2919,16 @@ window.__runStaff = function () {
   function findItem(key) { return data.items.find((i) => i.plan_id + '|' + i.occ_date === key); }
 
   function recalc() {
-    const t = { total: 0, done: 0, issue: 0, pending: 0, overdue: 0, missed: 0, upcoming: 0 };
+    const t = { total: 0, done: 0, issue: 0, pending: 0, overdue: 0, missed: 0, upcoming: 0, leave: 0 };
     data.items.forEach((i) => { t.total++; t[i.status]++; });
+    const base = t.total - t.leave;
+    t.rate = base > 0 ? Math.round(((t.done + t.issue) * 100) / base) : (t.total ? 100 : 0);
     data.tally = t;
   }
 
   async function quickToggle(card, it) {
     const tick = card.querySelector('.tick');
+    if (it.status === 'missed') { App.taskSheet(it, load); return; }
     if (it.completion) {
       if (!App.canUndo(it)) { App.taskSheet(it, load); return; }
       if (!(await App.confirm('Bu işin tamamlandı işaretini geri almak istiyor musunuz?', { ok: 'Geri al', title: it.task }))) return;
@@ -2677,7 +2947,8 @@ window.__runStaff = function () {
       Object.assign(it, res);
       recalc();
       renderHero(); renderChips();
-      setTimeout(() => { renderList(); if (data.tally.pending + data.tally.overdue === 0) render(); }, filter === 'todo' ? 550 : 0);
+      setTimeout(() => { renderList(); if (data.tally.pending + data.tally.overdue === 0) render(); }, activeFilter() === 'todo' ? 550 : 0);
+      App.api('my_history').then((hh) => { history = hh; renderStrip(); }).catch(() => {});
       App.toast('Tamamlandı: ' + it.task, '', {
         action: 'Geri al',
         onAction: async () => { try { await App.uncompleteItem(it); celebrated = false; load(); } catch (e) { App.err(e); } },

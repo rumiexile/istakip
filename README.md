@@ -18,7 +18,8 @@ siteyi açıp işleri işaretler. Yönetici de geciken ve yapılmayan işleri an
 | **İş Tanımları / Mekanlar / Personel** | Temel tanımlar. Personel silinirken üzerindeki işler başkasına devredilir. |
 | **Raporlar** | Tarih aralığı, personel ve mekan filtresi. Günlük grafik, en çok aksayan işler, Excel'de açılan CSV dışa aktarma. |
 | **Ayarlar** | Kurum adı, çalışma günleri, resmi tatiller. |
-| **Personel ekranı (mobil)** | Bugünün işleri mekana göre gruplu. Tek dokunuşla tamamlama ve geri alma, “Sorun var” bildirimi, not ve fotoğraf ekleme. |
+| **Personel ekranı (mobil)** | Bugünün işleri mekana göre gruplu. Tek dokunuşla tamamlama ve geri alma, “Sorun var” bildirimi, not ve fotoğraf ekleme. Son 14 günün şeridiyle geçmiş günlere bakma, “Bugün izinliyim” ve ileri tarihli izin bildirme. |
+| **İzinler** | İzinli günlerde kişiye atanmış işler “yapılmadı” yerine **İzinli** sayılır ve başarı oranını düşürmez. Personel bugün ve sonrası için izin bildirir; yönetici geçmiş tarihler dahil herkes için izin girebilir. |
 
 ### Sıklık seçenekleri
 

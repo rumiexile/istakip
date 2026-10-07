@@ -165,3 +165,15 @@ function e(?string $s): string
 {
     return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
+
+/** Eski kurulumlara yeni tabloları ekler (tablolar IF NOT EXISTS ile oluşturulur). */
+function migrate_schema(): void
+{
+    require_once __DIR__ . '/schema.php';
+    $s = settings_all();
+    if ((int)($s['schema_version'] ?? 1) >= SCHEMA_VERSION) {
+        return;
+    }
+    schema_install(db(), app_config()['db']['driver'] ?? 'mysql');
+    setting_set('schema_version', (string)SCHEMA_VERSION);
+}

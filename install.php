@@ -62,6 +62,7 @@ if (!$installed && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $ins->execute(['company_name', $company]);
         $ins->execute(['work_days', '1,2,3,4,5']);
         $ins->execute(['holidays', '']);
+        $ins->execute(['schema_version', (string)SCHEMA_VERSION]);
         if (!empty($_POST['seed'])) {
             schema_seed($pdo);
         }

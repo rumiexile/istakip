@@ -78,6 +78,15 @@ function schema_statements(string $driver): array
             created_at DATETIME NOT NULL,
             UNIQUE (plan_id, occ_date)
         )",
+        "CREATE TABLE IF NOT EXISTS leaves (
+            id $pk,
+            user_id INT NOT NULL,
+            leave_date DATE NOT NULL,
+            note VARCHAR(255) NULL,
+            created_by INT NULL,
+            created_at DATETIME NOT NULL,
+            UNIQUE (user_id, leave_date)
+        )",
         "CREATE TABLE IF NOT EXISTS settings (
             k VARCHAR(50) NOT NULL PRIMARY KEY,
             v TEXT NULL
@@ -87,8 +96,11 @@ function schema_statements(string $driver): array
     $out[] = 'CREATE INDEX idx_plans_active ON plans (active)';
     $out[] = 'CREATE INDEX idx_compl_date ON completions (occ_date)';
     $out[] = 'CREATE INDEX idx_pitems_pkg ON package_items (package_id)';
+    $out[] = 'CREATE INDEX idx_leaves_date ON leaves (leave_date)';
     return $out;
 }
+
+const SCHEMA_VERSION = 2;
 
 function schema_install(PDO $pdo, string $driver): void
 {

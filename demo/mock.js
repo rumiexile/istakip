@@ -3,7 +3,7 @@
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v1';
+  const KEY = 'istakip-demo-v2';
   const store = {
     get() {
       try { const v = localStorage.getItem(KEY); if (v) return JSON.parse(v); } catch (e) { /* yoksay */ }
@@ -150,7 +150,7 @@
 
   function seed() {
     const now = nowStr();
-    const S = { seq: 1, users: [], locations: [], tasks: [], packages: [], package_items: [], plans: [], completions: [], photos: {},
+    const S = { seq: 1, users: [], locations: [], tasks: [], packages: [], package_items: [], plans: [], completions: [], leaves: [], photos: {},
       settings: { company_name: 'Merkez Bina Destek Hizmetleri', work_days: '1,2,3,4,5', holidays: '' } };
     const id = () => S.seq++;
     const add = (tbl, row) => { row.id = id(); S[tbl].push(row); return row; };
@@ -216,8 +216,16 @@
     apply('Destek Hizmetleri', 'Asansör', ahmet, ['Asansör temizliği']);
     S.plans.find((p) => p.task_id === T['Kapıların açılması'].id).note = 'Anahtarlar güvenlik kulübesinde.';
 
-    // Geçmiş kayıtlar
+    // Örnek izinler
     const sch = new Sched([1, 2, 3, 4, 5], []);
+    const workdayBack = (n) => { let d = dn(localToday()); while (n > 0) { d--; if (sch.isWorkday(d)) n--; } return ymd(d); };
+    const workdayFwd = (n) => { let d = dn(localToday()); while (n > 0) { d++; if (sch.isWorkday(d)) n--; } return ymd(d); };
+    add('leaves', { user_id: ahmet.id, leave_date: workdayBack(4), note: 'Yıllık izin', created_by: ahmet.id, created_at: now });
+    add('leaves', { user_id: ayse.id, leave_date: workdayBack(2), note: 'Sağlık raporu', created_by: admin.id, created_at: now });
+    add('leaves', { user_id: mehmet.id, leave_date: workdayFwd(3), note: 'Mazeret izni', created_by: mehmet.id, created_at: now });
+    const onLeave = new Set(S.leaves.map((l) => l.user_id + '|' + l.leave_date));
+
+    // Geçmiş kayıtlar
     const r = rng(20261007);
     const today = dn(localToday());
     const hm = nowHm();
@@ -227,6 +235,7 @@
       const p = sch.prep(p0);
       sch.occurrences(p, p._start, today).forEach((o) => {
         const isToday = o === today;
+        if (p0.user_id && onLeave.has(p0.user_id + '|' + ymd(o))) return;
         const due = p.due_time || '16:00';
         if (isToday && due > hm) return;
         const x = r();
@@ -275,6 +284,15 @@
     });
     return m;
   }
+  function lmap(from, to) {
+    const m = {};
+    S.leaves.forEach((l) => { if (l.leave_date >= from && l.leave_date <= to) m[l.user_id + '|' + l.leave_date] = l; });
+    return m;
+  }
+  function occStatus(sc, p, occ, c, today, hm, lv) {
+    if (!c && p.user_id && lv[p.user_id + '|' + ymd(occ)]) return 'leave';
+    return sc.status(p, occ, c, today, hm);
+  }
   function itemOut(p, occ, c, status) {
     const o = ymd(occ);
     let late = false;
@@ -291,22 +309,24 @@
     let lb = 20;
     const pp = plans.map((p) => { const q = sc.prep(p); lb = Math.max(lb, sc.lookback(q)); return q; });
     const cm = cmap(ymd(day - lb), ymd(day));
+    const lv = lmap(ymd(day - lb), ymd(day));
     const items = [];
     pp.forEach((p) => {
       const occ = sc.latest(p, day);
       if (occ === null) return;
       const c = cm[p.id + '|' + ymd(occ)] || null;
       if (occ < day && c && c.created_at.slice(0, 10) < ymd(day)) return;
-      const st = sc.status(p, occ, c, today, hm);
-      if (st === 'missed' && occ < day) return;
+      const st = occStatus(sc, p, occ, c, today, hm, lv);
+      if ((st === 'missed' || st === 'leave') && occ < day) return;
       items.push(itemOut(p, occ, c, st));
     });
     return items;
   }
   function tally(items) {
-    const t = { total: 0, done: 0, issue: 0, pending: 0, overdue: 0, missed: 0, upcoming: 0 };
+    const t = { total: 0, done: 0, issue: 0, pending: 0, overdue: 0, missed: 0, upcoming: 0, leave: 0 };
     items.forEach((i) => { t.total++; t[i.status]++; });
-    t.rate = t.total ? Math.round(((t.done + t.issue) * 100) / t.total) : 0;
+    const base = t.total - t.leave;
+    t.rate = base > 0 ? Math.round(((t.done + t.issue) * 100) / base) : (t.total ? 100 : 0);
     return t;
   }
   function groupTally(items, key, empty) {
@@ -344,15 +364,66 @@
   const validDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || '') && !isNaN(Date.parse(s));
   const fileToDataUrl = (f) => new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => res(null); r.readAsDataURL(f); });
 
+  function leaveOp(kind, b) {
+    const u = me();
+    const uid = u.role === 'admin' && +b.user_id ? +b.user_id : u.id;
+    if (!validDate(b.date)) err('Tarih gerekli.');
+    const today = dn(localToday());
+    if (u.role !== 'admin' && dn(b.date) < today) err('Geçmiş günler için izin yalnızca yönetici tarafından girilebilir.');
+    if (dn(b.date) > today + 365) err('En fazla bir yıl sonrası için izin girilebilir.');
+    if (kind === 'delete') { S.leaves = S.leaves.filter((l) => !(l.user_id === uid && l.leave_date === b.date)); save(); return null; }
+    const to = validDate(b.to) ? b.to : b.date;
+    if (to < b.date || dn(to) - dn(b.date) > 60) err('İzin aralığı en fazla 61 gün olabilir.');
+    let count = 0;
+    for (let d = dn(b.date); d <= dn(to); d++) {
+      if (S.leaves.some((l) => l.user_id === uid && l.leave_date === ymd(d))) continue;
+      S.leaves.push({ id: nid(), user_id: uid, leave_date: ymd(d), note: str(b.note), created_by: u.id, created_at: nowStr() });
+      count++;
+    }
+    save();
+    return { count };
+  }
+
   function me() { return byId('users', MODE === 'admin' ? 1 : 2); }
   function needAdmin() { if (me().role !== 'admin') err('Bu işlem için yönetici yetkisi gerekli.'); }
 
   /* ---------- işlemler ---------- */
   const A = {
-    async my_day() {
+    async my_day(b, q) {
       const u = me(), sc = sched(), [today] = todayCtx();
-      const items = dayItems(sc, plansQuery((p) => p.active && (p.user_id === u.id || p.user_id === null)), today);
-      return { date: ymd(today), workday: sc.isWorkday(today), items, tally: tally(items) };
+      let day = validDate(q.date) ? dn(q.date) : today;
+      day = Math.max(today - 60, Math.min(day, today));
+      const D = ymd(day);
+      const plans = day < today
+        ? plansQuery((p) => p.start_date <= D && (!p.end_date || p.end_date >= D) && (p.user_id === u.id || p.user_id === null))
+        : plansQuery((p) => p.active && (p.user_id === u.id || p.user_id === null));
+      const items = dayItems(sc, plans, day);
+      const lv = S.leaves.find((l) => l.user_id === u.id && l.leave_date === D);
+      return { date: D, today: ymd(today), workday: sc.isWorkday(day), on_leave: !!lv, leave_note: lv ? lv.note : null, items, tally: tally(items) };
+    },
+    async my_history() {
+      const u = me(), sc = sched(), [today, hm] = todayCtx();
+      const from = today - 13;
+      const cm = cmap(ymd(from), ymd(today)), lv = lmap(ymd(from), ymd(today));
+      const days = {};
+      for (let d = from; d <= today; d++) days[d] = { date: ymd(d), workday: sc.isWorkday(d), on_leave: !!lv[u.id + '|' + ymd(d)], items: [] };
+      plansQuery((p) => p.start_date <= ymd(today) && (!p.end_date || p.end_date >= ymd(from)) && (p.user_id === u.id || p.user_id === null)).forEach((p0) => {
+        const p = sc.prep(p0);
+        sc.occurrences(p, from, today).forEach((o) => {
+          days[o].items.push({ status: occStatus(sc, p, o, cm[p.id + '|' + ymd(o)] || null, today, hm, lv) });
+        });
+      });
+      return Object.values(days).map((d) => { const t = tally(d.items); delete d.items; return Object.assign(d, { tally: t }); });
+    },
+    async leave_set(b) { return leaveOp('set', b); },
+    async leave_delete(b) { return leaveOp('delete', b); },
+    async leaves(b, q) {
+      const u = me();
+      const uid = u.role === 'admin' ? +q.user_id || null : u.id;
+      const from = validDate(q.from) ? q.from : localToday();
+      return S.leaves.filter((l) => l.leave_date >= from && (!uid || l.user_id === uid))
+        .sort((a, c) => cmpTr(a.leave_date, c.leave_date))
+        .map((l) => ({ user_id: l.user_id, leave_date: l.leave_date, note: l.note, name: byId('users', l.user_id).name }));
     },
     async complete(b) {
       const u = me();
@@ -394,18 +465,20 @@
       const day = Math.min(validDate(q.date) ? dn(q.date) : today, today);
       const items = dayItems(sc, plansQuery((p) => p.active), day);
       const missed = [];
-      const from = day - 7, cm = cmap(ymd(from), ymd(day));
+      const from = day - 7, cm = cmap(ymd(from), ymd(day)), lv = lmap(ymd(from), ymd(day));
       plansQuery((p) => p.start_date <= ymd(day)).forEach((p0) => {
         const p = sc.prep(p0);
         sc.occurrences(p, from, day - 1).forEach((o) => {
-          if (!cm[p.id + '|' + ymd(o)] && sc.status(p, o, null, today, hm) === 'missed') missed.push(itemOut(p, o, null, 'missed'));
+          if (!cm[p.id + '|' + ymd(o)] && occStatus(sc, p, o, null, today, hm, lv) === 'missed') missed.push(itemOut(p, o, null, 'missed'));
         });
       });
       missed.sort((a, b2) => cmpTr(b2.occ_date, a.occ_date));
       return { date: ymd(day), today: ymd(today), now: hm, workday: sc.isWorkday(day), items, tally: tally(items),
         by_location: groupTally(items, 'location', '-'), by_user: groupTally(items, 'user', 'Ortak (herkes)'),
         missed: missed.slice(0, 200), missed_count: missed.length,
-        staff_count: S.users.filter((u) => u.active && u.role === 'staff').length };
+        staff_count: S.users.filter((u) => u.active && u.role === 'staff').length,
+        on_leave: S.leaves.filter((l) => l.leave_date === ymd(day)).map((l) => byId('users', l.user_id)).filter((u) => u.active)
+          .map((u) => ({ id: u.id, name: u.name })) };
     },
     async report(b, q) {
       needAdmin();
@@ -414,7 +487,7 @@
       let from = validDate(q.from) ? dn(q.from) : to - 6;
       if (from > to) [from, to] = [to, from];
       if (to - from > 92) err('Rapor aralığı en fazla 93 gün olabilir.');
-      const cm = cmap(ymd(from), ymd(to));
+      const cm = cmap(ymd(from), ymd(to)), lv = lmap(ymd(from), ymd(to));
       const items = [];
       plansQuery((p) => p.start_date <= ymd(to)).forEach((p0) => {
         if (q.user_id && p0.user_id !== +q.user_id) return;
@@ -422,17 +495,17 @@
         const p = sc.prep(p0);
         sc.occurrences(p, from, to).forEach((o) => {
           const c = cm[p.id + '|' + ymd(o)] || null;
-          items.push(itemOut(p, o, c, sc.status(p, o, c, today, hm)));
+          items.push(itemOut(p, o, c, occStatus(sc, p, o, c, today, hm, lv)));
         });
       });
       items.sort((a, b2) => cmpTr(a.occ_date, b2.occ_date) || cmpTr(a.location, b2.location));
       const daily = {};
-      for (let d = from; d <= to; d++) daily[ymd(d)] = { date: ymd(d), total: 0, done: 0, issue: 0, missed: 0, open: 0 };
+      for (let d = from; d <= to; d++) daily[ymd(d)] = { date: ymd(d), total: 0, done: 0, issue: 0, missed: 0, leave: 0, open: 0 };
       let lateDone = 0;
       items.forEach((i) => {
         const r = daily[i.occ_date];
         r.total++;
-        if (['done', 'issue', 'missed'].includes(i.status)) r[i.status]++; else r.open++;
+        if (['done', 'issue', 'missed', 'leave'].includes(i.status)) r[i.status]++; else r.open++;
         if (i.completion && i.completion.late) lateDone++;
       });
       const problems = items.filter((i) => ['missed', 'issue', 'overdue'].includes(i.status)).sort((a, b2) => cmpTr(b2.occ_date, a.occ_date));
@@ -572,7 +645,8 @@
     async users() {
       needAdmin();
       return S.users.filter((u) => u.active).sort((a, b) => cmpTr(a.role, b.role) || cmpTr(a.name, b.name))
-        .map((u) => Object.assign({}, u, { plan_count: S.plans.filter((p) => p.user_id === u.id && p.active).length }));
+        .map((u) => Object.assign({}, u, { plan_count: S.plans.filter((p) => p.user_id === u.id && p.active).length,
+          on_leave: S.leaves.some((l) => l.user_id === u.id && l.leave_date === localToday()) ? 1 : 0 }));
     },
     async user_save(b) {
       needAdmin();
