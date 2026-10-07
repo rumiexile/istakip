@@ -344,6 +344,9 @@
     });
   };
 
+  App.photoUrl = (c) => 'photo.php?id=' + c.id;
+  App.download = (url) => { location.href = url; };
+
   App.logout = async () => {
     try { await App.api('logout', {}); } catch (e) { /* yoksay */ }
     location.href = 'index.php';
@@ -423,7 +426,7 @@
         <div style="display:flex;gap:10px;align-items:center">${App.avatar(c.by || '?')}<div><b>${h(c.by || '')}</b>
         <div class="muted small">${h(App.relDay(c.at))} ${h(App.fmtTime(c.at))}${c.late ? ' · <span style="color:var(--warn);font-weight:700">geç yapıldı</span>' : ''}</div></div></div>
         ${c.note ? `<p style="margin-top:10px">${h(c.note)}</p>` : ''}
-        ${c.photo ? `<img class="photo-thumb" src="photo.php?id=${c.id}" alt="Fotoğraf" loading="lazy">` : ''}</div>`;
+        ${c.photo ? `<img class="photo-thumb" src="${App.h(App.photoUrl(c))}" alt="Fotoğraf" loading="lazy">` : ''}</div>`;
     } else if (canMark) {
       body += `<label class="field"><span>Not (isteğe bağlı, sorun bildirirken zorunlu)</span><textarea name="note" placeholder="Örn. sabun bitti, depodan istendi"></textarea></label>
         <label class="photo-drop">${icon('camera')}<span>Fotoğraf ekle (isteğe bağlı)</span><input type="file" accept="image/*" capture="environment" hidden></label>

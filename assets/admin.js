@@ -623,7 +623,7 @@
     $('[data-loc]', v).onchange = (e) => { fLoc = e.target.value; load(); };
     $('[data-user]', v).onchange = (e) => { fUser = e.target.value; load(); };
     $('[data-csv]', v).onclick = () => {
-      location.href = `api.php?a=report_csv&from=${from}&to=${to}&user_id=${fUser}&location_id=${fLoc}`;
+      App.download(`api.php?a=report_csv&from=${from}&to=${to}&user_id=${fUser}&location_id=${fLoc}`);
     };
 
     function table(list, title, col) {

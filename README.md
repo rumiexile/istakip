@@ -84,3 +84,9 @@ config.php         Kurulumda oluşturulur (git'e eklenmez)
 php -S 127.0.0.1:8000
 # http://127.0.0.1:8000/install.php → "SQLite" seçeneğiyle kurun
 ```
+
+## Etkileşimli demo
+
+`demo/` klasörü, sunucu gerektirmeden tarayıcıda çalışan bir demo içerir: `demo/mock.js` sunucudaki `api.php`'nin
+JavaScript karşılığıdır ve örnek verilerle çalışır. `python3 demo/build.py` komutu, gerçek arayüz dosyalarıyla bu
+katmanı birleştirip `demo/istakip-demo.html` dosyasını üretir. Canlı sunucuya yüklerken `demo/` klasörünü atlayabilirsiniz.

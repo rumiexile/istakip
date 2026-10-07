@@ -1,0 +1,2730 @@
+<title>İş Takip Demo</title>
+<meta name="description" content="Destek personeli günlük iş takip uygulamasının etkileşimli demosu">
+<style>
+/* =========================================================
+   İş Takip — liquid glass arayüz
+   ========================================================= */
+
+:root {
+  --bg: #eef0fb;
+  --blob1: #a5b4fc;
+  --blob2: #f9a8d4;
+  --blob3: #67e8f9;
+  --blob4: #fcd34d;
+  --text: #0f172a;
+  --text-2: #334155;
+  --muted: #64748b;
+  --glass: rgba(255, 255, 255, .46);
+  --glass-strong: rgba(255, 255, 255, .72);
+  --glass-soft: rgba(255, 255, 255, .28);
+  --glass-border: rgba(255, 255, 255, .75);
+  --glass-edge: rgba(255, 255, 255, .95);
+  --glow: rgba(255, 255, 255, .65);
+  --line: rgba(15, 23, 42, .08);
+  --shadow: 0 1px 1px rgba(15, 23, 42, .04), 0 12px 32px -12px rgba(30, 41, 99, .28);
+  --shadow-lift: 0 2px 4px rgba(15, 23, 42, .05), 0 24px 48px -16px rgba(30, 41, 99, .38);
+  --accent: #6366f1;
+  --accent-2: #06b6d4;
+  --accent-ink: #fff;
+  --ok: #10b981;
+  --issue: #8b5cf6;
+  --pending: #64748b;
+  --warn: #f59e0b;
+  --bad: #ef4444;
+  --info: #3b82f6;
+  --radius: 22px;
+  --radius-sm: 14px;
+  --spring: cubic-bezier(.34, 1.56, .64, 1);
+  --ease: cubic-bezier(.22, 1, .36, 1);
+  --font: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #070b18;
+    --blob1: #4f46e5;
+    --blob2: #be185d;
+    --blob3: #0e7490;
+    --blob4: #a16207;
+    --text: #e8ecf8;
+    --text-2: #cbd5e1;
+    --muted: #94a3b8;
+    --glass: rgba(255, 255, 255, .07);
+    --glass-strong: rgba(22, 28, 52, .82);
+    --glass-soft: rgba(255, 255, 255, .04);
+    --glass-border: rgba(255, 255, 255, .13);
+    --glass-edge: rgba(255, 255, 255, .35);
+    --glow: rgba(255, 255, 255, .14);
+    --line: rgba(255, 255, 255, .08);
+    --shadow: 0 1px 1px rgba(0, 0, 0, .2), 0 16px 40px -14px rgba(0, 0, 0, .7);
+    --shadow-lift: 0 2px 6px rgba(0, 0, 0, .3), 0 28px 56px -16px rgba(0, 0, 0, .8);
+    --accent: #818cf8;
+    --accent-ink: #0b1020;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+    --bg: #070b18;
+    --blob1: #4f46e5;
+    --blob2: #be185d;
+    --blob3: #0e7490;
+    --blob4: #a16207;
+    --text: #e8ecf8;
+    --text-2: #cbd5e1;
+    --muted: #94a3b8;
+    --glass: rgba(255, 255, 255, .07);
+    --glass-strong: rgba(22, 28, 52, .82);
+    --glass-soft: rgba(255, 255, 255, .04);
+    --glass-border: rgba(255, 255, 255, .13);
+    --glass-edge: rgba(255, 255, 255, .35);
+    --glow: rgba(255, 255, 255, .14);
+    --line: rgba(255, 255, 255, .08);
+    --shadow: 0 1px 1px rgba(0, 0, 0, .2), 0 16px 40px -14px rgba(0, 0, 0, .7);
+    --shadow-lift: 0 2px 6px rgba(0, 0, 0, .3), 0 28px 56px -16px rgba(0, 0, 0, .8);
+    --accent: #818cf8;
+    --accent-ink: #0b1020;
+    color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
+}
+h1, h2, h3, h4 { margin: 0; line-height: 1.2; letter-spacing: -.02em; }
+p { margin: 0; }
+a { color: var(--accent); text-decoration: none; }
+code { font-size: .9em; padding: .1em .4em; border-radius: 6px; background: var(--glass-soft); border: 1px solid var(--line); }
+button, input, select, textarea { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.nowrap { white-space: nowrap; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* ---------- hareketli arka plan ---------- */
+.bg-scene { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.bg-scene::after {
+  content: ""; position: absolute; inset: 0;
+  background-image: radial-gradient(rgba(255,255,255,.08) 1px, transparent 1px);
+  background-size: 3px 3px; mix-blend-mode: overlay; opacity: .6;
+}
+.bg-scene i {
+  position: absolute; width: 52vmax; height: 52vmax; border-radius: 50%;
+  filter: blur(70px); opacity: .55; will-change: transform;
+  animation: drift 26s var(--ease) infinite alternate;
+}
+.bg-scene i:nth-child(1) { background: var(--blob1); top: -18vmax; left: -12vmax; }
+.bg-scene i:nth-child(2) { background: var(--blob2); bottom: -22vmax; right: -14vmax; animation-duration: 32s; animation-delay: -6s; }
+.bg-scene i:nth-child(3) { background: var(--blob3); top: 30%; left: 45%; width: 36vmax; height: 36vmax; animation-duration: 22s; animation-delay: -12s; }
+.bg-scene i:nth-child(4) { background: var(--blob4); bottom: 8%; left: -10vmax; width: 28vmax; height: 28vmax; opacity: .35; animation-duration: 36s; }
+@keyframes drift {
+  0% { transform: translate3d(0, 0, 0) scale(1) rotate(0); }
+  50% { transform: translate3d(8vmax, 6vmax, 0) scale(1.12) rotate(40deg); }
+  100% { transform: translate3d(-6vmax, 10vmax, 0) scale(.92) rotate(-20deg); }
+}
+
+/* ---------- cam yüzey ---------- */
+.glass {
+  position: relative;
+  isolation: isolate;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow), inset 0 1px 0 var(--glass-edge), inset 0 -10px 30px -20px rgba(255,255,255,.35);
+}
+/* imleci takip eden ışık */
+.glass::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(520px circle at var(--mx, 50%) var(--my, -30%), var(--glow), transparent 42%);
+  opacity: 0; transition: opacity .4s var(--ease);
+}
+.glass:hover::before { opacity: 1; }
+/* kenar ışığı (sıvı cam kırılması) */
+.glass::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+  background: linear-gradient(140deg, var(--glass-edge), transparent 32%, transparent 64%, rgba(255,255,255,.45));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+.glass.strong { background: var(--glass-strong); }
+.lift { transition: transform .45s var(--spring), box-shadow .35s var(--ease); }
+.lift:hover { transform: translateY(-3px); box-shadow: var(--shadow-lift), inset 0 1px 0 var(--glass-edge); }
+[data-tilt] { transform-style: preserve-3d; transition: transform .5s var(--spring); }
+
+/* ---------- butonlar ---------- */
+.btn {
+  --b: var(--glass);
+  position: relative; overflow: hidden; isolation: isolate;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 42px; padding: 0 18px; border-radius: 999px;
+  border: 1px solid var(--glass-border); background: var(--b);
+  -webkit-backdrop-filter: blur(16px) saturate(170%); backdrop-filter: blur(16px) saturate(170%);
+  font-weight: 600; font-size: 14px; cursor: pointer; user-select: none; white-space: nowrap;
+  box-shadow: 0 1px 0 var(--glass-edge) inset, 0 6px 18px -10px rgba(30,41,99,.4);
+  transition: transform .35s var(--spring), box-shadow .3s var(--ease), background .3s, filter .2s;
+}
+.btn::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(120px circle at var(--mx, 50%) var(--my, 50%), rgba(255,255,255,.55), transparent 60%);
+  opacity: 0; transition: opacity .3s;
+}
+.btn:hover::before { opacity: 1; }
+.btn:hover { transform: translateY(-1px) scale(1.02); box-shadow: 0 1px 0 var(--glass-edge) inset, 0 12px 26px -12px rgba(30,41,99,.5); }
+.btn:active { transform: scale(.96); transition-duration: .1s; }
+.btn:disabled { opacity: .55; pointer-events: none; }
+.btn.primary {
+  color: #fff; border-color: rgba(255,255,255,.35);
+  background: linear-gradient(135deg, #6366f1, #8b5cf6 55%, #06b6d4);
+  background-size: 180% 180%; background-position: 0% 50%;
+  box-shadow: 0 1px 0 rgba(255,255,255,.5) inset, 0 10px 24px -10px rgba(99,102,241,.8);
+}
+.btn.primary:hover { background-position: 100% 50%; box-shadow: 0 1px 0 rgba(255,255,255,.5) inset, 0 16px 32px -12px rgba(99,102,241,.9); }
+.btn.success { color: #fff; background: linear-gradient(135deg, #10b981, #06b6d4); border-color: rgba(255,255,255,.35); }
+.btn.warn { color: #fff; background: linear-gradient(135deg, #f59e0b, #f97316); border-color: rgba(255,255,255,.35); }
+.btn.danger { color: var(--bad); }
+.btn.danger:hover { color: #fff; background: var(--bad); }
+.btn.ghost { background: transparent; border-color: transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.btn.ghost:hover { background: var(--glass); border-color: var(--glass-border); }
+.btn.sm { min-height: 34px; padding: 0 12px; font-size: 13px; }
+.btn.icon { width: 42px; padding: 0; }
+.btn.icon.sm { width: 34px; }
+.btn.block { width: 100%; }
+.btn svg, .ico { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ripple {
+  position: absolute; border-radius: 50%; pointer-events: none; z-index: -1;
+  background: rgba(255,255,255,.55); transform: scale(0); animation: ripple .65s var(--ease) forwards;
+}
+@keyframes ripple { to { transform: scale(1); opacity: 0; } }
+.btn.loading { color: transparent !important; }
+.btn.loading::after {
+  content: ""; position: absolute; width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.5); border-top-color: #fff; animation: spin .7s linear infinite;
+}
+.btn:not(.primary):not(.success):not(.warn).loading::after { border-color: var(--line); border-top-color: var(--accent); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- form ---------- */
+.form { display: grid; gap: 14px; }
+fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 12px; }
+legend { font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 8px; }
+.field { display: grid; gap: 6px; }
+.field > span { font-size: 13px; font-weight: 600; color: var(--text-2); }
+.field small { color: var(--muted); font-size: 12px; }
+input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=file]), select, textarea {
+  width: 100%; min-height: 44px; padding: 10px 14px; border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border); background: var(--glass-strong);
+  box-shadow: inset 0 1px 2px rgba(15,23,42,.06);
+  outline: none; transition: border-color .2s, box-shadow .25s var(--ease), transform .25s var(--spring);
+}
+textarea { min-height: 88px; resize: vertical; }
+select { appearance: none; -webkit-appearance: none; padding-right: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; background-size: 18px; }
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent), inset 0 1px 2px rgba(15,23,42,.06);
+}
+input[type=color] { width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
+input[type=color]::-webkit-color-swatch { border: 2px solid var(--glass-border); border-radius: 50%; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.span2 { grid-column: span 2; }
+@media (max-width: 560px) { .grid2, .grid3 { grid-template-columns: 1fr; } .span2 { grid-column: auto; } }
+
+.check { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; user-select: none; }
+.check input { position: absolute; opacity: 0; pointer-events: none; }
+.check > span {
+  width: 22px; height: 22px; border-radius: 7px; flex: none; position: relative;
+  border: 1.5px solid var(--glass-border); background: var(--glass-strong); transition: all .3s var(--spring);
+}
+.check > span::after {
+  content: ""; position: absolute; left: 7px; top: 3px; width: 5px; height: 10px;
+  border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg) scale(0); transition: transform .3s var(--spring);
+}
+.check input:checked + span { background: var(--accent); border-color: var(--accent); }
+.check input:checked + span::after { transform: rotate(45deg) scale(1); }
+
+/* segment & çipler */
+.seg { display: inline-flex; padding: 4px; gap: 4px; border-radius: 999px; background: var(--glass-soft); border: 1px solid var(--glass-border); flex-wrap: wrap; }
+.seg label { position: relative; cursor: pointer; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg span { display: block; padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--muted); transition: all .35s var(--spring); }
+.seg label:hover span { color: var(--text); }
+.seg input:checked + span { background: var(--glass-strong); color: var(--text); box-shadow: 0 4px 14px -6px rgba(30,41,99,.4), inset 0 1px 0 var(--glass-edge); }
+.days { display: flex; gap: 6px; flex-wrap: wrap; }
+.days label { position: relative; cursor: pointer; }
+.days input { position: absolute; opacity: 0; pointer-events: none; }
+.days span {
+  display: grid; place-items: center; width: 44px; height: 38px; border-radius: 12px; font-size: 13px; font-weight: 600;
+  border: 1px solid var(--glass-border); background: var(--glass-soft); transition: all .3s var(--spring);
+}
+.days label:hover span { transform: translateY(-2px); }
+.days input:checked + span { background: var(--accent); color: #fff; border-color: transparent; box-shadow: 0 8px 18px -8px var(--accent); }
+
+.chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 6px; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px;
+  border: 1px solid var(--glass-border); background: var(--glass); cursor: pointer; font-weight: 600; font-size: 13px; color: var(--text-2);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  transition: all .35s var(--spring);
+}
+.chip:hover { transform: translateY(-2px); }
+.chip.active { background: var(--text); color: var(--bg); border-color: transparent; }
+.chip .n { font-size: 11px; padding: 1px 7px; border-radius: 99px; background: var(--glass-soft); }
+.chip.active .n { background: rgba(255,255,255,.2); }
+
+.alert { padding: 12px 14px; border-radius: var(--radius-sm); font-size: 14px; border: 1px solid; animation: pop .4s var(--spring); }
+.alert.bad { color: #b91c1c; background: rgba(239,68,68,.1); border-color: rgba(239,68,68,.3); }
+.alert.info { color: var(--text-2); background: rgba(59,130,246,.08); border-color: rgba(59,130,246,.25); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .alert.bad { color: #fca5a5; } }
+:root[data-theme="dark"] .alert.bad { color: #fca5a5; }
+
+/* ---------- giriş & kurulum ---------- */
+.auth-wrap { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; perspective: 1200px; }
+.auth-card { width: min(420px, 100%); padding: 32px 26px; display: grid; gap: 16px; text-align: left; animation: rise .8s var(--spring) both; }
+.auth-card h1 { font-size: 26px; }
+.install-card { width: min(640px, 100%); }
+.brand-mark {
+  width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center; flex: none;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6 55%, #06b6d4);
+  box-shadow: 0 10px 24px -8px rgba(99,102,241,.8), inset 0 1px 0 rgba(255,255,255,.5);
+}
+.brand-mark svg { width: 60%; height: 60%; fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 30; stroke-dashoffset: 30; animation: draw 1s .3s var(--ease) forwards; }
+.brand-mark.big { width: 60px; height: 60px; border-radius: 19px; animation: float 6s ease-in-out infinite; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes float { 50% { transform: translateY(-6px) rotate(-3deg); } }
+@keyframes rise { from { opacity: 0; transform: translateY(30px) scale(.96); } }
+@keyframes pop { from { opacity: 0; transform: scale(.92); } }
+.shake { animation: shake .5s var(--ease); }
+@keyframes shake { 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
+
+/* ---------- yönetici iskeleti ---------- */
+.shell { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; min-height: 100dvh; }
+.side {
+  position: sticky; top: 0; height: 100vh; height: 100dvh; padding: 16px; display: flex; flex-direction: column; gap: 16px;
+}
+.side .glass.nav-card { flex: 1; display: flex; flex-direction: column; padding: 14px; gap: 4px; border-radius: 26px; }
+.brand { display: flex; align-items: center; gap: 12px; padding: 6px 6px 16px; }
+.brand b { display: block; font-size: 15px; letter-spacing: -.01em; }
+.brand small { color: var(--muted); font-size: 12px; }
+.nav { display: grid; gap: 2px; position: relative; }
+.nav a {
+  position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 14px;
+  color: var(--text-2); font-weight: 600; font-size: 14px; transition: color .25s, transform .35s var(--spring);
+}
+.nav a:hover { color: var(--text); transform: translateX(3px); }
+.nav a.active { color: var(--text); }
+.nav a .ico { opacity: .8; }
+.nav a .count { margin-left: auto; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 99px; background: var(--bad); color: #fff; animation: pop .4s var(--spring); }
+.nav .pill {
+  position: absolute; left: 0; right: 0; z-index: 0; border-radius: 14px; height: 44px;
+  background: var(--glass-strong); border: 1px solid var(--glass-border);
+  box-shadow: 0 6px 16px -8px rgba(30,41,99,.35), inset 0 1px 0 var(--glass-edge);
+  transition: transform .55s var(--spring), height .3s;
+}
+.side-foot { margin-top: auto; display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.me { display: flex; align-items: center; gap: 10px; padding: 6px; }
+.avatar {
+  width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; flex: none;
+  font-weight: 700; font-size: 13px; color: #fff; background: linear-gradient(135deg, var(--c1, #6366f1), var(--c2, #ec4899));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.4);
+}
+.me b { display: block; font-size: 14px; } .me small { color: var(--muted); font-size: 12px; }
+.main { padding: 22px 26px 60px; min-width: 0; }
+.topbar { display: none; }
+.tabbar { display: none; }
+
+@media (max-width: 900px) {
+  .shell { grid-template-columns: 1fr; }
+  .side { display: none; }
+  .main { padding: 12px 14px 110px; }
+  .topbar {
+    display: flex; align-items: center; gap: 10px; position: sticky; top: 8px; z-index: 30;
+    padding: 10px 12px; margin-bottom: 14px; border-radius: 20px;
+  }
+  .topbar b { font-size: 15px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tabbar {
+    display: flex; position: fixed; z-index: 40; left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom));
+    padding: 6px; border-radius: 24px; gap: 2px; overflow-x: auto; scrollbar-width: none;
+  }
+  .tabbar::-webkit-scrollbar { display: none; }
+  .tabbar a {
+    flex: 1 0 auto; min-width: 64px; display: grid; justify-items: center; gap: 2px; padding: 7px 6px; border-radius: 18px;
+    font-size: 10.5px; font-weight: 600; color: var(--muted); transition: all .35s var(--spring); position: relative;
+  }
+  .tabbar a.active { color: var(--text); background: var(--glass-strong); box-shadow: inset 0 1px 0 var(--glass-edge), 0 6px 14px -8px rgba(30,41,99,.4); }
+  .tabbar a:active { transform: scale(.92); }
+  .tabbar a .count { position: absolute; top: 2px; right: 14px; min-width: 16px; height: 16px; font-size: 10px; line-height: 16px; border-radius: 9px; background: var(--bad); color: #fff; text-align: center; padding: 0 4px; }
+}
+
+/* ---------- sayfa ---------- */
+.view { animation: viewIn .55s var(--ease) both; }
+@keyframes viewIn { from { opacity: 0; transform: translateY(14px); filter: blur(6px); } }
+.page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+.page-head h2 { font-size: 28px; }
+.page-head p { color: var(--muted); margin-top: 4px; }
+.toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.toolbar input, .toolbar select { min-height: 40px; width: auto !important; }
+.toolbar input[type=search] { min-width: 160px; }
+.card { padding: 18px; }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.card-head h3 { font-size: 16px; }
+.grid { display: grid; gap: 16px; }
+.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.dash-grid { display: grid; gap: 16px; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); align-items: start; }
+@media (max-width: 1100px) { .dash-grid, .cols-2, .cols-3 { grid-template-columns: minmax(0, 1fr); } }
+.stagger > * { animation: rise .7s var(--spring) both; }
+.stagger > *:nth-child(2) { animation-delay: .05s; } .stagger > *:nth-child(3) { animation-delay: .1s; }
+.stagger > *:nth-child(4) { animation-delay: .15s; } .stagger > *:nth-child(5) { animation-delay: .2s; }
+.stagger > *:nth-child(6) { animation-delay: .25s; } .stagger > *:nth-child(n+7) { animation-delay: .3s; }
+
+/* istatistik kartları */
+.stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+@media (max-width: 1300px) { .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } }
+.stat { padding: 16px; display: grid; gap: 10px; cursor: default; overflow: hidden; }
+.stat .top { display: flex; align-items: center; justify-content: space-between; }
+.stat .icon { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; color: #fff; background: var(--c); box-shadow: 0 8px 16px -8px var(--c); transition: transform .5s var(--spring); }
+.stat:hover .icon { transform: rotate(-10deg) scale(1.12); }
+.stat .icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.stat .num { font-size: 30px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.stat .lbl { font-size: 13px; color: var(--muted); font-weight: 600; }
+.stat::marker { display: none; }
+.stat .spark { position: absolute; right: -20px; bottom: -30px; width: 110px; height: 110px; border-radius: 50%; background: var(--c); opacity: .12; filter: blur(10px); transition: transform .6s var(--spring); }
+.stat:hover .spark { transform: scale(1.5); }
+.stat.clickable { cursor: pointer; }
+
+/* ilerleme halkası */
+.ring { position: relative; display: grid; place-items: center; flex: none; }
+.ring svg { transform: rotate(-90deg); overflow: visible; }
+.ring circle { fill: none; stroke-linecap: round; }
+.ring .track { stroke: var(--line); }
+.ring .bar { stroke: url(#ringGrad); transition: stroke-dashoffset 1.2s var(--ease); filter: drop-shadow(0 4px 8px rgba(99,102,241,.45)); }
+.ring .label { position: absolute; text-align: center; line-height: 1.1; }
+.ring .label b { display: block; font-size: 26px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.ring .label small { font-size: 11px; color: var(--muted); font-weight: 600; }
+
+/* yatay çubuklar */
+.bars { display: grid; gap: 12px; }
+.bar-row { display: grid; gap: 6px; padding: 6px 8px; margin: -6px -8px; border-radius: 12px; transition: background .25s; cursor: default; }
+.bar-row:hover { background: var(--glass-soft); }
+.bar-row .meta { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.bar-row .meta b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-row .meta span { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.track-h { height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; display: flex; }
+.track-h i { display: block; height: 100%; width: 0; transition: width 1.1s var(--ease); }
+.track-h i.ok { background: linear-gradient(90deg, #10b981, #34d399); }
+.track-h i.issue { background: var(--issue); }
+.track-h i.warn { background: var(--warn); }
+.track-h i.bad { background: var(--bad); }
+
+/* sütun grafik */
+.colchart { display: flex; align-items: flex-end; gap: 4px; height: 160px; padding-top: 10px; }
+.colchart .col { flex: 1; display: flex; flex-direction: column-reverse; gap: 2px; height: 100%; position: relative; cursor: default; min-width: 4px; }
+.colchart .col i { display: block; border-radius: 4px; transform-origin: bottom; animation: grow .9s var(--spring) both; }
+.colchart .col i.ok { background: linear-gradient(180deg, #34d399, #10b981); }
+.colchart .col i.issue { background: var(--issue); }
+.colchart .col i.bad { background: linear-gradient(180deg, #f87171, #ef4444); }
+.colchart .col i.open { background: var(--line); }
+.colchart .col:hover i { filter: brightness(1.12) saturate(1.2); }
+.colchart .col .tip {
+  position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%) translateY(4px); opacity: 0; pointer-events: none;
+  padding: 6px 10px; border-radius: 10px; font-size: 12px; white-space: nowrap; background: var(--text); color: var(--bg); transition: all .25s var(--spring); z-index: 2;
+}
+.colchart .col:hover .tip { opacity: 1; transform: translateX(-50%) translateY(0); }
+.axis { display: flex; gap: 4px; font-size: 10.5px; color: var(--muted); margin-top: 6px; }
+.axis span { flex: 1; text-align: center; overflow: hidden; }
+@keyframes grow { from { transform: scaleY(0); } }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+
+/* rozetler */
+.badge {
+  --c: var(--pending);
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 700; white-space: nowrap;
+  color: var(--c); background: color-mix(in srgb, var(--c) 13%, transparent); border: 1px solid color-mix(in srgb, var(--c) 28%, transparent);
+}
+.badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--c); }
+.badge.done { --c: var(--ok); } .badge.issue { --c: var(--issue); } .badge.pending { --c: var(--pending); }
+.badge.overdue { --c: var(--warn); } .badge.missed { --c: var(--bad); } .badge.upcoming { --c: var(--info); }
+.badge.overdue::before, .badge.missed::before { animation: blink 1.6s infinite; }
+.badge.plain::before { display: none; }
+@keyframes blink { 50% { opacity: .25; } }
+.tag { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+.tag .ico { width: 14px; height: 14px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+
+/* listeler */
+.list { display: grid; }
+.row {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 12px 10px; margin: 0 -10px;
+  border-radius: 14px; transition: background .25s, transform .35s var(--spring);
+}
+.row + .row { border-top: 1px solid var(--line); }
+.row:hover { background: var(--glass-soft); transform: translateX(3px); }
+.row .title { font-weight: 600; font-size: 14px; }
+.row .sub { color: var(--muted); font-size: 12.5px; display: flex; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
+.row .actions { display: flex; gap: 4px; opacity: .55; transition: opacity .2s; }
+.row:hover .actions { opacity: 1; }
+@media (hover: none) { .row .actions { opacity: 1; } }
+
+.table-wrap { overflow-x: auto; margin: 0 -18px; padding: 0 18px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 700; padding: 10px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 11px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tbody tr { transition: background .2s; }
+tbody tr:hover { background: var(--glass-soft); }
+tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; color: var(--text-2); }
+
+.empty { text-align: center; padding: 40px 16px; color: var(--muted); display: grid; gap: 10px; justify-items: center; }
+.empty .big { font-size: 46px; animation: float 5s ease-in-out infinite; }
+.empty b { color: var(--text); font-size: 16px; }
+
+.skeleton { position: relative; overflow: hidden; background: var(--glass-soft); border-radius: 14px; min-height: 18px; }
+.skeleton::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent); animation: shimmer 1.3s infinite; }
+@keyframes shimmer { to { transform: translateX(100%); } }
+
+/* paket kartları */
+.pkg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
+.pkg { padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.pkg .head { display: flex; gap: 12px; align-items: center; }
+.pkg .swatch { width: 42px; height: 42px; border-radius: 14px; background: var(--c); display: grid; place-items: center; color: #fff; box-shadow: 0 10px 22px -10px var(--c), inset 0 1px 0 rgba(255,255,255,.5); transition: transform .5s var(--spring); }
+.pkg:hover .swatch { transform: rotate(-8deg) scale(1.08); }
+.pkg h3 { font-size: 16px; }
+.pkg ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 230px; overflow: auto; }
+.pkg li { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; padding: 6px 10px; border-radius: 10px; background: var(--glass-soft); }
+.pkg li span:last-child { color: var(--muted); white-space: nowrap; font-size: 12px; }
+.pkg .foot { display: flex; gap: 4px; justify-content: flex-end; align-items: center; margin-top: auto; padding-top: 4px; }
+
+.items-editor { display: grid; gap: 10px; }
+.item-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 12px; border-radius: 16px; background: var(--glass-soft); border: 1px solid var(--glass-border); animation: pop .35s var(--spring); }
+.item-row .freq-fields { grid-column: 1 / -1; }
+
+/* sıklık editörü */
+.freq { display: grid; gap: 10px; }
+.freq .inline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 14px; }
+.freq .inline input { width: 80px; min-height: 38px; }
+.freq .inline input[type=time] { width: 120px; }
+
+/* ---------- modal ---------- */
+.modal-back {
+  position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 16px;
+  background: rgba(15, 23, 42, .28); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  animation: fadeIn .3s var(--ease);
+}
+.modal {
+  width: min(620px, 100%); max-height: calc(100dvh - 32px); display: flex; flex-direction: column;
+  background: var(--glass-strong); border-radius: 28px; animation: modalIn .5s var(--spring);
+}
+.modal.wide { width: min(860px, 100%); }
+.modal header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 20px 22px 6px; }
+.modal header h3 { font-size: 19px; }
+.modal .body { padding: 14px 22px; overflow: auto; }
+.modal footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 22px 20px; flex-wrap: wrap; }
+.modal-back.closing { animation: fadeOut .25s var(--ease) forwards; }
+.modal-back.closing .modal { animation: modalOut .25s var(--ease) forwards; }
+@keyframes fadeIn { from { opacity: 0; } }
+@keyframes fadeOut { to { opacity: 0; } }
+@keyframes modalIn { from { opacity: 0; transform: translateY(24px) scale(.94); } }
+@keyframes modalOut { to { opacity: 0; transform: translateY(12px) scale(.97); } }
+@media (max-width: 640px) {
+  .modal-back { place-items: end stretch; padding: 0; }
+  .modal, .modal.wide { width: 100%; max-height: 92dvh; border-radius: 28px 28px 0 0; padding-bottom: env(safe-area-inset-bottom); }
+  .modal::before { opacity: 1; }
+  .modal header::before { content: ""; position: absolute; top: 8px; left: 50%; width: 40px; height: 5px; margin-left: -20px; border-radius: 9px; background: var(--line); }
+  @keyframes modalIn { from { transform: translateY(100%); } }
+  @keyframes modalOut { to { transform: translateY(100%); } }
+}
+
+/* ---------- bildirim ---------- */
+.toasts { position: fixed; z-index: 200; top: 16px; left: 50%; transform: translateX(-50%); display: grid; gap: 8px; width: min(420px, calc(100% - 24px)); pointer-events: none; }
+.toast {
+  pointer-events: auto; display: flex; align-items: center; gap: 12px; padding: 12px 14px 12px 16px; border-radius: 18px;
+  background: var(--glass-strong); font-size: 14px; font-weight: 500; animation: toastIn .55s var(--spring);
+}
+.toast .tdot { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; flex: none; color: #fff; background: var(--ok); }
+.toast.bad .tdot { background: var(--bad); }
+.toast.info .tdot { background: var(--accent); }
+.toast .tdot svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.toast span { flex: 1; }
+.toast.out { animation: toastOut .35s var(--ease) forwards; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(-20px) scale(.9); } }
+@keyframes toastOut { to { opacity: 0; transform: translateY(-14px) scale(.95); } }
+@media (max-width: 900px) { .role-staff .toasts, .role-admin .toasts { top: auto; bottom: calc(96px + env(safe-area-inset-bottom)); } }
+
+/* konfeti */
+.confetti { position: fixed; z-index: 300; pointer-events: none; width: 8px; height: 12px; border-radius: 2px; top: 0; left: 0; will-change: transform, opacity; }
+
+/* =========================================================
+   Personel (mobil) ekranı
+   ========================================================= */
+.staff { max-width: 680px; margin: 0 auto; padding: 12px 14px calc(40px + env(safe-area-inset-bottom)); }
+.s-top { display: flex; align-items: center; gap: 10px; padding: 6px 2px 12px; }
+.s-top .who { flex: 1; min-width: 0; }
+.s-top .who small { color: var(--muted); font-size: 12px; display: block; }
+.s-top .who b { font-size: 15px; }
+.hero { padding: 20px; display: flex; gap: 18px; align-items: center; margin-bottom: 14px; overflow: hidden; }
+.hero h1 { font-size: 23px; }
+.hero p { color: var(--muted); font-size: 14px; margin-top: 4px; }
+.hero .mini { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.hero .mini .badge { font-size: 11.5px; }
+.loc-group { margin: 18px 0 8px; }
+.loc-head { display: flex; align-items: center; gap: 8px; padding: 0 4px 8px; position: sticky; top: 0; z-index: 5; }
+.loc-head h3 { font-size: 14px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-2); }
+.loc-head .cnt { margin-left: auto; font-size: 12px; color: var(--muted); font-weight: 600; }
+.loc-head .ico { color: var(--accent); }
+.tasks { display: grid; gap: 10px; }
+
+.task {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; padding: 14px 14px 14px 12px;
+  cursor: pointer; user-select: none; border-radius: 20px;
+  transition: transform .45s var(--spring), box-shadow .35s var(--ease), opacity .4s, background .4s;
+}
+.task:hover { transform: translateY(-2px) scale(1.01); box-shadow: var(--shadow-lift), inset 0 1px 0 var(--glass-edge); }
+.task:active { transform: scale(.98); }
+.task .t-title { font-weight: 650; font-size: 15px; line-height: 1.3; }
+.task .t-sub { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; font-size: 12px; color: var(--muted); }
+.task .t-sub .late { color: var(--warn); font-weight: 700; }
+.task .t-sub .miss { color: var(--bad); font-weight: 700; }
+.task .stripe { position: absolute; left: 0; top: 14px; bottom: 14px; width: 4px; border-radius: 0 4px 4px 0; background: var(--c, transparent); }
+.task.is-done, .task.is-issue { opacity: .72; }
+.task.is-done .t-title { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--ok) 70%, transparent); text-decoration-thickness: 2px; }
+.task.is-overdue { background: color-mix(in srgb, var(--warn) 10%, var(--glass)); }
+.task.just-done { animation: doneBounce .6s var(--spring); }
+@keyframes doneBounce { 30% { transform: scale(.96); } 60% { transform: scale(1.03); } }
+.task .chev { color: var(--muted); transition: transform .35s var(--spring); }
+.task:hover .chev { transform: translateX(3px); }
+
+.tick {
+  --c: var(--accent);
+  position: relative; width: 44px; height: 44px; border-radius: 50%; flex: none; cursor: pointer; padding: 0;
+  border: 2px solid color-mix(in srgb, var(--c) 45%, transparent); background: var(--glass-strong);
+  display: grid; place-items: center; transition: transform .4s var(--spring), background .35s, border-color .35s, box-shadow .35s;
+}
+.tick:hover { transform: scale(1.1); box-shadow: 0 0 0 6px color-mix(in srgb, var(--c) 15%, transparent); }
+.tick:active { transform: scale(.88); }
+.tick svg { width: 22px; height: 22px; fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 24; stroke-dashoffset: 24; transition: stroke-dashoffset .45s .1s var(--ease); }
+.tick.on { background: var(--ok); border-color: var(--ok); box-shadow: 0 8px 18px -6px var(--ok); }
+.tick.on svg { stroke-dashoffset: 0; }
+.tick.issue { background: var(--issue); border-color: var(--issue); box-shadow: 0 8px 18px -6px var(--issue); }
+.tick.issue svg { stroke-dashoffset: 0; }
+.tick.overdue { --c: var(--warn); }
+.tick .burst { position: absolute; inset: -6px; border-radius: 50%; border: 2px solid var(--ok); opacity: 0; }
+.tick.on .burst { animation: burst .6s var(--ease); }
+@keyframes burst { from { opacity: 1; transform: scale(.7); } to { opacity: 0; transform: scale(1.6); } }
+
+.sheet-task { display: grid; gap: 14px; }
+.sheet-task .meta { display: flex; gap: 8px; flex-wrap: wrap; }
+.photo-drop {
+  display: grid; place-items: center; gap: 6px; padding: 18px; border-radius: 18px; cursor: pointer; text-align: center;
+  border: 1.5px dashed color-mix(in srgb, var(--accent) 45%, transparent); background: var(--glass-soft); color: var(--muted); font-size: 13px;
+  transition: all .3s var(--spring);
+}
+.photo-drop:hover { transform: scale(1.01); border-color: var(--accent); color: var(--text); }
+.photo-drop img { max-width: 100%; max-height: 220px; border-radius: 12px; }
+.photo-thumb { display: block; max-width: 100%; border-radius: 14px; margin-top: 6px; }
+.big-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.big-actions .btn { min-height: 52px; font-size: 15px; border-radius: 18px; }
+
+.done-banner { text-align: center; padding: 26px 18px; display: grid; gap: 8px; justify-items: center; margin-top: 14px; }
+.done-banner .big { font-size: 48px; animation: float 4s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+
+
+.demo-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 10px 16px 0; padding: 8px 10px 8px 14px; border-radius: 20px; font-size: 13px; position: relative; z-index: 50; }
+.demo-bar .tag-demo { font-weight: 800; letter-spacing: .08em; text-transform: uppercase; font-size: 11px; color: var(--accent); }
+.demo-bar .desc { color: var(--muted); flex: 1; min-width: 180px; }
+.demo-bar .seg span { padding: 6px 12px; }
+.role-admin .side { height: auto; max-height: 100dvh; }
+.role-admin .side .glass.nav-card { flex: none; }
+.role-admin .side-foot { margin-top: 24px; }
+@media (max-width: 900px) { .demo-bar .desc, .demo-bar .lg { display: none; } .demo-bar { margin: 8px 10px 0; flex-wrap: nowrap; justify-content: space-between; } }
+
+</style>
+<div class="bg-scene" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+<div class="demo-bar glass" role="region" aria-label="Demo görünümü">
+  <span class="tag-demo">Demo</span>
+  <span class="desc">Örnek verilerle çalışır; yaptığınız değişiklikler yalnızca bu tarayıcıda saklanır.</span>
+  <div class="seg" role="radiogroup" aria-label="Görünüm">
+    <label><input type="radio" name="demo-mode" id="demo-admin" value="admin"><span>Yönetici<span class="lg"> paneli</span></span></label>
+    <label><input type="radio" name="demo-mode" id="demo-staff" value="staff"><span>Personel<span class="lg"> telefonu</span></span></label>
+  </div>
+  <button class="btn sm ghost" id="demo-reset" type="button" title="Örnek verileri baştan yükle">Sıfırla</button>
+</div>
+<div id="app"></div>
+<script>
+/* İş Takip — tarayıcı içi demo: api.php'nin JavaScript karşılığı (örnek verilerle). */
+(function () {
+  'use strict';
+
+  /* ---------- kalıcılık ---------- */
+  const KEY = 'istakip-demo-v1';
+  const store = {
+    get() {
+      try { const v = localStorage.getItem(KEY); if (v) return JSON.parse(v); } catch (e) { /* yoksay */ }
+      try { const w = JSON.parse(window.name || '{}'); if (w[KEY]) return w[KEY]; } catch (e) { /* yoksay */ }
+      return null;
+    },
+    set(v) {
+      try { localStorage.setItem(KEY, JSON.stringify(v)); return; } catch (e) { /* yoksay */ }
+      try { const w = JSON.parse(window.name || '{}'); w[KEY] = v; window.name = JSON.stringify(w); } catch (e) { /* yoksay */ }
+    },
+    clear() {
+      try { localStorage.removeItem(KEY); } catch (e) { /* yoksay */ }
+      try { const w = JSON.parse(window.name || '{}'); delete w[KEY]; window.name = JSON.stringify(w); } catch (e) { /* yoksay */ }
+    },
+  };
+  function getMode() {
+    try { const m = localStorage.getItem(KEY + '-mode'); if (m) return m; } catch (e) { /* yoksay */ }
+    try { return JSON.parse(window.name || '{}')[KEY + '-mode'] || 'admin'; } catch (e) { return 'admin'; }
+  }
+  function setMode(m) {
+    try { localStorage.setItem(KEY + '-mode', m); } catch (e) { /* yoksay */ }
+    try { const w = JSON.parse(window.name || '{}'); w[KEY + '-mode'] = m; window.name = JSON.stringify(w); } catch (e) { /* yoksay */ }
+  }
+
+  /* ---------- tarih ve plan motoru (lib/schedule.php ile aynı) ---------- */
+  const pad = (n) => String(n).padStart(2, '0');
+  const dn = (s) => { const [y, m, d] = s.slice(0, 10).split('-').map(Number); return Math.round(Date.UTC(y, m - 1, d) / 864e5); };
+  const ymd = (n) => new Date(n * 864e5).toISOString().slice(0, 10);
+  const iso = (n) => ((((n + 3) % 7) + 7) % 7) + 1;
+  const DAY_SHORT = ['', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+  const localToday = () => { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+  const nowHm = () => { const d = new Date(); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+  const nowStr = () => { const d = new Date(); return localToday() + ' ' + nowHm() + ':' + pad(d.getSeconds()); };
+
+  class Sched {
+    constructor(workDays, holidays) {
+      this.wd = new Set(workDays.map(Number).filter((d) => d >= 1 && d <= 7));
+      if (!this.wd.size) [1, 2, 3, 4, 5].forEach((d) => this.wd.add(d));
+      this.hol = new Set(holidays.filter((h) => /^\d{4}-\d{2}-\d{2}$/.test(h)).map(dn));
+    }
+    isWorkday(n) { return this.wd.has(iso(n)) && !this.hol.has(n); }
+    workdaysBetween(a, b) {
+      if (b <= a) return 0;
+      const full = Math.floor((b - a) / 7);
+      let c = full * this.wd.size;
+      for (let d = a + full * 7; d < b; d++) if (this.wd.has(iso(d))) c++;
+      this.hol.forEach((h) => { if (h >= a && h < b && this.wd.has(iso(h))) c--; });
+      return c;
+    }
+    prep(p) {
+      p = Object.assign({}, p);
+      p._start = dn(p.start_date);
+      p._end = p.end_date ? dn(p.end_date) : null;
+      p._n = Math.max(1, +p.freq_interval || 1);
+      p._wd = new Set(String(p.weekdays || '').split(',').map(Number).filter((w) => w >= 1 && w <= 7));
+      p._md = Math.min(31, Math.max(1, +p.month_day || 1));
+      let f = p._start;
+      for (let i = 0; i < 60 && !this.isWorkday(f); i++) f++;
+      p._first = f;
+      let a = p._start;
+      for (let i = 0; i < 7 && p._wd.size && !p._wd.has(iso(a)); i++) a++;
+      p._wanchor = a - (iso(a) - 1);
+      p.due_time = p.due_time || null;
+      return p;
+    }
+    monthTarget(y, m, md) {
+      const dim = new Date(Date.UTC(y, m, 0)).getUTCDate();
+      let t = Math.round(Date.UTC(y, m - 1, Math.min(md, dim)) / 864e5);
+      for (let i = 0; i < 15 && !this.isWorkday(t); i++) t++;
+      return t;
+    }
+    isDue(p, n) {
+      if (n < p._start || (p._end !== null && n > p._end) || !this.isWorkday(n)) return false;
+      switch (p.freq_type) {
+        case 'every_n_days': return this.workdaysBetween(p._first, n) % p._n === 0;
+        case 'weekly': {
+          if (!p._wd.has(iso(n))) return false;
+          const w = Math.floor((n - (iso(n) - 1) - p._wanchor) / 7);
+          return w >= 0 && w % p._n === 0;
+        }
+        case 'monthly': {
+          const d = new Date(n * 864e5), y = d.getUTCFullYear(), m = d.getUTCMonth() + 1;
+          const s = new Date(p._start * 864e5), sy = s.getUTCFullYear(), sm = s.getUTCMonth() + 1;
+          for (const [yy, mm] of [[y, m], m === 1 ? [y - 1, 12] : [y, m - 1]]) {
+            if (this.monthTarget(yy, mm, p._md) === n) {
+              const since = yy * 12 + mm - (sy * 12 + sm);
+              if (since >= 0 && since % p._n === 0) return true;
+            }
+          }
+          return false;
+        }
+        default: return true;
+      }
+    }
+    lookback(p) {
+      return { every_n_days: p._n * 3 + 20, weekly: p._n * 7 + 20, monthly: p._n * 31 + 20 }[p.freq_type] || 20;
+    }
+    latest(p, n) {
+      const min = Math.max(p._start, n - this.lookback(p));
+      for (let d = n; d >= min; d--) if (this.isDue(p, d)) return d;
+      return null;
+    }
+    next(p, from) {
+      let max = from + this.lookback(p);
+      if (p._end !== null) max = Math.min(max, p._end);
+      for (let d = Math.max(from, p._start); d <= max; d++) if (this.isDue(p, d)) return d;
+      return null;
+    }
+    occurrences(p, from, to) {
+      const out = [];
+      from = Math.max(from, p._start);
+      if (p._end !== null) to = Math.min(to, p._end);
+      for (let d = from; d <= to; d++) if (this.isDue(p, d)) out.push(d);
+      return out;
+    }
+    status(p, occ, c, today, hm) {
+      if (c) return c.status === 'issue' ? 'issue' : 'done';
+      if (occ > today) return 'upcoming';
+      const nx = this.next(p, occ + 1);
+      if (nx !== null && nx <= today) return 'missed';
+      if (nx === null && p._end !== null && today > p._end) return 'missed';
+      if (occ < today) return 'overdue';
+      if (p.due_time && hm > p.due_time) return 'overdue';
+      return 'pending';
+    }
+    static label(p) {
+      const n = Math.max(1, +p.freq_interval || 1);
+      switch (p.freq_type) {
+        case 'every_n_days': return n === 1 ? 'Her gün' : n + ' günde 1';
+        case 'weekly': {
+          const d = String(p.weekdays || '').split(',').map((w) => DAY_SHORT[+w]).filter(Boolean).join(', ');
+          return (n === 1 ? 'Her hafta' : n + ' haftada 1') + (d ? ' · ' + d : '');
+        }
+        case 'monthly': return (n === 1 ? 'Her ay' : n + ' ayda 1') + ' · ayın ' + (+p.month_day) + '. günü';
+        default: return 'Her gün';
+      }
+    }
+  }
+
+  /* ---------- örnek veri ---------- */
+  function rng(seed) {
+    return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+
+  function seed() {
+    const now = nowStr();
+    const S = { seq: 1, users: [], locations: [], tasks: [], packages: [], package_items: [], plans: [], completions: [], photos: {},
+      settings: { company_name: 'Merkez Bina Destek Hizmetleri', work_days: '1,2,3,4,5', holidays: '' } };
+    const id = () => S.seq++;
+    const add = (tbl, row) => { row.id = id(); S[tbl].push(row); return row; };
+    const admin = add('users', { name: 'Bina Yöneticisi', username: 'yonetici', role: 'admin', phone: null, active: 1, created_at: now });
+    const ahmet = add('users', { name: 'Ahmet Yılmaz', username: 'ahmet', role: 'staff', phone: '0532 000 00 01', active: 1, created_at: now });
+    const ayse = add('users', { name: 'Ayşe Demir', username: 'ayse', role: 'staff', phone: '0532 000 00 02', active: 1, created_at: now });
+    const mehmet = add('users', { name: 'Mehmet Kaya', username: 'mehmet', role: 'staff', phone: '0532 000 00 03', active: 1, created_at: now });
+    const L = {};
+    ['Ana Giriş', 'Kazan Dairesi', 'Kat 1 - Ofisler', 'Kat 1 - Tuvaletler', 'Kat 2 - Ofisler', 'Kat 2 - Tuvaletler', 'Çay Ocağı', 'Toplantı Odası', 'Arşiv', 'Asansör', 'Fotokopi Alanı', 'Yemekhane']
+      .forEach((n, i) => { L[n] = add('locations', { name: n, description: null, sort_order: i, active: 1, created_at: now }); });
+    const P = [
+      ['Sabah Açılış', '#f59e0b', 'Mesai başlangıcında yapılacak işler', [
+        ['Kapıların açılması', 'daily', 1, null, null, '07:45'], ['Kazanın fişinin devreye alınması', 'daily', 1, null, null, '07:45']]],
+      ['Tuvalet Temizliği', '#06b6d4', 'Her tuvalet için günlük temizlik ve sarf malzeme', [
+        ['Lavaboların temizliği', 'daily', 1, null, null, '10:00'], ['Ayna ve klozetlerin temizlenmesi', 'daily', 1, null, null, '10:00'],
+        ['Klozet temizliği', 'daily', 1, null, null, '15:00'], ['Tuvalet çöplerinin alınması', 'daily', 1, null, null, '16:00'],
+        ['Tuvalet kağıdı ve kurulama havlularının değişimi', 'daily', 1, null, null, '09:30'], ['Sabun değişimi', 'daily', 1, null, null, '09:30'],
+        ['Zemin giderlerine çamaşır suyu doldurulması', 'daily', 1, null, null, '17:00']]],
+      ['Ofis Genel Temizlik', '#6366f1', 'Ofis katları için rutin temizlik', [
+        ['Çöplerin toplanması', 'daily', 1, null, null, '09:00'], ['Süpürme', 'daily', 1, null, null, '11:00'], ['Paspas', 'daily', 1, null, null, '11:30'],
+        ['Zemin temizliği', 'daily', 1, null, null, '14:00'], ['Halıların gezilmesi ve fırçalanması', 'daily', 1, null, null, '14:00'],
+        ['Halı kenarlarına paspas atılması', 'every_n_days', 2, null, null, '15:00'], ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'daily', 1, null, null, '16:00'],
+        ['Çöp atılması (genel)', 'every_n_days', 3, null, null, '17:00'], ['Camların silinmesi', 'monthly', 1, null, 15, null]]],
+      ['Çay Ocağı ve Ortak Alan', '#10b981', 'Çay ocağı, ortak alanlar ve su sebili', [
+        ['Çay ocağı ve ortak alan çöplerinin toplanması', 'daily', 1, null, null, '12:30'], ['Zemin temizliği', 'daily', 1, null, null, '13:00'],
+        ['Su sebilinin kontrolü', 'daily', 1, null, null, '09:00']]],
+      ['Destek Hizmetleri', '#ec4899', 'Taşıma, arşiv, toplantı ve güvenlik kontrolleri', [
+        ['Günlük yemek götürme', 'daily', 1, null, null, '12:00'], ['Evrak taşıma', 'daily', 1, null, null, null],
+        ['Toplantı odasının hazırlanması (su, soda)', 'daily', 1, null, null, '08:30'], ['Arşivin düzenlenmesi', 'weekly', 1, '5', null, null],
+        ['Yangın şaft dolaplarının kontrolü', 'weekly', 1, '1', null, null], ['Asansör temizliği', 'weekly', 2, '3', null, null]]],
+    ];
+    const T = {};
+    const pk = {};
+    P.forEach(([name, color, desc, items]) => {
+      const p = add('packages', { name, description: desc, color, created_at: now });
+      pk[name] = p;
+      items.forEach(([tn, ft, iv, wd, md, dt], i) => {
+        if (!T[tn]) T[tn] = add('tasks', { name: tn, description: null, active: 1, created_at: now });
+        add('package_items', { package_id: p.id, task_id: T[tn].id, freq_type: ft, freq_interval: iv, weekdays: wd, month_day: md, due_time: dt, sort_order: i });
+      });
+    });
+    T['Sabun değişimi'].description = 'Sıvı sabun haznesini doldurun; boşalan bidonu depoya bildirin.';
+    T['Yangın şaft dolaplarının kontrolü'].description = 'Hortum, vana ve yangın tüpü basınç göstergesini kontrol edin.';
+    const start = ymd(dn(localToday()) - 28);
+    const apply = (pkgName, locName, user, only) => {
+      S.package_items.filter((i) => i.package_id === pk[pkgName].id).forEach((it) => {
+        const tname = S.tasks.find((t) => t.id === it.task_id).name;
+        if (only && !only.includes(tname)) return;
+        add('plans', { task_id: it.task_id, location_id: L[locName].id, user_id: user ? user.id : null, package_id: pk[pkgName].id,
+          freq_type: it.freq_type, freq_interval: it.freq_interval, weekdays: it.weekdays, month_day: it.month_day, due_time: it.due_time,
+          start_date: start, end_date: null, note: null, active: 1, created_at: now });
+      });
+    };
+    apply('Sabah Açılış', 'Ana Giriş', mehmet, ['Kapıların açılması']);
+    apply('Sabah Açılış', 'Kazan Dairesi', mehmet, ['Kazanın fişinin devreye alınması']);
+    apply('Tuvalet Temizliği', 'Kat 1 - Tuvaletler', ahmet);
+    apply('Tuvalet Temizliği', 'Kat 2 - Tuvaletler', ayse);
+    apply('Ofis Genel Temizlik', 'Kat 1 - Ofisler', ahmet, ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi']);
+    apply('Ofis Genel Temizlik', 'Kat 2 - Ofisler', ayse, ['Çöplerin toplanması', 'Süpürme', 'Halıların gezilmesi ve fırçalanması']);
+    apply('Çay Ocağı ve Ortak Alan', 'Çay Ocağı', mehmet);
+    apply('Destek Hizmetleri', 'Toplantı Odası', null, ['Toplantı odasının hazırlanması (su, soda)', 'Günlük yemek götürme', 'Evrak taşıma']);
+    apply('Destek Hizmetleri', 'Arşiv', mehmet, ['Arşivin düzenlenmesi', 'Yangın şaft dolaplarının kontrolü']);
+    apply('Destek Hizmetleri', 'Asansör', ahmet, ['Asansör temizliği']);
+    S.plans.find((p) => p.task_id === T['Kapıların açılması'].id).note = 'Anahtarlar güvenlik kulübesinde.';
+
+    // Geçmiş kayıtlar
+    const sch = new Sched([1, 2, 3, 4, 5], []);
+    const r = rng(20261007);
+    const today = dn(localToday());
+    const hm = nowHm();
+    const issues = ['Sabun stoğu bitti, depodan istendi.', 'Kağıt havlu dispenseri kırık.', 'Çamaşır suyu kalmadı.', 'Süpürge arızalı, elle yapıldı.'];
+    const staff = [ahmet, ayse, mehmet];
+    S.plans.forEach((p0) => {
+      const p = sch.prep(p0);
+      sch.occurrences(p, p._start, today).forEach((o) => {
+        const isToday = o === today;
+        const due = p.due_time || '16:00';
+        if (isToday && due > hm) return;
+        const x = r();
+        // Ahmet bugün biraz geride, böylece listede gecikenler görünür.
+        const rate = isToday ? (p0.user_id === ahmet.id ? 0.45 : 0.75) : 0.86;
+        if (x > rate + 0.04) return;
+        const who = p0.user_id || staff[Math.floor(r() * 3)].id;
+        const [h, m] = due.split(':').map(Number);
+        let mins = h * 60 + m - 75 + Math.floor(r() * 85);
+        if (isToday) { const [nh, nm] = hm.split(':').map(Number); mins = Math.min(mins, nh * 60 + nm - 1); }
+        const at = ymd(o) + ' ' + pad(Math.floor(mins / 60)) + ':' + pad(mins % 60) + ':00';
+        const issue = x > rate;
+        add('completions', { plan_id: p0.id, occ_date: ymd(o), user_id: who, status: issue ? 'issue' : 'done',
+          note: issue ? issues[Math.floor(r() * issues.length)] : null, photo: null, created_at: at });
+      });
+    });
+    return S;
+  }
+
+  let S = store.get() || seed();
+  const save = () => store.set(S);
+  save();
+
+  /* ---------- sorgu yardımcıları ---------- */
+  const err = (m) => { throw new Error(m); };
+  const byId = (tbl, id) => S[tbl].find((r) => r.id === +id);
+  const sched = () => new Sched(S.settings.work_days.split(','), S.settings.holidays.split(/[\s,;]+/));
+  const todayCtx = () => [dn(localToday()), nowHm()];
+  const nid = () => S.seq++;
+  const cmpTr = (a, b) => String(a || '').localeCompare(String(b || ''), 'tr');
+
+  function plansQuery(filter) {
+    return S.plans.filter(filter || (() => true)).map((p) => {
+      const t = byId('tasks', p.task_id), l = byId('locations', p.location_id), u = p.user_id ? byId('users', p.user_id) : null, k = p.package_id ? byId('packages', p.package_id) : null;
+      return Object.assign({}, p, { task_name: t.name, task_desc: t.description, location_name: l.name, location_sort: l.sort_order,
+        user_name: u ? u.name : null, package_name: k ? k.name : null, package_color: k ? k.color : null });
+    }).sort((a, b) => a.location_sort - b.location_sort || cmpTr(a.location_name, b.location_name) || cmpTr(a.due_time, b.due_time) || cmpTr(a.task_name, b.task_name));
+  }
+  function cmap(from, to) {
+    const m = {};
+    S.completions.forEach((c) => {
+      if (c.occ_date >= from && c.occ_date <= to) {
+        const u = byId('users', c.user_id);
+        m[c.plan_id + '|' + c.occ_date] = Object.assign({}, c, { by_name: u ? u.name : null });
+      }
+    });
+    return m;
+  }
+  function itemOut(p, occ, c, status) {
+    const o = ymd(occ);
+    let late = false;
+    if (c) late = c.created_at.slice(0, 10) > o || c.created_at > o + ' ' + (p.due_time || '23:59') + ':59';
+    return {
+      plan_id: p.id, occ_date: o, task: p.task_name, task_desc: p.task_desc, location: p.location_name, location_id: p.location_id,
+      user: p.user_name, user_id: p.user_id, package: p.package_name, color: p.package_color, due_time: p.due_time,
+      freq: Sched.label(p), note: p.note, status,
+      completion: c ? { id: c.id, by: c.by_name, by_id: c.user_id, at: c.created_at, status: c.status, note: c.note, photo: !!c.photo, late } : null,
+    };
+  }
+  function dayItems(sc, plans, day) {
+    const [today, hm] = todayCtx();
+    let lb = 20;
+    const pp = plans.map((p) => { const q = sc.prep(p); lb = Math.max(lb, sc.lookback(q)); return q; });
+    const cm = cmap(ymd(day - lb), ymd(day));
+    const items = [];
+    pp.forEach((p) => {
+      const occ = sc.latest(p, day);
+      if (occ === null) return;
+      const c = cm[p.id + '|' + ymd(occ)] || null;
+      if (occ < day && c && c.created_at.slice(0, 10) < ymd(day)) return;
+      const st = sc.status(p, occ, c, today, hm);
+      if (st === 'missed' && occ < day) return;
+      items.push(itemOut(p, occ, c, st));
+    });
+    return items;
+  }
+  function tally(items) {
+    const t = { total: 0, done: 0, issue: 0, pending: 0, overdue: 0, missed: 0, upcoming: 0 };
+    items.forEach((i) => { t.total++; t[i.status]++; });
+    t.rate = t.total ? Math.round(((t.done + t.issue) * 100) / t.total) : 0;
+    return t;
+  }
+  function groupTally(items, key, empty) {
+    const g = new Map();
+    items.forEach((i) => { const n = i[key] || empty; if (!g.has(n)) g.set(n, []); g.get(n).push(i); });
+    return [...g].map(([name, l]) => Object.assign({ name }, tally(l))).sort((a, b) => a.rate - b.rate || cmpTr(a.name, b.name));
+  }
+  function freqFrom(src) {
+    const type = src.freq_type || 'daily';
+    if (!['daily', 'every_n_days', 'weekly', 'monthly'].includes(type)) err('Geçersiz sıklık türü.');
+    let n = Math.max(1, Math.min(365, +src.freq_interval || 1));
+    let wd = null, md = null;
+    if (type === 'weekly') {
+      const days = [...new Set(String(src.weekdays || '').split(',').map(Number).filter((d) => d >= 1 && d <= 7))].sort();
+      if (!days.length) err('Haftalık işler için en az bir gün seçin.');
+      wd = days.join(',');
+    }
+    if (type === 'monthly') md = Math.max(1, Math.min(31, +src.month_day || 1));
+    if (type === 'daily') n = 1;
+    const t = String(src.due_time || '').trim();
+    if (t && !/^([01]\d|2[0-3]):[0-5]\d$/.test(t)) err('Saat SS:DD biçiminde olmalı.');
+    return { freq_type: type, freq_interval: n, weekdays: wd, month_day: md, due_time: t || null };
+  }
+  function resolveTask(src) {
+    if (src.task_id && byId('tasks', src.task_id)) return +src.task_id;
+    const name = String(src.task_name || '').trim();
+    if (!name) err('İş adı gerekli.');
+    const ex = S.tasks.find((t) => t.name.toLocaleLowerCase('tr') === name.toLocaleLowerCase('tr'));
+    if (ex) { ex.active = 1; return ex.id; }
+    const t = { id: nid(), name: name.slice(0, 200), description: null, active: 1, created_at: nowStr() };
+    S.tasks.push(t);
+    return t.id;
+  }
+  const str = (v, req, label) => { v = v === undefined || v === null ? '' : String(v).trim(); if (!v && req) err(label + ' boş bırakılamaz.'); return v || null; };
+  const validDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || '') && !isNaN(Date.parse(s));
+  const fileToDataUrl = (f) => new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => res(null); r.readAsDataURL(f); });
+
+  function me() { return byId('users', MODE === 'admin' ? 1 : 2); }
+  function needAdmin() { if (me().role !== 'admin') err('Bu işlem için yönetici yetkisi gerekli.'); }
+
+  /* ---------- işlemler ---------- */
+  const A = {
+    async my_day() {
+      const u = me(), sc = sched(), [today] = todayCtx();
+      const items = dayItems(sc, plansQuery((p) => p.active && (p.user_id === u.id || p.user_id === null)), today);
+      return { date: ymd(today), workday: sc.isWorkday(today), items, tally: tally(items) };
+    },
+    async complete(b) {
+      const u = me();
+      const planId = +b.plan_id, occ = b.occ_date;
+      const status = b.status === 'issue' ? 'issue' : 'done';
+      const note = str(b.note);
+      const p = plansQuery((x) => x.id === planId && x.active)[0];
+      if (!p) err('İş bulunamadı.');
+      if (u.role !== 'admin' && p.user_id !== null && p.user_id !== u.id) err('Bu iş size atanmamış.');
+      const sc = sched(), pp = sc.prep(p), [today, hm] = todayCtx(), o = dn(occ);
+      if (!sc.isDue(pp, o) || o > today) err('Bu tarih için böyle bir iş yok.');
+      if (u.role !== 'admin' && sc.status(pp, o, null, today, hm) === 'missed') err('Bu işin süresi geçti; artık işaretlenemez.');
+      if (status === 'issue' && !note) err('Sorun bildirirken kısa bir açıklama yazın.');
+      if (S.completions.some((c) => c.plan_id === planId && c.occ_date === occ)) err('Bu iş zaten işaretlenmiş.');
+      const c = { id: nid(), plan_id: planId, occ_date: occ, user_id: u.id, status, note, photo: null, created_at: nowStr() };
+      if (b.photo && b.photo.size) { const url = await fileToDataUrl(b.photo); if (url) { c.photo = 'demo'; S.photos[c.id] = url; } }
+      S.completions.push(c);
+      save();
+      const cc = cmap(occ, occ)[planId + '|' + occ];
+      return itemOut(pp, o, cc, sc.status(pp, o, cc, today, hm));
+    },
+    async uncomplete(b) {
+      const u = me();
+      const i = S.completions.findIndex((c) => c.plan_id === +b.plan_id && c.occ_date === b.occ_date);
+      if (i < 0) err('Kayıt bulunamadı.');
+      const c = S.completions[i];
+      if (u.role !== 'admin') {
+        if (c.user_id !== u.id) err('Yalnızca kendi işaretlediğiniz işleri geri alabilirsiniz.');
+        if (c.created_at.slice(0, 10) !== localToday()) err('Geçmiş günlerdeki kayıtlar geri alınamaz.');
+      }
+      S.completions.splice(i, 1);
+      delete S.photos[c.id];
+      save();
+      return null;
+    },
+    async dashboard(b, q) {
+      needAdmin();
+      const sc = sched(), [today, hm] = todayCtx();
+      const day = Math.min(validDate(q.date) ? dn(q.date) : today, today);
+      const items = dayItems(sc, plansQuery((p) => p.active), day);
+      const missed = [];
+      const from = day - 7, cm = cmap(ymd(from), ymd(day));
+      plansQuery((p) => p.start_date <= ymd(day)).forEach((p0) => {
+        const p = sc.prep(p0);
+        sc.occurrences(p, from, day - 1).forEach((o) => {
+          if (!cm[p.id + '|' + ymd(o)] && sc.status(p, o, null, today, hm) === 'missed') missed.push(itemOut(p, o, null, 'missed'));
+        });
+      });
+      missed.sort((a, b2) => cmpTr(b2.occ_date, a.occ_date));
+      return { date: ymd(day), today: ymd(today), now: hm, workday: sc.isWorkday(day), items, tally: tally(items),
+        by_location: groupTally(items, 'location', '-'), by_user: groupTally(items, 'user', 'Ortak (herkes)'),
+        missed: missed.slice(0, 200), missed_count: missed.length,
+        staff_count: S.users.filter((u) => u.active && u.role === 'staff').length };
+    },
+    async report(b, q) {
+      needAdmin();
+      const sc = sched(), [today, hm] = todayCtx();
+      let to = Math.min(validDate(q.to) ? dn(q.to) : today, today);
+      let from = validDate(q.from) ? dn(q.from) : to - 6;
+      if (from > to) [from, to] = [to, from];
+      if (to - from > 92) err('Rapor aralığı en fazla 93 gün olabilir.');
+      const cm = cmap(ymd(from), ymd(to));
+      const items = [];
+      plansQuery((p) => p.start_date <= ymd(to)).forEach((p0) => {
+        if (q.user_id && p0.user_id !== +q.user_id) return;
+        if (q.location_id && p0.location_id !== +q.location_id) return;
+        const p = sc.prep(p0);
+        sc.occurrences(p, from, to).forEach((o) => {
+          const c = cm[p.id + '|' + ymd(o)] || null;
+          items.push(itemOut(p, o, c, sc.status(p, o, c, today, hm)));
+        });
+      });
+      items.sort((a, b2) => cmpTr(a.occ_date, b2.occ_date) || cmpTr(a.location, b2.location));
+      const daily = {};
+      for (let d = from; d <= to; d++) daily[ymd(d)] = { date: ymd(d), total: 0, done: 0, issue: 0, missed: 0, open: 0 };
+      let lateDone = 0;
+      items.forEach((i) => {
+        const r = daily[i.occ_date];
+        r.total++;
+        if (['done', 'issue', 'missed'].includes(i.status)) r[i.status]++; else r.open++;
+        if (i.completion && i.completion.late) lateDone++;
+      });
+      const problems = items.filter((i) => ['missed', 'issue', 'overdue'].includes(i.status)).sort((a, b2) => cmpTr(b2.occ_date, a.occ_date));
+      return { from: ymd(from), to: ymd(to), summary: Object.assign(tally(items), { late_done: lateDone }),
+        by_user: groupTally(items, 'user', 'Ortak (herkes)'), by_location: groupTally(items, 'location', '-'), by_task: groupTally(items, 'task', '-'),
+        daily: Object.values(daily), problems: problems.slice(0, 300), problem_count: problems.length };
+    },
+    async locations() {
+      return S.locations.filter((l) => l.active).sort((a, b) => a.sort_order - b.sort_order || cmpTr(a.name, b.name))
+        .map((l) => Object.assign({}, l, { plan_count: S.plans.filter((p) => p.location_id === l.id && p.active).length }));
+    },
+    async location_save(b) {
+      needAdmin();
+      const name = str(b.name, true, 'Mekan adı');
+      if (b.id) Object.assign(byId('locations', b.id), { name, description: str(b.description), sort_order: +b.sort_order || 0 });
+      else S.locations.push({ id: nid(), name, description: str(b.description), sort_order: +b.sort_order || 0, active: 1, created_at: nowStr() });
+      save(); return {};
+    },
+    async location_delete(b) {
+      needAdmin();
+      const n = S.plans.filter((p) => p.location_id === +b.id && p.active).length;
+      if (n) err(`Bu mekanda ${n} aktif iş ataması var. Önce atamaları kaldırın.`);
+      byId('locations', b.id).active = 0; save(); return null;
+    },
+    async locations_order(b) { needAdmin(); (b.ids || []).forEach((id, i) => { byId('locations', id).sort_order = i; }); save(); return null; },
+    async tasks() {
+      needAdmin();
+      return S.tasks.filter((t) => t.active).sort((a, b) => cmpTr(a.name, b.name))
+        .map((t) => Object.assign({}, t, { plan_count: S.plans.filter((p) => p.task_id === t.id && p.active).length }));
+    },
+    async task_save(b) {
+      needAdmin();
+      const name = str(b.name, true, 'İş adı');
+      if (b.id) Object.assign(byId('tasks', b.id), { name, description: str(b.description) });
+      else S.tasks.push({ id: nid(), name, description: str(b.description), active: 1, created_at: nowStr() });
+      save(); return {};
+    },
+    async task_delete(b) {
+      needAdmin();
+      const n = S.plans.filter((p) => p.task_id === +b.id && p.active).length;
+      if (n) err(`Bu iş ${n} aktif atamada kullanılıyor. Önce atamaları kaldırın.`);
+      byId('tasks', b.id).active = 0;
+      S.package_items = S.package_items.filter((i) => i.task_id !== +b.id);
+      save(); return null;
+    },
+    async packages() {
+      needAdmin();
+      return S.packages.slice().sort((a, b) => cmpTr(a.name, b.name)).map((p) => Object.assign({}, p, {
+        items: S.package_items.filter((i) => i.package_id === p.id).sort((a, b) => a.sort_order - b.sort_order)
+          .map((i) => Object.assign({}, i, { task_name: byId('tasks', i.task_id).name, freq: Sched.label(i) })),
+        plan_count: S.plans.filter((x) => x.package_id === p.id && x.active).length,
+      }));
+    },
+    async package_save(b) {
+      needAdmin();
+      const name = str(b.name, true, 'Paket adı');
+      const color = /^#[0-9a-f]{6}$/i.test(b.color || '') ? b.color : '#6366f1';
+      if (!b.items || !b.items.length) err('Pakete en az bir iş ekleyin.');
+      const rows = b.items.map((it, i) => Object.assign({ task_id: resolveTask(it), sort_order: i }, freqFrom(it)));
+      let p = b.id ? byId('packages', b.id) : null;
+      if (p) Object.assign(p, { name, description: str(b.description), color });
+      else { p = { id: nid(), name, description: str(b.description), color, created_at: nowStr() }; S.packages.push(p); }
+      S.package_items = S.package_items.filter((i) => i.package_id !== p.id);
+      rows.forEach((r) => S.package_items.push(Object.assign({ id: nid(), package_id: p.id }, r)));
+      save(); return { id: p.id };
+    },
+    async package_delete(b) {
+      needAdmin();
+      S.package_items = S.package_items.filter((i) => i.package_id !== +b.id);
+      S.packages = S.packages.filter((p) => p.id !== +b.id);
+      S.plans.forEach((p) => { if (p.package_id === +b.id) p.package_id = null; });
+      save(); return null;
+    },
+    async package_apply(b) {
+      needAdmin();
+      const locs = (b.location_ids || []).map(Number).filter(Boolean);
+      if (!locs.length) err('En az bir mekan seçin.');
+      const uid = +b.user_id || null;
+      const start = validDate(b.start_date) ? b.start_date : localToday();
+      const items = S.package_items.filter((i) => i.package_id === +b.package_id).sort((a, c) => a.sort_order - c.sort_order);
+      if (!items.length) err('Paket bulunamadı ya da boş.');
+      let created = 0, skipped = 0;
+      locs.forEach((lid) => items.forEach((it) => {
+        if (S.plans.some((p) => p.active && p.task_id === it.task_id && p.location_id === lid && p.user_id === uid)) { skipped++; return; }
+        S.plans.push({ id: nid(), task_id: it.task_id, location_id: lid, user_id: uid, package_id: +b.package_id, freq_type: it.freq_type,
+          freq_interval: it.freq_interval, weekdays: it.weekdays, month_day: it.month_day, due_time: it.due_time, start_date: start,
+          end_date: null, note: null, active: 1, created_at: nowStr() });
+        created++;
+      }));
+      save(); return { created, skipped };
+    },
+    async plans() { needAdmin(); return plansQuery((p) => p.active).map((p) => Object.assign(p, { freq: Sched.label(p) })); },
+    async plan_save(b) {
+      needAdmin();
+      if (!S.locations.some((l) => l.id === +b.location_id && l.active)) err('Mekan seçin.');
+      const uid = +b.user_id || null;
+      const start = validDate(b.start_date) ? b.start_date : localToday();
+      const end = validDate(b.end_date) ? b.end_date : null;
+      if (end && end < start) err('Bitiş tarihi başlangıçtan önce olamaz.');
+      const f = freqFrom(b);
+      const vals = Object.assign({ task_id: resolveTask(b), location_id: +b.location_id, user_id: uid }, f);
+      const note = str(b.note);
+      const today = localToday();
+      if (b.id) {
+        const old = byId('plans', b.id);
+        if (!old || !old.active) err('Atama bulunamadı.');
+        const changed = Object.keys(vals).some((k) => String(vals[k] ?? '') !== String(old[k] ?? ''));
+        if (changed && old.start_date < today) {
+          old.active = 0; old.end_date = ymd(dn(today) - 1);
+          const np = Object.assign({ id: nid(), package_id: old.package_id, start_date: start > today ? start : today, end_date: end, note, active: 1, created_at: nowStr() }, vals);
+          S.plans.push(np);
+          S.completions.forEach((c) => { if (c.plan_id === old.id && c.occ_date >= today) c.plan_id = np.id; });
+        } else Object.assign(old, vals, { start_date: changed ? start : old.start_date, end_date: end, note });
+      } else {
+        S.plans.push(Object.assign({ id: nid(), package_id: null, start_date: start, end_date: end, note, active: 1, created_at: nowStr() }, vals));
+      }
+      save(); return {};
+    },
+    async plan_delete(b) {
+      needAdmin();
+      const ids = (b.ids || [b.id]).map(Number);
+      const today = localToday(), yest = ymd(dn(today) - 1);
+      ids.forEach((id) => {
+        const p = byId('plans', id);
+        if (!p) return;
+        const hist = S.completions.some((c) => c.plan_id === id);
+        if (p.start_date >= today && !hist) S.plans = S.plans.filter((x) => x.id !== id);
+        else { p.active = 0; p.end_date = yest; S.completions = S.completions.filter((c) => !(c.plan_id === id && c.occ_date >= today)); }
+      });
+      save(); return { count: ids.length };
+    },
+    async plans_reassign(b) {
+      needAdmin();
+      (b.ids || []).forEach((id) => { const p = byId('plans', id); if (p && p.active) p.user_id = +b.user_id || null; });
+      save(); return null;
+    },
+    async users() {
+      needAdmin();
+      return S.users.filter((u) => u.active).sort((a, b) => cmpTr(a.role, b.role) || cmpTr(a.name, b.name))
+        .map((u) => Object.assign({}, u, { plan_count: S.plans.filter((p) => p.user_id === u.id && p.active).length }));
+    },
+    async user_save(b) {
+      needAdmin();
+      const name = str(b.name, true, 'Ad soyad');
+      const username = String(str(b.username, true, 'Kullanıcı adı')).toLowerCase();
+      if (!/^[a-z0-9._-]{3,60}$/.test(username)) err('Kullanıcı adı en az 3 karakter olmalı; yalnızca küçük harf (Türkçe karakter olmadan), rakam, nokta, tire içerebilir.');
+      if (b.password && b.password.length < 6) err('Şifre en az 6 karakter olmalı.');
+      if (S.users.some((u) => u.username === username && u.id !== +b.id)) err('Bu kullanıcı adı kullanılıyor.');
+      const role = b.role === 'admin' ? 'admin' : 'staff';
+      if (b.id) {
+        if (+b.id === me().id && role !== 'admin') err('Kendi yönetici yetkinizi kaldıramazsınız.');
+        Object.assign(byId('users', b.id), { name, username, role, phone: str(b.phone), active: 1 });
+      } else {
+        if (!b.password) err('Yeni kullanıcı için şifre belirleyin.');
+        S.users.push({ id: nid(), name, username, role, phone: str(b.phone), active: 1, created_at: nowStr() });
+      }
+      save(); return {};
+    },
+    async user_delete(b) {
+      needAdmin();
+      if (+b.id === me().id) err('Kendi hesabınızı silemezsiniz.');
+      const n = S.plans.filter((p) => p.user_id === +b.id && p.active).length;
+      if (n) err(`Bu kişiye atanmış ${n} aktif iş var. Önce atamaları başka birine devredin.`);
+      byId('users', b.id).active = 0; save(); return null;
+    },
+    async settings() { return Object.assign({}, S.settings); },
+    async settings_save(b) {
+      needAdmin();
+      const name = str(b.company_name, true, 'Kurum adı');
+      const wd = [...new Set((b.work_days || []).map(Number).filter((d) => d >= 1 && d <= 7))].sort();
+      if (!wd.length) err('En az bir çalışma günü seçin.');
+      const hol = String(b.holidays || '').split(/[\s,;]+/).filter(Boolean);
+      hol.forEach((h) => { if (!validDate(h)) err('Tatil tarihi YYYY-AA-GG biçiminde olmalı: ' + h); });
+      Object.assign(S.settings, { company_name: name, work_days: wd.join(','), holidays: [...new Set(hol)].sort().join('\n') });
+      save(); return null;
+    },
+    async password(b) { if (!b.new || b.new.length < 6) err('Yeni şifre en az 6 karakter olmalı.'); return null; },
+    async me() { return me(); },
+  };
+
+  /* ---------- dışa açılan demo arayüzü ---------- */
+  const MODE = getMode() === 'staff' ? 'staff' : 'admin';
+  const u0 = byId('users', MODE === 'admin' ? 1 : 2);
+  window.BOOT = { user: { id: u0.id, name: u0.name, username: u0.username, role: u0.role, phone: u0.phone }, company: S.settings.company_name };
+
+  window.DEMO = {
+    mode: MODE,
+    switchTo(m) { setMode(m); location.reload(); },
+    reset() { store.clear(); location.reload(); },
+    async api(action, body, query) {
+      await new Promise((r) => setTimeout(r, 120 + Math.random() * 160));
+      const fn = A[action];
+      if (!fn) throw new Error('Bu işlem demoda kullanılamıyor.');
+      let b = body || {};
+      if (body instanceof FormData) { b = {}; body.forEach((v, k) => { b[k] = v; }); }
+      const r = await fn(b, query || {});
+      return r === undefined ? null : JSON.parse(JSON.stringify(r));
+    },
+    photo(c) { return S.photos[c.id] || ''; },
+  };
+})();
+
+</script>
+<script>
+/* İş Takip — ortak yardımcılar, efektler ve bileşenler */
+(function () {
+  'use strict';
+  const App = (window.App = {});
+  const csrfMeta = document.querySelector('meta[name=csrf]');
+  App.csrf = csrfMeta ? csrfMeta.content : '';
+
+  /* ---------- API ---------- */
+  App.api = async function (action, body, query) {
+    let url = 'api.php?a=' + encodeURIComponent(action);
+    if (query) {
+      for (const [k, v] of Object.entries(query)) if (v !== undefined && v !== null && v !== '') url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(v);
+    }
+    const opt = { headers: { 'X-CSRF-Token': App.csrf, Accept: 'application/json' }, credentials: 'same-origin' };
+    if (body !== undefined && body !== null) {
+      opt.method = 'POST';
+      if (body instanceof FormData) opt.body = body;
+      else { opt.body = JSON.stringify(body); opt.headers['Content-Type'] = 'application/json'; }
+    }
+    let res, json;
+    try {
+      res = await fetch(url, opt);
+      json = await res.json();
+    } catch (e) {
+      throw new Error(navigator.onLine ? 'Sunucuya ulaşılamadı.' : 'İnternet bağlantısı yok.');
+    }
+    if (res.status === 401 && action !== 'login') { setTimeout(() => location.reload(), 1200); }
+    if (!json.ok) throw new Error(json.error || 'Bir hata oluştu.');
+    return json.data;
+  };
+
+  /* ---------- DOM yardımcıları ---------- */
+  const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  App.h = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ESC[c]);
+  App.el = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
+  App.$ = (sel, root) => (root || document).querySelector(sel);
+  App.$$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
+
+  const P = {
+    check: '<path d="M4 12.5l5 5L20 6.5"/>',
+    x: '<path d="M6 6l12 12M18 6L6 18"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    edit: '<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/>',
+    trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>',
+    home: '<path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z"/>',
+    list: '<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>',
+    layers: '<path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/>',
+    pin: '<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+    users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>',
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+    chart: '<path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/>',
+    gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    alert: '<path d="M12 3l10 18H2L12 3z"/><path d="M12 10v4M12 17.5v.5"/>',
+    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+    logout: '<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H3"/>',
+    refresh: '<path d="M20 11a8 8 0 0 0-14.9-3M4 4v4h4M4 13a8 8 0 0 0 14.9 3M20 20v-4h-4"/>',
+    camera: '<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/>',
+    chev: '<path d="M9 6l6 6-6 6"/>',
+    download: '<path d="M12 4v11M7 10l5 5 5-5M4 20h16"/>',
+    play: '<path d="M6 4l14 8-14 8z"/>',
+    key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3"/>',
+    flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+    sparkle: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/>',
+    swap: '<path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/>',
+    phone: '<rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/>',
+  };
+  App.icon = (n, cls) => `<svg class="ico ${cls || ''}" viewBox="0 0 24 24" aria-hidden="true">${P[n] || ''}</svg>`;
+
+  /* ---------- tarih ---------- */
+  const MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+  const DAYS = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+  App.DAY_SHORT = ['', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+  App.parseDate = (s) => { const [y, m, d] = s.slice(0, 10).split('-').map(Number); return new Date(y, m - 1, d); };
+  App.ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  App.today = () => App.ymd(new Date());
+  App.addDays = (s, n) => { const d = App.parseDate(s); d.setDate(d.getDate() + n); return App.ymd(d); };
+  App.fmtDate = (s, withDay) => { const d = App.parseDate(s); return d.getDate() + ' ' + MONTHS[d.getMonth()] + (withDay ? ' ' + DAYS[d.getDay()] : ''); };
+  App.fmtShort = (s) => { const d = App.parseDate(s); return d.getDate() + '.' + String(d.getMonth() + 1).padStart(2, '0'); };
+  App.dayName = (s) => DAYS[App.parseDate(s).getDay()];
+  App.fmtTime = (dt) => (dt ? dt.slice(11, 16) : '');
+  App.relDay = (s) => {
+    const diff = Math.round((App.parseDate(App.today()) - App.parseDate(s)) / 864e5);
+    if (diff === 0) return 'Bugün';
+    if (diff === 1) return 'Dün';
+    if (diff > 1 && diff < 7) return diff + ' gün önce';
+    return App.fmtDate(s);
+  };
+  App.greeting = () => { const h = new Date().getHours(); return h < 6 ? 'İyi geceler' : h < 12 ? 'Günaydın' : h < 18 ? 'İyi günler' : 'İyi akşamlar'; };
+
+  App.STATUS = {
+    done: 'Yapıldı', issue: 'Sorun bildirildi', pending: 'Bekliyor', overdue: 'Gecikti', missed: 'Yapılmadı', upcoming: 'Planlandı',
+  };
+  App.badge = (st, txt) => `<span class="badge ${st}">${App.h(txt || App.STATUS[st] || st)}</span>`;
+
+  App.initials = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toLocaleUpperCase('tr');
+  const PAL = [['#6366f1', '#ec4899'], ['#06b6d4', '#6366f1'], ['#10b981', '#06b6d4'], ['#f59e0b', '#ef4444'], ['#8b5cf6', '#06b6d4'], ['#ec4899', '#f59e0b']];
+  App.avatar = (name, size) => {
+    let h = 0; for (const c of String(name)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    const [a, b] = PAL[h % PAL.length];
+    const s = size ? `width:${size}px;height:${size}px;font-size:${Math.round(size / 2.8)}px;` : '';
+    return `<span class="avatar" style="--c1:${a};--c2:${b};${s}">${App.h(App.initials(name))}</span>`;
+  };
+
+  /* ---------- efektler ---------- */
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  // İmleci takip eden cam ışığı
+  document.addEventListener('pointermove', (e) => {
+    const t = e.target.closest && e.target.closest('.glass, .btn');
+    if (!t) return;
+    const r = t.getBoundingClientRect();
+    t.style.setProperty('--mx', e.clientX - r.left + 'px');
+    t.style.setProperty('--my', e.clientY - r.top + 'px');
+  }, { passive: true });
+
+  // 3B eğim
+  if (fine && !reduce) {
+    document.addEventListener('pointermove', (e) => {
+      const t = e.target.closest && e.target.closest('[data-tilt]');
+      if (!t) return;
+      const r = t.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width - 0.5;
+      const y = (e.clientY - r.top) / r.height - 0.5;
+      const k = parseFloat(t.dataset.tilt) || 6;
+      t.style.transform = `perspective(900px) rotateX(${(-y * k).toFixed(2)}deg) rotateY(${(x * k).toFixed(2)}deg) translateZ(0)`;
+    }, { passive: true });
+    document.addEventListener('pointerout', (e) => {
+      const t = e.target.closest && e.target.closest('[data-tilt]');
+      if (t && !t.contains(e.relatedTarget)) t.style.transform = '';
+    });
+  }
+
+  // Dalgalanma
+  document.addEventListener('pointerdown', (e) => {
+    const b = e.target.closest && e.target.closest('.btn, .chip, .tick');
+    if (!b || reduce) return;
+    const r = b.getBoundingClientRect();
+    const size = Math.max(r.width, r.height) * 2.2;
+    const s = document.createElement('span');
+    s.className = 'ripple';
+    s.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX - r.left - size / 2}px;top:${e.clientY - r.top - size / 2}px`;
+    b.appendChild(s);
+    setTimeout(() => s.remove(), 700);
+  });
+
+  App.confetti = (x, y, n) => {
+    if (reduce) return;
+    const colors = ['#6366f1', '#ec4899', '#06b6d4', '#10b981', '#f59e0b', '#8b5cf6'];
+    n = n || 26;
+    for (let i = 0; i < n; i++) {
+      const c = document.createElement('i');
+      c.className = 'confetti';
+      c.style.background = colors[i % colors.length];
+      document.body.appendChild(c);
+      const ang = Math.random() * Math.PI * 2;
+      const v = 60 + Math.random() * 140;
+      const dx = Math.cos(ang) * v, dy = Math.sin(ang) * v - 80;
+      const rot = Math.random() * 720 - 360;
+      c.animate([
+        { transform: `translate(${x}px, ${y}px) rotate(0) scale(1)`, opacity: 1 },
+        { transform: `translate(${x + dx}px, ${y + dy}px) rotate(${rot / 2}deg) scale(1)`, opacity: 1, offset: 0.45 },
+        { transform: `translate(${x + dx * 1.3}px, ${y + dy + 180}px) rotate(${rot}deg) scale(.6)`, opacity: 0 },
+      ], { duration: 1100 + Math.random() * 500, easing: 'cubic-bezier(.22,1,.36,1)' }).onfinish = () => c.remove();
+    }
+  };
+
+  App.countUp = (el, to, dur) => {
+    if (!el) return;
+    const from = parseInt(el.dataset.v || '0', 10) || 0;
+    el.dataset.v = to;
+    if (reduce || from === to) { el.textContent = to; return; }
+    const start = performance.now(); dur = dur || 900;
+    const step = (t) => {
+      const p = Math.min(1, (t - start) / dur);
+      const e = 1 - Math.pow(1 - p, 4);
+      el.textContent = Math.round(from + (to - from) * e);
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  };
+
+  App.ring = (pct, size, label, sub) => {
+    size = size || 120;
+    const sw = Math.max(8, size / 11), r = (size - sw) / 2, c = 2 * Math.PI * r;
+    const html = `<div class="ring" style="width:${size}px;height:${size}px" data-pct="${pct}">
+      <svg width="${size}" height="${size}"><defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#6366f1"/><stop offset=".55" stop-color="#8b5cf6"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs>
+        <circle class="track" cx="${size / 2}" cy="${size / 2}" r="${r}" stroke-width="${sw}"/>
+        <circle class="bar" cx="${size / 2}" cy="${size / 2}" r="${r}" stroke-width="${sw}" stroke-dasharray="${c}" stroke-dashoffset="${c}"/></svg>
+      <div class="label"><b>${label === undefined ? '%' : ''}<span class="rn">0</span></b><small>${App.h(sub || '')}</small></div></div>`;
+    return html;
+  };
+  App.animateRings = (root) => {
+    App.$$('.ring', root).forEach((rg) => {
+      const bar = rg.querySelector('.bar');
+      const c = parseFloat(bar.getAttribute('stroke-dasharray'));
+      const pct = Math.max(0, Math.min(100, +rg.dataset.pct || 0));
+      requestAnimationFrame(() => requestAnimationFrame(() => { bar.style.strokeDashoffset = c * (1 - pct / 100); }));
+      App.countUp(rg.querySelector('.rn'), Math.round(pct));
+    });
+  };
+  App.animateBars = (root) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      App.$$('.track-h i[data-w]', root).forEach((i) => { i.style.width = i.dataset.w + '%'; });
+    }));
+  };
+
+  /* ---------- bildirim ---------- */
+  let toastBox;
+  App.toast = (msg, type, opts) => {
+    opts = opts || {};
+    if (!toastBox) { toastBox = App.el('<div class="toasts" role="status" aria-live="polite"></div>'); document.body.appendChild(toastBox); }
+    const ic = type === 'bad' ? P.x : type === 'info' ? P.sparkle : P.check;
+    const t = App.el(`<div class="toast glass ${type || ''}"><span class="tdot"><svg viewBox="0 0 24 24">${ic}</svg></span><span>${App.h(msg)}</span></div>`);
+    if (opts.action) {
+      const b = App.el(`<button class="btn sm">${App.h(opts.action)}</button>`);
+      b.onclick = () => { opts.onAction && opts.onAction(); close(); };
+      t.appendChild(b);
+    }
+    toastBox.appendChild(t);
+    const close = () => { t.classList.add('out'); setTimeout(() => t.remove(), 350); };
+    setTimeout(close, opts.duration || (opts.action ? 5000 : 2800));
+    return close;
+  };
+  App.err = (e) => App.toast(e && e.message ? e.message : String(e), 'bad');
+
+  /* ---------- modal ---------- */
+  App.modal = ({ title, body, actions, wide, onOpen, onClose }) => {
+    const back = App.el(`<div class="modal-back"><div class="modal glass ${wide ? 'wide' : ''}" role="dialog" aria-modal="true">
+      <header><h3>${App.h(title || '')}</h3><button class="btn icon sm ghost" data-x aria-label="Kapat">${App.icon('x')}</button></header>
+      <div class="body"></div><footer></footer></div></div>`);
+    const bodyEl = back.querySelector('.body');
+    if (typeof body === 'string') bodyEl.innerHTML = body; else if (body) bodyEl.appendChild(body);
+    const foot = back.querySelector('footer');
+    const m = { root: back, body: bodyEl, closed: false };
+    m.close = (val) => {
+      if (m.closed) return; m.closed = true;
+      back.classList.add('closing');
+      document.removeEventListener('keydown', onKey);
+      setTimeout(() => back.remove(), 260);
+      onClose && onClose(val);
+    };
+    (actions || []).forEach((a) => {
+      const b = App.el(`<button class="btn ${a.cls || ''}" type="button">${a.icon ? App.icon(a.icon) : ''}<span>${App.h(a.label)}</span></button>`);
+      b.onclick = async () => {
+        if (!a.onClick) return m.close();
+        b.classList.add('loading'); b.disabled = true;
+        try { const r = await a.onClick(m, b); if (r !== false) m.close(r); } catch (e) { App.err(e); bodyEl.closest('.modal').classList.add('shake'); setTimeout(() => bodyEl.closest('.modal').classList.remove('shake'), 500); } finally { b.classList.remove('loading'); b.disabled = false; }
+      };
+      foot.appendChild(b);
+    });
+    if (!foot.children.length) foot.remove();
+    const onKey = (e) => { if (e.key === 'Escape') m.close(); };
+    document.addEventListener('keydown', onKey);
+    back.addEventListener('pointerdown', (e) => { if (e.target === back) m.close(); });
+    back.querySelector('[data-x]').onclick = () => m.close();
+    document.body.appendChild(back);
+    const first = bodyEl.querySelector('input:not([type=hidden]):not([type=checkbox]):not([type=radio]), select, textarea');
+    if (first && window.matchMedia('(hover: hover)').matches) setTimeout(() => first.focus(), 80);
+    onOpen && onOpen(m);
+    return m;
+  };
+  App.confirm = (msg, { ok = 'Evet', danger = true, title = 'Emin misiniz?' } = {}) => new Promise((resolve) => {
+    let v = false;
+    App.modal({
+      title,
+      body: `<p>${App.h(msg)}</p>`,
+      actions: [
+        { label: 'Vazgeç', cls: 'ghost' },
+        { label: ok, cls: danger ? 'warn' : 'primary', onClick: () => { v = true; } },
+      ],
+      onClose: () => resolve(v),
+    });
+  });
+
+  App.formData = (form) => {
+    const o = {};
+    new FormData(form).forEach((v, k) => {
+      if (k.endsWith('[]')) { k = k.slice(0, -2); (o[k] = o[k] || []).push(v); } else o[k] = v;
+    });
+    return o;
+  };
+
+  /* ---------- sıklık editörü ---------- */
+  App.freqFields = (v, prefix) => {
+    v = v || {}; prefix = prefix || 'f' + Math.random().toString(36).slice(2, 7);
+    const t = v.freq_type || 'daily';
+    const wd = String(v.weekdays || '').split(',');
+    const r = (val, lbl) => `<label><input type="radio" name="${prefix}_type" value="${val}" ${t === val ? 'checked' : ''}><span>${lbl}</span></label>`;
+    const days = [1, 2, 3, 4, 5, 6, 7].map((d) => `<label><input type="checkbox" name="${prefix}_wd" value="${d}" ${wd.includes(String(d)) ? 'checked' : ''}><span>${App.DAY_SHORT[d]}</span></label>`).join('');
+    return `<div class="freq" data-freq="${prefix}">
+      <div class="seg">${r('daily', 'Her gün')}${r('every_n_days', 'X günde 1')}${r('weekly', 'Haftalık')}${r('monthly', 'Aylık')}</div>
+      <div class="inline" data-show="every_n_days"><input type="number" min="2" max="365" name="${prefix}_n_days" value="${t === 'every_n_days' ? v.freq_interval || 2 : 2}"> iş gününde bir</div>
+      <div data-show="weekly" class="freq">
+        <div class="days">${days}</div>
+        <div class="inline"><input type="number" min="1" max="52" name="${prefix}_n_weeks" value="${t === 'weekly' ? v.freq_interval || 1 : 1}"> haftada bir</div>
+      </div>
+      <div class="inline" data-show="monthly"><input type="number" min="1" max="12" name="${prefix}_n_months" value="${t === 'monthly' ? v.freq_interval || 1 : 1}"> ayda bir, ayın
+        <input type="number" min="1" max="31" name="${prefix}_md" value="${v.month_day || 1}">. günü</div>
+      <div class="inline">Hedef saat <input type="time" name="${prefix}_time" value="${App.h(v.due_time || '')}"><small class="muted">boş bırakılırsa gün sonuna kadar</small></div>
+    </div>`;
+  };
+  App.bindFreq = (root) => {
+    App.$$('[data-freq]', root).forEach((f) => {
+      if (f.dataset.bound) return; f.dataset.bound = 1;
+      const p = f.dataset.freq;
+      const sync = () => {
+        const t = (f.querySelector(`input[name=${p}_type]:checked`) || {}).value;
+        App.$$(':scope > [data-show]', f).forEach((s) => { s.hidden = s.dataset.show !== t; });
+      };
+      f.addEventListener('change', sync); sync();
+    });
+  };
+  App.readFreq = (f) => {
+    const p = f.dataset.freq;
+    const val = (n) => (f.querySelector(`[name=${p}_${n}]`) || {}).value;
+    const t = f.querySelector(`input[name=${p}_type]:checked`).value;
+    const o = { freq_type: t, freq_interval: 1, weekdays: null, month_day: null, due_time: val('time') || null };
+    if (t === 'every_n_days') o.freq_interval = +val('n_days') || 2;
+    if (t === 'weekly') { o.freq_interval = +val('n_weeks') || 1; o.weekdays = App.$$(`input[name=${p}_wd]:checked`, f).map((i) => i.value).join(','); }
+    if (t === 'monthly') { o.freq_interval = +val('n_months') || 1; o.month_day = +val('md') || 1; }
+    return o;
+  };
+
+  /* ---------- giriş ---------- */
+  App.initLogin = () => {
+    const f = document.getElementById('login-form');
+    const alert = f.querySelector('.alert');
+    f.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const b = f.querySelector('button[type=submit]');
+      b.classList.add('loading'); alert.hidden = true;
+      try {
+        await App.api('login', App.formData(f));
+        App.confetti(innerWidth / 2, innerHeight / 2, 30);
+        setTimeout(() => location.reload(), 350);
+      } catch (err) {
+        alert.textContent = err.message; alert.hidden = false;
+        f.classList.remove('shake'); void f.offsetWidth; f.classList.add('shake');
+        b.classList.remove('loading');
+      }
+    });
+  };
+
+  App.photoUrl = (c) => 'photo.php?id=' + c.id;
+  App.download = (url) => { location.href = url; };
+
+  App.logout = async () => {
+    try { await App.api('logout', {}); } catch (e) { /* yoksay */ }
+    location.href = 'index.php';
+  };
+
+  App.changePassword = () => {
+    App.modal({
+      title: 'Şifre değiştir',
+      body: `<form class="form"><label class="field"><span>Mevcut şifre</span><input type="password" name="current" autocomplete="current-password"></label>
+        <label class="field"><span>Yeni şifre</span><input type="password" name="new" autocomplete="new-password" minlength="6"></label></form>`,
+      actions: [{ label: 'Vazgeç', cls: 'ghost' }, {
+        label: 'Kaydet', cls: 'primary', onClick: async (m) => {
+          await App.api('password', App.formData(m.body.querySelector('form')));
+          App.toast('Şifreniz güncellendi');
+        },
+      }],
+    });
+  };
+
+  /** Telefonda çekilen fotoğrafı yüklemeden önce küçültür. */
+  App.shrinkImage = (file, max) => new Promise((resolve) => {
+    max = max || 1400;
+    if (!file || !/^image\//.test(file.type)) return resolve(file);
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      c.toBlob((b) => resolve(b ? new File([b], 'foto.jpg', { type: 'image/jpeg' }) : file), 'image/jpeg', 0.82);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+})();
+
+/* ---------- iş detay / işaretleme penceresi (personel ve yönetici ortak) ---------- */
+(function () {
+  'use strict';
+  const { h, icon, badge } = App;
+
+  App.canUndo = (it) => {
+    const me = window.BOOT && BOOT.user;
+    if (!it.completion || !me) return false;
+    if (me.role === 'admin') return true;
+    return it.completion.by_id === me.id && it.completion.at.slice(0, 10) === App.today();
+  };
+
+  App.completeItem = async (it, status, note, photo) => {
+    const fd = new FormData();
+    fd.append('plan_id', it.plan_id);
+    fd.append('occ_date', it.occ_date);
+    fd.append('status', status || 'done');
+    if (note) fd.append('note', note);
+    if (photo) fd.append('photo', photo, photo.name || 'foto.jpg');
+    return App.api('complete', fd);
+  };
+  App.uncompleteItem = (it) => App.api('uncomplete', { plan_id: it.plan_id, occ_date: it.occ_date });
+
+  App.taskSheet = (it, onChange) => {
+    const c = it.completion;
+    const isAdmin = BOOT.user.role === 'admin';
+    const canMark = !c && it.status !== 'upcoming' && (it.status !== 'missed' || isAdmin);
+    const carried = it.occ_date !== App.today();
+    let body = `<div class="sheet-task">
+      <div class="meta">${badge(it.status)}<span class="tag">${icon('pin')}${h(it.location)}</span>
+        <span class="tag">${icon('refresh')}${h(it.freq)}</span>
+        ${it.due_time ? `<span class="tag">${icon('clock')}${h(it.due_time)}</span>` : ''}
+        ${carried ? `<span class="tag">${icon('calendar')}${h(App.fmtDate(it.occ_date, true))}</span>` : ''}
+        ${it.user ? `<span class="tag">${icon('user')}${h(it.user)}</span>` : '<span class="tag">' + icon('users') + 'Ortak iş</span>'}</div>
+      ${it.task_desc ? `<p class="muted">${h(it.task_desc)}</p>` : ''}
+      ${it.note ? `<div class="alert info">${h(it.note)}</div>` : ''}`;
+    if (c) {
+      body += `<div class="glass card" style="padding:14px">
+        <div style="display:flex;gap:10px;align-items:center">${App.avatar(c.by || '?')}<div><b>${h(c.by || '')}</b>
+        <div class="muted small">${h(App.relDay(c.at))} ${h(App.fmtTime(c.at))}${c.late ? ' · <span style="color:var(--warn);font-weight:700">geç yapıldı</span>' : ''}</div></div></div>
+        ${c.note ? `<p style="margin-top:10px">${h(c.note)}</p>` : ''}
+        ${c.photo ? `<img class="photo-thumb" src="${App.h(App.photoUrl(c))}" alt="Fotoğraf" loading="lazy">` : ''}</div>`;
+    } else if (canMark) {
+      body += `<label class="field"><span>Not (isteğe bağlı, sorun bildirirken zorunlu)</span><textarea name="note" placeholder="Örn. sabun bitti, depodan istendi"></textarea></label>
+        <label class="photo-drop">${icon('camera')}<span>Fotoğraf ekle (isteğe bağlı)</span><input type="file" accept="image/*" capture="environment" hidden></label>
+        <div class="big-actions"><button class="btn warn" data-act="issue">${icon('flag')}<span>Sorun var</span></button>
+        <button class="btn success" data-act="done">${icon('check')}<span>Tamamlandı</span></button></div>`;
+    } else if (it.status === 'missed') {
+      body += `<div class="alert bad">Bu işin süresi geçti, yapılmadı olarak kaydedildi.</div>`;
+    }
+    body += '</div>';
+
+    const actions = [];
+    if (c && App.canUndo(it)) {
+      actions.push({ label: 'İşareti geri al', cls: 'danger', icon: 'refresh', onClick: async () => {
+        await App.uncompleteItem(it); App.toast('İşaret geri alındı', 'info'); onChange && onChange();
+      } });
+    }
+    const m = App.modal({ title: it.task, body, actions });
+    if (!canMark) return m;
+
+    let photo = null;
+    const drop = m.body.querySelector('.photo-drop');
+    const input = drop.querySelector('input');
+    input.onchange = async () => {
+      if (!input.files[0]) return;
+      photo = await App.shrinkImage(input.files[0]);
+      const url = URL.createObjectURL(photo);
+      drop.innerHTML = `<img src="${url}" alt=""><span>Değiştirmek için dokunun</span>`;
+      drop.appendChild(input);
+    };
+    App.$$('[data-act]', m.body).forEach((b) => {
+      b.onclick = async () => {
+        const status = b.dataset.act;
+        const note = m.body.querySelector('textarea').value.trim();
+        if (status === 'issue' && !note) { App.toast('Lütfen sorunu kısaca yazın', 'bad'); m.body.querySelector('textarea').focus(); return; }
+        b.classList.add('loading');
+        try {
+          const r = await App.completeItem(it, status, note, photo);
+          const rect = b.getBoundingClientRect();
+          if (status === 'done') App.confetti(rect.left + rect.width / 2, rect.top, 30);
+          App.toast(status === 'done' ? 'Harika, iş tamamlandı!' : 'Sorun bildirildi', status === 'done' ? '' : 'info');
+          m.close();
+          onChange && onChange(r);
+        } catch (e) { App.err(e); b.classList.remove('loading'); }
+      };
+    });
+    return m;
+  };
+})();
+
+</script>
+<script>
+window.__runAdmin = function () {
+/* İş Takip — yönetici paneli */
+(function () {
+  'use strict';
+  const { h, icon, $, $$, api } = App;
+  const me = BOOT.user;
+  const root = document.getElementById('app');
+
+  const ROUTES = [
+    { id: 'panel', label: 'Günlük Durum', short: 'Durum', icon: 'home', view: viewDashboard },
+    { id: 'atamalar', label: 'İş Atamaları', short: 'Atamalar', icon: 'list', view: viewPlans },
+    { id: 'paketler', label: 'İş Paketleri', short: 'Paketler', icon: 'layers', view: viewPackages },
+    { id: 'isler', label: 'İş Tanımları', short: 'İşler', icon: 'check', view: viewTasks },
+    { id: 'mekanlar', label: 'Mekanlar', short: 'Mekanlar', icon: 'pin', view: viewLocations },
+    { id: 'personel', label: 'Personel', short: 'Personel', icon: 'users', view: viewUsers },
+    { id: 'raporlar', label: 'Raporlar', short: 'Rapor', icon: 'chart', view: viewReports },
+    { id: 'ayarlar', label: 'Ayarlar', short: 'Ayarlar', icon: 'gear', view: viewSettings },
+  ];
+
+  let timer = null;
+  const cache = {};
+  async function get(name, force) {
+    if (force || !cache[name]) cache[name] = await api(name);
+    return cache[name];
+  }
+  function invalidate(...names) { names.forEach((n) => delete cache[n]); }
+
+  /* ---------- iskelet ---------- */
+  root.innerHTML = `<div class="shell">
+    <aside class="side"><div class="glass nav-card">
+      <div class="brand"><div class="brand-mark"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg></div>
+        <div><b>${h(BOOT.company)}</b><small>Yönetim paneli</small></div></div>
+      <nav class="nav"><span class="pill"></span>${ROUTES.map((r) => `<a href="#/${r.id}" data-r="${r.id}">${icon(r.icon)}<span>${r.label}</span></a>`).join('')}</nav>
+      <div class="side-foot">
+        <a class="btn sm block" href="index.php?view=staff">${icon('phone')}<span>Personel ekranı</span></a>
+        <div class="me">${App.avatar(me.name)}<div style="flex:1;min-width:0"><b>${h(me.name)}</b><small>Yönetici</small></div>
+          <button class="btn icon sm ghost" data-pw title="Şifre değiştir">${icon('key')}</button>
+          <button class="btn icon sm ghost" data-out title="Çıkış">${icon('logout')}</button></div>
+      </div></div></aside>
+    <main class="main">
+      <div class="topbar glass"><div class="brand-mark"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg></div>
+        <b>${h(BOOT.company)}</b>
+        <a class="btn icon sm" href="index.php?view=staff" title="Personel ekranı">${icon('phone')}</a>
+        <button class="btn icon sm" data-out title="Çıkış">${icon('logout')}</button></div>
+      <div id="view"></div>
+    </main>
+    <nav class="tabbar glass">${ROUTES.map((r) => `<a href="#/${r.id}" data-r="${r.id}">${icon(r.icon)}<span>${r.short}</span></a>`).join('')}</nav>
+  </div>`;
+  $$('[data-out]').forEach((b) => (b.onclick = App.logout));
+  $('[data-pw]').onclick = App.changePassword;
+  const viewEl = $('#view');
+
+  function setActive(id) {
+    $$('[data-r]').forEach((a) => a.classList.toggle('active', a.dataset.r === id));
+    const a = $(`.nav a[data-r="${id}"]`);
+    const pill = $('.nav .pill');
+    if (a && pill) { pill.style.transform = `translateY(${a.offsetTop}px)`; pill.style.height = a.offsetHeight + 'px'; }
+    const t = $(`.tabbar a[data-r="${id}"]`);
+    if (t) t.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+  }
+
+  async function route() {
+    clearInterval(timer);
+    const id = (location.hash.match(/^#\/([\w-]+)/) || [])[1] || 'panel';
+    const r = ROUTES.find((x) => x.id === id) || ROUTES[0];
+    setActive(r.id);
+    document.title = r.label + ' · ' + BOOT.company;
+    viewEl.innerHTML = '';
+    const v = document.createElement('div');
+    v.className = 'view';
+    viewEl.appendChild(v);
+    try { await r.view(v); } catch (e) { App.err(e); }
+  }
+  window.addEventListener('hashchange', route);
+  window.addEventListener('resize', () => setActive((location.hash.match(/^#\/([\w-]+)/) || [])[1] || 'panel'));
+
+  const head = (title, sub, tools) => `<div class="page-head"><div><h2>${h(title)}</h2>${sub ? `<p>${sub}</p>` : ''}</div><div class="toolbar">${tools || ''}</div></div>`;
+  const emptyBox = (emoji, title, text, btn) => `<div class="empty"><div class="big">${emoji}</div><b>${h(title)}</b><span>${h(text || '')}</span>${btn || ''}</div>`;
+  const skel = (n, hgt) => `<div class="grid">${`<div class="skeleton" style="height:${hgt || 56}px"></div>`.repeat(n || 4)}</div>`;
+  const staffOptions = (users, sel, allLabel) => `<option value="">${h(allLabel || 'Ortak (tüm personel)')}</option>` +
+    users.map((u) => `<option value="${u.id}" ${String(sel) === String(u.id) ? 'selected' : ''}>${h(u.name)}${u.role === 'admin' ? ' (yönetici)' : ''}</option>`).join('');
+  const locOptions = (locs, sel, allLabel) => (allLabel !== undefined ? `<option value="">${h(allLabel)}</option>` : '') +
+    locs.map((l) => `<option value="${l.id}" ${String(sel) === String(l.id) ? 'selected' : ''}>${h(l.name)}</option>`).join('');
+  const taskDatalist = (tasks, id) => `<datalist id="${id}">${tasks.map((t) => `<option value="${h(t.name)}">`).join('')}</datalist>`;
+
+  /* =========================================================
+     Günlük durum paneli
+     ========================================================= */
+  async function viewDashboard(v) {
+    let date = sessionStorage.getItem('istakip.dash') || App.today();
+    if (date > App.today()) date = App.today();
+    let filter = 'all';
+    let q = '';
+    let data = null;
+
+    v.innerHTML = head('Günlük Durum', '', `
+      <button class="btn icon" data-prev title="Önceki gün">${icon('chev', '')}</button>
+      <input type="date" data-date value="${date}" max="${App.today()}">
+      <button class="btn icon" data-next title="Sonraki gün">${icon('chev')}</button>
+      <button class="btn" data-today>Bugün</button>
+      <button class="btn icon" data-refresh title="Yenile">${icon('refresh')}</button>`) +
+      `<div class="stats stagger" data-stats>${'<div class="skeleton" style="height:118px;border-radius:22px"></div>'.repeat(6)}</div>
+      <div class="dash-grid"><div class="glass card" data-list>${skel(6)}</div><div class="grid" data-side></div></div>`;
+    $('[data-prev] svg', v).style.transform = 'rotate(180deg)';
+    const sub = $('.page-head p', v) || App.el('<p></p>');
+    if (!$('.page-head p', v)) $('.page-head > div', v).appendChild(sub);
+
+    const setDate = (d) => { if (d > App.today()) d = App.today(); date = d; sessionStorage.setItem('istakip.dash', d); $('[data-date]', v).value = d; load(); };
+    $('[data-prev]', v).onclick = () => setDate(App.addDays(date, -1));
+    $('[data-next]', v).onclick = () => setDate(App.addDays(date, 1));
+    $('[data-today]', v).onclick = () => setDate(App.today());
+    $('[data-date]', v).onchange = (e) => e.target.value && setDate(e.target.value);
+    $('[data-refresh]', v).onclick = () => load();
+
+    async function load() {
+      try {
+        data = await api('dashboard', null, { date });
+        render();
+      } catch (e) { App.err(e); }
+    }
+
+    function render() {
+      const t = data.tally;
+      const isToday = data.date === data.today;
+      sub.innerHTML = `${h(App.fmtDate(data.date, true))}${isToday ? ` · saat ${h(data.now)}` : ''}${data.workday ? '' : ' · <b>iş günü değil</b>'}`;
+      const stat = (key, lbl, n, c, ic) => `<div class="glass stat lift clickable" data-filter="${key}" style="--c:${c}">
+        <div class="top"><span class="lbl">${lbl}</span><span class="icon">${icon(ic)}</span></div>
+        <div class="num" data-n="${n}">0</div><span class="spark"></span></div>`;
+      $('[data-stats]', v).innerHTML =
+        stat('all', 'Toplam iş', t.total, '#6366f1', 'list') +
+        stat('closed', 'Tamamlanan', t.done + t.issue, '#10b981', 'check') +
+        stat('pending', 'Bekleyen', t.pending, '#64748b', 'clock') +
+        stat('overdue', 'Geciken', t.overdue, '#f59e0b', 'alert') +
+        stat('issue', 'Sorun bildirilen', t.issue, '#8b5cf6', 'flag') +
+        stat('missed', 'Yapılmayan (7 gün)', data.missed_count, '#ef4444', 'x');
+      $$('[data-n]', v).forEach((n) => App.countUp(n, +n.dataset.n));
+      $$('[data-filter]', v).forEach((s) => (s.onclick = () => {
+        if (s.dataset.filter === 'missed') { $('[data-missed]', v)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+        filter = s.dataset.filter; renderList(); $('[data-list]', v).scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }));
+      renderList();
+      renderSide();
+    }
+
+    function renderList() {
+      const box = $('[data-list]', v);
+      const f = (it) => filter === 'all' ? true : filter === 'closed' ? (it.status === 'done' || it.status === 'issue') : it.status === filter;
+      const qq = q.toLocaleLowerCase('tr');
+      const items = data.items.filter(f).filter((it) => !qq || (it.task + ' ' + it.location + ' ' + (it.user || '')).toLocaleLowerCase('tr').includes(qq));
+      const chip = (k, l, n) => `<button class="chip ${filter === k ? 'active' : ''}" data-chip="${k}">${l}<span class="n">${n}</span></button>`;
+      const t = data.tally;
+      let html = `<div class="card-head"><h3>İş listesi</h3><input type="search" placeholder="Ara: iş, mekan, kişi" value="${h(q)}" data-q style="max-width:240px;min-height:38px"></div>
+        <div class="chips" style="margin-bottom:8px">${chip('all', 'Tümü', t.total)}${chip('overdue', 'Geciken', t.overdue)}${chip('pending', 'Bekleyen', t.pending)}${chip('closed', 'Tamamlanan', t.done + t.issue)}${chip('issue', 'Sorunlu', t.issue)}</div>`;
+      if (!data.items.length) {
+        html += emptyBox(data.workday ? '🗂️' : '🌴', data.workday ? 'Bu gün için planlanmış iş yok' : 'Bu gün iş günü değil',
+          data.workday ? 'İş paketlerinden atama yaparak başlayın.' : 'Çalışma günlerini Ayarlar’dan değiştirebilirsiniz.',
+          data.workday ? `<a class="btn primary" href="#/paketler">${icon('layers')}<span>Paketlerden ata</span></a>` : '');
+      } else if (!items.length) {
+        html += emptyBox('🔍', 'Bu filtrede iş yok', '');
+      } else {
+        const groups = new Map();
+        items.forEach((it) => { if (!groups.has(it.location)) groups.set(it.location, []); groups.get(it.location).push(it); });
+        html += '<div class="table-wrap"><table><thead><tr><th>İş</th><th>Sorumlu</th><th>Saat</th><th>Durum</th><th>Kim / ne zaman</th></tr></thead><tbody>';
+        for (const [loc, list] of groups) {
+          html += `<tr class="group"><td colspan="5">${icon('pin')} ${h(loc)} <span class="muted">· ${list.length}</span></td></tr>`;
+          html += list.map((it) => `<tr data-key="${it.plan_id}|${it.occ_date}" style="cursor:pointer">
+            <td><b>${h(it.task)}</b><div class="muted small">${h(it.freq)}${it.occ_date !== data.date ? ' · ' + h(App.fmtDate(it.occ_date)) + ' tarihli' : ''}</div></td>
+            <td class="nowrap">${it.user ? h(it.user) : '<span class="muted">Ortak</span>'}</td>
+            <td class="nowrap">${h(it.due_time || '—')}</td>
+            <td>${App.badge(it.status)}${it.completion && it.completion.late ? ' <span class="badge overdue plain">geç</span>' : ''}</td>
+            <td class="nowrap small">${it.completion ? `${h(it.completion.by || '')} · ${h(App.fmtTime(it.completion.at))}${it.completion.photo ? ' ' + icon('camera') : ''}${it.completion.note ? ' 💬' : ''}` : '<span class="muted">—</span>'}</td></tr>`).join('');
+        }
+        html += '</tbody></table></div>';
+      }
+      box.innerHTML = html;
+      $$('[data-chip]', box).forEach((c) => (c.onclick = () => { filter = c.dataset.chip; renderList(); }));
+      const qi = $('[data-q]', box);
+      qi.oninput = () => { q = qi.value; const pos = qi.selectionStart; renderList(); const n = $('[data-q]', box); n.focus(); n.setSelectionRange(pos, pos); };
+      $$('tr[data-key]', box).forEach((tr) => (tr.onclick = () => {
+        const it = data.items.find((i) => i.plan_id + '|' + i.occ_date === tr.dataset.key);
+        App.taskSheet(it, load);
+      }));
+    }
+
+    function bars(list, emptyText) {
+      if (!list.length) return `<p class="muted small">${h(emptyText)}</p>`;
+      return '<div class="bars">' + list.map((g) => {
+        const w = (n) => (g.total ? (n * 100) / g.total : 0).toFixed(1);
+        return `<div class="bar-row" title="${g.done} yapıldı · ${g.issue} sorun · ${g.overdue} gecikmiş · ${g.pending} bekliyor">
+          <div class="meta"><b>${h(g.name)}</b><span>${g.done + g.issue}/${g.total} · %${g.rate}</span></div>
+          <div class="track-h"><i class="ok" data-w="${w(g.done)}"></i><i class="issue" data-w="${w(g.issue)}"></i><i class="warn" data-w="${w(g.overdue)}"></i><i class="bad" data-w="${w(g.missed)}"></i></div></div>`;
+      }).join('') + '</div>';
+    }
+
+    function renderSide() {
+      const t = data.tally;
+      const side = $('[data-side]', v);
+      side.innerHTML = `
+        <div class="glass card" style="display:flex;gap:18px;align-items:center" data-tilt="4">
+          ${App.ring(t.rate, 120, undefined, 'tamamlandı')}
+          <div class="grid" style="gap:6px"><h3>Genel ilerleme</h3>
+            <p class="muted small">${t.done + t.issue} / ${t.total} iş kapandı</p>
+            <div class="legend"><span><i style="background:var(--ok)"></i>Yapıldı</span><span><i style="background:var(--issue)"></i>Sorun</span><span><i style="background:var(--warn)"></i>Gecikti</span></div>
+            <p class="muted small">${data.staff_count} aktif personel</p></div></div>
+        <div class="glass card"><div class="card-head"><h3>Mekanlara göre</h3></div>${bars(data.by_location, 'Veri yok')}</div>
+        <div class="glass card"><div class="card-head"><h3>Personele göre</h3></div>${bars(data.by_user, 'Veri yok')}</div>
+        <div class="glass card" data-missed><div class="card-head"><h3>Son 7 günde yapılmayanlar</h3><span class="badge missed">${data.missed_count}</span></div>
+          ${data.missed.length ? '<div class="list">' + data.missed.slice(0, 30).map((m) => `<div class="row">
+            <span class="dot" style="background:var(--bad)"></span>
+            <div><div class="title">${h(m.task)}</div><div class="sub"><span>${h(m.location)}</span><span>${h(m.user || 'Ortak')}</span></div></div>
+            <span class="small muted nowrap">${h(App.relDay(m.occ_date))}</span></div>`).join('') + '</div>' +
+            (data.missed.length > 30 ? `<a class="btn sm block" href="#/raporlar" style="margin-top:10px">Tümünü raporda gör</a>` : '')
+            : '<p class="muted small">Harika! Yapılmayan iş yok. ✨</p>'}</div>`;
+      App.animateRings(side); App.animateBars(side);
+    }
+
+    await load();
+    timer = setInterval(() => { if (date === App.today() && !document.hidden && !document.querySelector('.modal-back')) load(); }, 60000);
+  }
+
+  /* =========================================================
+     İş atamaları
+     ========================================================= */
+  async function viewPlans(v) {
+    v.innerHTML = head('İş Atamaları', 'Hangi işin, hangi mekanda, kim tarafından, ne sıklıkla yapılacağı', `
+      <button class="btn" data-add>${icon('plus')}<span>Tek iş ekle</span></button>
+      <button class="btn primary" data-apply>${icon('layers')}<span>Paketten ata</span></button>`) +
+      `<div class="glass card" data-box>${skel(6)}</div>`;
+    const [plans, locs, users] = await Promise.all([api('plans'), get('locations', true), get('users', true)]);
+    let fLoc = sessionStorage.getItem('istakip.pl') || '';
+    let fUser = sessionStorage.getItem('istakip.pu') || '';
+    let q = '';
+    const sel = new Set();
+    $('[data-add]', v).onclick = () => planModal(null, () => route());
+    $('[data-apply]', v).onclick = () => applyModal(null, () => route());
+
+    function render() {
+      const box = $('[data-box]', v);
+      const qq = q.toLocaleLowerCase('tr');
+      const list = plans.filter((p) => (!fLoc || String(p.location_id) === fLoc) &&
+        (!fUser || (fUser === 'none' ? !p.user_id : String(p.user_id) === fUser)) &&
+        (!qq || (p.task_name + ' ' + p.location_name).toLocaleLowerCase('tr').includes(qq)));
+      let html = `<div class="toolbar" style="margin-bottom:12px">
+        <select data-floc>${locOptions(locs, fLoc, 'Tüm mekanlar')}</select>
+        <select data-fuser><option value="">Tüm personel</option><option value="none" ${fUser === 'none' ? 'selected' : ''}>Ortak işler</option>${users.map((u) => `<option value="${u.id}" ${fUser === String(u.id) ? 'selected' : ''}>${h(u.name)}</option>`).join('')}</select>
+        <input type="search" placeholder="İş ara" data-q value="${h(q)}" style="max-width:220px">
+        <span class="muted small">${list.length} atama</span>
+        <span style="flex:1"></span>
+        <span data-bulk ${sel.size ? '' : 'hidden'} class="toolbar"><b class="small">${sel.size} seçili</b>
+          <button class="btn sm" data-reassign>${icon('swap')}<span>Devret</span></button>
+          <button class="btn sm danger" data-bdel>${icon('trash')}<span>Kaldır</span></button></span></div>`;
+      if (!plans.length) {
+        html += emptyBox('🧭', 'Henüz iş ataması yok', 'Hazır bir iş paketini bir mekana ve personele atayarak hızlıca başlayabilirsiniz.',
+          `<button class="btn primary" data-apply2>${icon('layers')}<span>Paketten ata</span></button>`);
+      } else if (!list.length) {
+        html += emptyBox('🔍', 'Filtreye uyan atama yok', '');
+      } else {
+        const groups = new Map();
+        list.forEach((p) => { if (!groups.has(p.location_name)) groups.set(p.location_name, []); groups.get(p.location_name).push(p); });
+        html += '<div class="table-wrap"><table><thead><tr><th style="width:30px"><label class="check"><input type="checkbox" data-all><span></span></label></th><th>İş</th><th>Sıklık</th><th>Saat</th><th>Sorumlu</th><th>Başlangıç</th><th></th></tr></thead><tbody>';
+        for (const [loc, ps] of groups) {
+          html += `<tr class="group"><td colspan="7">${icon('pin')} ${h(loc)} <span class="muted">· ${ps.length}</span></td></tr>`;
+          html += ps.map((p) => `<tr>
+            <td><label class="check"><input type="checkbox" data-sel="${p.id}" ${sel.has(p.id) ? 'checked' : ''}><span></span></label></td>
+            <td><b>${h(p.task_name)}</b>${p.package_name ? `<div class="small" style="color:${h(p.package_color)}">● ${h(p.package_name)}</div>` : ''}${p.note ? `<div class="muted small">${h(p.note)}</div>` : ''}</td>
+            <td class="nowrap">${h(p.freq)}</td><td>${h(p.due_time || '—')}</td>
+            <td class="nowrap">${p.user_name ? App.avatar(p.user_name, 24) + ' ' + h(p.user_name) : '<span class="muted">Ortak</span>'}</td>
+            <td class="nowrap small">${h(App.fmtDate(p.start_date))}${p.end_date ? ' → ' + h(App.fmtDate(p.end_date)) : ''}</td>
+            <td class="nowrap"><button class="btn icon sm ghost" data-edit="${p.id}" title="Düzenle">${icon('edit')}</button>
+              <button class="btn icon sm ghost danger" data-del="${p.id}" title="Kaldır">${icon('trash')}</button></td></tr>`).join('');
+        }
+        html += '</tbody></table></div>';
+      }
+      box.innerHTML = html;
+      $('[data-floc]', box).onchange = (e) => { fLoc = e.target.value; sessionStorage.setItem('istakip.pl', fLoc); render(); };
+      $('[data-fuser]', box).onchange = (e) => { fUser = e.target.value; sessionStorage.setItem('istakip.pu', fUser); render(); };
+      const qi = $('[data-q]', box);
+      qi.oninput = () => { q = qi.value; const pos = qi.selectionStart; render(); const n = $('[data-q]', box); n.focus(); n.setSelectionRange(pos, pos); };
+      const a2 = $('[data-apply2]', box); if (a2) a2.onclick = () => applyModal(null, () => route());
+      $$('[data-edit]', box).forEach((b) => (b.onclick = () => planModal(plans.find((p) => p.id == b.dataset.edit), () => route())));
+      $$('[data-del]', box).forEach((b) => (b.onclick = async () => {
+        if (!(await App.confirm('Bu atama bugünden itibaren kaldırılacak. Geçmiş kayıtlar raporlarda kalır.', { ok: 'Kaldır' }))) return;
+        try { await api('plan_delete', { id: b.dataset.del }); App.toast('Atama kaldırıldı'); route(); } catch (e) { App.err(e); }
+      }));
+      $$('[data-sel]', box).forEach((c) => (c.onchange = () => { c.checked ? sel.add(+c.dataset.sel) : sel.delete(+c.dataset.sel); render(); }));
+      const all = $('[data-all]', box);
+      if (all) {
+        all.checked = list.length && list.every((p) => sel.has(p.id));
+        all.onchange = () => { list.forEach((p) => (all.checked ? sel.add(p.id) : sel.delete(p.id))); render(); };
+      }
+      const bd = $('[data-bdel]', box);
+      if (bd) bd.onclick = async () => {
+        if (!(await App.confirm(sel.size + ' atama bugünden itibaren kaldırılacak.', { ok: 'Kaldır' }))) return;
+        try { await api('plan_delete', { ids: [...sel] }); App.toast(sel.size + ' atama kaldırıldı'); route(); } catch (e) { App.err(e); }
+      };
+      const ra = $('[data-reassign]', box);
+      if (ra) ra.onclick = () => App.modal({
+        title: 'Seçili işleri devret',
+        body: `<label class="field"><span>Yeni sorumlu</span><select name="u">${staffOptions(users, '')}</select></label>`,
+        actions: [{ label: 'Vazgeç', cls: 'ghost' }, { label: 'Devret', cls: 'primary', onClick: async (m) => {
+          await api('plans_reassign', { ids: [...sel], user_id: $('select', m.body).value });
+          App.toast(sel.size + ' iş devredildi'); route();
+        } }],
+      });
+    }
+    render();
+  }
+
+  async function planModal(p, done) {
+    const [locs, users, tasks] = await Promise.all([get('locations'), get('users'), get('tasks', true)]);
+    if (!locs.length) { App.toast('Önce en az bir mekan ekleyin', 'bad'); location.hash = '#/mekanlar'; return; }
+    p = p || {};
+    App.modal({
+      title: p.id ? 'Atamayı düzenle' : 'Yeni iş ataması',
+      wide: true,
+      body: `<form class="form">${taskDatalist(tasks, 'dl-tasks')}
+        <label class="field"><span>İş</span><input name="task_name" list="dl-tasks" value="${h(p.task_name || '')}" placeholder="Listeden seçin ya da yeni bir iş yazın" required></label>
+        <div class="grid2">
+          <label class="field"><span>Mekan</span><select name="location_id">${locOptions(locs, p.location_id)}</select></label>
+          <label class="field"><span>Sorumlu</span><select name="user_id">${staffOptions(users, p.user_id)}</select></label>
+        </div>
+        <fieldset><legend>Sıklık</legend>${App.freqFields(p, 'pf')}</fieldset>
+        <div class="grid2">
+          <label class="field"><span>Başlangıç</span><input type="date" name="start_date" value="${h((p.start_date || App.today()).slice(0, 10))}"></label>
+          <label class="field"><span>Bitiş (isteğe bağlı)</span><input type="date" name="end_date" value="${h((p.end_date || '').slice(0, 10))}"></label>
+        </div>
+        <label class="field"><span>Personele not (isteğe bağlı)</span><input name="note" value="${h(p.note || '')}" placeholder="Örn. Çamaşır suyu depodaki mavi dolapta"></label>
+        ${p.id ? '<p class="muted small">Not: Sıklık, mekan veya sorumlu değişirse geçmiş kayıtlar korunur; değişiklik bugünden itibaren geçerli olur.</p>' : ''}
+      </form>`,
+      onOpen: (m) => App.bindFreq(m.body),
+      actions: [{ label: 'Vazgeç', cls: 'ghost' }, { label: 'Kaydet', cls: 'primary', icon: 'check', onClick: async (m) => {
+        const f = $('form', m.body);
+        const d = Object.assign(App.formData(f), App.readFreq($('[data-freq]', f)));
+        if (p.id) d.id = p.id;
+        await api('plan_save', d);
+        invalidate('tasks');
+        App.toast(p.id ? 'Atama güncellendi' : 'İş atandı');
+        done && done();
+      } }],
+    });
+  }
+
+  async function applyModal(pkgId, done) {
+    const [pkgs, locs, users] = await Promise.all([api('packages'), get('locations'), get('users')]);
+    if (!pkgs.length) { App.toast('Önce bir iş paketi oluşturun', 'bad'); location.hash = '#/paketler'; return; }
+    if (!locs.length) { App.toast('Önce en az bir mekan ekleyin', 'bad'); location.hash = '#/mekanlar'; return; }
+    const m = App.modal({
+      title: 'İş paketini ata',
+      wide: true,
+      body: `<form class="form">
+        <label class="field"><span>İş paketi</span><select name="package_id">${pkgs.map((p) => `<option value="${p.id}" ${p.id == pkgId ? 'selected' : ''}>${h(p.name)} (${p.items.length} iş)</option>`).join('')}</select></label>
+        <div class="glass" style="padding:12px 14px;border-radius:16px" data-preview></div>
+        <div class="field"><span>Mekanlar <small>(birden fazla seçebilirsiniz)</small></span>
+          <div class="days" style="gap:8px">${locs.map((l) => `<label><input type="checkbox" name="location_ids[]" value="${l.id}"><span style="width:auto;padding:0 12px">${h(l.name)}</span></label>`).join('')}</div></div>
+        <div class="grid2">
+          <label class="field"><span>Sorumlu personel</span><select name="user_id">${staffOptions(users, '')}</select></label>
+          <label class="field"><span>Başlangıç tarihi</span><input type="date" name="start_date" value="${App.today()}"></label>
+        </div>
+        <p class="muted small" data-count></p></form>`,
+      actions: [{ label: 'Vazgeç', cls: 'ghost' }, { label: 'Ata', cls: 'primary', icon: 'check', onClick: async (m) => {
+        const d = App.formData($('form', m.body));
+        if (!d.location_ids || !d.location_ids.length) throw new Error('En az bir mekan seçin.');
+        const r = await api('package_apply', d);
+        App.toast(`${r.created} iş atandı${r.skipped ? `, ${r.skipped} zaten vardı` : ''}`);
+        const rect = m.root.querySelector('.modal').getBoundingClientRect();
+        App.confetti(rect.left + rect.width / 2, rect.top + 40, 40);
+        done && done();
+      } }],
+    });
+    const f = $('form', m.body);
+    const upd = () => {
+      const p = pkgs.find((x) => x.id == f.package_id.value);
+      $('[data-preview]', m.body).innerHTML = `<div class="small" style="display:flex;flex-wrap:wrap;gap:6px">${p.items.map((i) => `<span class="badge plain" style="--c:${h(p.color)}">${h(i.task_name)} · ${h(i.freq)}</span>`).join('')}</div>`;
+      const n = $$('input[name="location_ids[]"]:checked', f).length;
+      $('[data-count]', m.body).textContent = n ? `${p.items.length} iş × ${n} mekan = ${p.items.length * n} atama oluşturulacak.` : 'Mekan seçin.';
+    };
+    f.addEventListener('change', upd); upd();
+  }
+
+  /* =========================================================
+     İş paketleri (şablonlar)
+     ========================================================= */
+  async function viewPackages(v) {
+    v.innerHTML = head('İş Paketleri', 'Sık kullanılan iş gruplarını şablon olarak saklayın, tek seferde mekanlara atayın', `
+      <button class="btn primary" data-new>${icon('plus')}<span>Yeni paket</span></button>`) + `<div data-box>${skel(3, 200)}</div>`;
+    $('[data-new]', v).onclick = () => packageModal(null, () => route());
+    const pkgs = await api('packages');
+    const box = $('[data-box]', v);
+    if (!pkgs.length) {
+      box.innerHTML = `<div class="glass">${emptyBox('📦', 'Henüz iş paketi yok', 'Örn. “Tuvalet Temizliği” paketi oluşturup tüm katlara atayabilirsiniz.')}</div>`;
+      return;
+    }
+    box.innerHTML = '<div class="pkg-grid stagger">' + pkgs.map((p) => `<div class="glass pkg lift" style="--c:${h(p.color)}" data-tilt="5">
+      <div class="head"><span class="swatch">${icon('layers')}</span><div style="flex:1;min-width:0"><h3>${h(p.name)}</h3>
+        <div class="muted small">${p.items.length} iş · ${p.plan_count} aktif atama</div></div></div>
+      ${p.description ? `<p class="muted small">${h(p.description)}</p>` : ''}
+      <ul>${p.items.map((i) => `<li><span>${h(i.task_name)}</span><span>${h(i.freq)}${i.due_time ? ' · ' + h(i.due_time) : ''}</span></li>`).join('')}</ul>
+      <div class="foot">
+        <button class="btn icon sm ghost" data-copy="${p.id}" title="Kopyala"><svg class="ico" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button>
+        <button class="btn sm ghost" data-edit="${p.id}">${icon('edit')}<span>Düzenle</span></button>
+        <button class="btn icon sm ghost danger" data-del="${p.id}" title="Sil">${icon('trash')}</button>
+        <button class="btn sm primary" data-apply="${p.id}">${icon('play')}<span>Ata</span></button></div></div>`).join('') + '</div>';
+    const find = (id) => pkgs.find((p) => p.id == id);
+    $$('[data-apply]', box).forEach((b) => (b.onclick = () => applyModal(b.dataset.apply, () => { location.hash = '#/atamalar'; })));
+    $$('[data-edit]', box).forEach((b) => (b.onclick = () => packageModal(find(b.dataset.edit), () => route())));
+    $$('[data-copy]', box).forEach((b) => (b.onclick = () => {
+      const p = find(b.dataset.copy);
+      packageModal(Object.assign({}, p, { id: null, name: p.name + ' (kopya)' }), () => route());
+    }));
+    $$('[data-del]', box).forEach((b) => (b.onclick = async () => {
+      if (!(await App.confirm('Paket şablonu silinecek. Bu paketten yapılmış atamalar etkilenmez.', { ok: 'Sil' }))) return;
+      try { await api('package_delete', { id: b.dataset.del }); App.toast('Paket silindi'); route(); } catch (e) { App.err(e); }
+    }));
+  }
+
+  async function packageModal(p, done) {
+    const tasks = await get('tasks', true);
+    p = p || { color: '#6366f1', items: [] };
+    const row = (it) => `<div class="item-row">
+      <input name="task_name" list="dl-ptasks" value="${h(it.task_name || '')}" placeholder="İş adı (listeden seçin ya da yazın)">
+      <button type="button" class="btn icon sm ghost danger" data-rm title="Çıkar">${icon('x')}</button>
+      <div class="freq-fields">${App.freqFields(it)}</div></div>`;
+    const m = App.modal({
+      title: p.id ? 'Paketi düzenle' : 'Yeni iş paketi',
+      wide: true,
+      body: `<form class="form">${taskDatalist(tasks, 'dl-ptasks')}
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:end">
+          <label class="field"><span>Renk</span><input type="color" name="color" value="${h(p.color)}"></label>
+          <label class="field"><span>Paket adı</span><input name="name" value="${h(p.name || '')}" placeholder="Örn. Tuvalet Temizliği"></label></div>
+        <label class="field"><span>Açıklama</span><input name="description" value="${h(p.description || '')}"></label>
+        <fieldset><legend>Paketteki işler</legend><div class="items-editor">${(p.items.length ? p.items : [{}]).map(row).join('')}</div>
+          <button type="button" class="btn" data-addrow>${icon('plus')}<span>İş ekle</span></button></fieldset></form>`,
+      onOpen: (m) => App.bindFreq(m.body),
+      actions: [{ label: 'Vazgeç', cls: 'ghost' }, { label: 'Kaydet', cls: 'primary', icon: 'check', onClick: async (m) => {
+        const f = $('form', m.body);
+        const items = $$('.item-row', f).map((r) => Object.assign({ task_name: $('input[name=task_name]', r).value.trim() }, App.readFreq($('[data-freq]', r))))
+          .filter((i) => i.task_name);
+        await api('package_save', { id: p.id || null, name: f.name.value, description: f.description.value, color: f.color.value, items });
+        invalidate('tasks');
+        App.toast('Paket kaydedildi');
+        done && done();
+      } }],
+    });
+    const ed = $('.items-editor', m.body);
+    $('[data-addrow]', m.body).onclick = () => {
+      const r = App.el(row({}));
+      ed.appendChild(r); App.bindFreq(r); $('input', r).focus();
+      r.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    };
+    ed.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-rm]');
+      if (b) { const r = b.closest('.item-row'); r.style.transition = 'all .25s'; r.style.opacity = 0; r.style.transform = 'scale(.95)'; setTimeout(() => r.remove(), 220); }
+    });
+  }
+
+  /* =========================================================
+     İş tanımları
+     ========================================================= */
+  async function viewTasks(v) {
+    v.innerHTML = head('İş Tanımları', 'Yapılacak işlerin listesi. Açıklama, personelin görevi doğru yapması için gösterilir.', `
+      <button class="btn primary" data-new>${icon('plus')}<span>Yeni iş</span></button>`) + `<div class="glass card" data-box>${skel(6)}</div>`;
+    const tasks = await get('tasks', true);
+    const edit = (t) => App.modal({
+      title: t ? 'İşi düzenle' : 'Yeni iş',
+      body: `<form class="form"><label class="field"><span>İş adı</span><input name="name" value="${h(t ? t.name : '')}" placeholder="Örn. Sabun değişimi"></label>
+        <label class="field"><span>Açıklama / talimat</span><textarea name="description" placeholder="Nasıl yapılacağına dair kısa talimat">${h(t ? t.description || '' : '')}</textarea></label></form>`,
+      actions: [{ label: 'Vazgeç', cls: 'ghost' }, { label: 'Kaydet', cls: 'primary', onClick: async (m) => {
+        await api('task_save', Object.assign(App.formData($('form', m.body)), { id: t ? t.id : null }));
+        invalidate('tasks'); App.toast('Kaydedildi'); route();
+      } }],
+    });
+    $('[data-new]', v).onclick = () => edit(null);
+    const box = $('[data-box]', v);
+    if (!tasks.length) { box.innerHTML = emptyBox('📝', 'Henüz iş tanımı yok', 'İş paketi oluştururken yazdığınız işler buraya otomatik eklenir.'); return; }
+    box.innerHTML = `<input type="search" placeholder="Ara" data-q style="max-width:260px;margin-bottom:8px"><div class="list">` + tasks.map((t) => `<div class="row" data-name="${h(t.name.toLocaleLowerCase('tr'))}">
+      <span class="avatar" style="--c1:#6366f1;--c2:#06b6d4;width:32px;height:32px">${icon('check')}</span>
+      <div><div class="title">${h(t.name)}</div><div class="sub">${t.description ? `<span>${h(t.description)}</span>` : ''}<span>${t.plan_count} aktif atama</span></div></div>
+      <div class="actions"><button class="btn icon sm ghost" data-edit="${t.id}">${icon('edit')}</button>
+        <button class="btn icon sm ghost danger" data-del="${t.id}">${icon('trash')}</button></div></div>`).join('') + '</div>';
+    $('[data-q]', box).oninput = (e) => { const q = e.target.value.toLocaleLowerCase('tr'); $$('.row', box).forEach((r) => (r.hidden = !r.dataset.name.includes(q))); };
+    $$('[data-edit]', box).forEach((b) => (b.onclick = () => edit(tasks.find((t) => t.id == b.dataset.edit))));
+    $$('[data-del]', box).forEach((b) => (b.onclick = async () => {
+      if (!(await App.confirm('İş tanımı silinecek ve paketlerden çıkarılacak.', { ok: 'Sil' }))) return;
+      try { await api('task_delete', { id: b.dataset.del }); invalidate('tasks'); App.toast('Silindi'); route(); } catch (e) { App.err(e); }
+    }));
+  }
+
+  /* =========================================================
+     Mekanlar
+     ========================================================= */
+  async function viewLocations(v) {
+    v.innerHTML = head('Mekanlar', 'İşlerin yapıldığı yerler (kat, oda, tuvalet, çay ocağı…)', `
+      <button class="btn primary" data-new>${icon('plus')}<span>Yeni mekan</span></button>`) + `<div class="glass card" data-box>${skel(6)}</div>`;
+    const locs = await get('locations', true);
+    const edit = (l) => App.modal({
+      title: l ? 'Mekanı düzenle' : 'Yeni mekan',
+      body: `<form class="form"><label class="field"><span>Mekan adı</span><input name="name" value="${h(l ? l.name : '')}" placeholder="Örn. Kat 3 - Erkek Tuvaleti"></label>
+        <label class="field"><span>Açıklama</span><input name="description" value="${h(l ? l.description || '' : '')}" placeholder="Örn. B blok, asansör yanı"></label></form>`,
+      actions: [{ label: 'Vazgeç', cls: 'ghost' }, { label: 'Kaydet', cls: 'primary', onClick: async (m) => {
+        await api('location_save', Object.assign(App.formData($('form', m.body)), { id: l ? l.id : null, sort_order: l ? l.sort_order : locs.length }));
+        invalidate('locations'); App.toast('Kaydedildi'); route();
+      } }],
+    });
+    $('[data-new]', v).onclick = () => edit(null);
+    const box = $('[data-box]', v);
+    if (!locs.length) { box.innerHTML = emptyBox('📍', 'Henüz mekan yok', 'İşlerin yapılacağı yerleri ekleyin.'); return; }
+    box.innerHTML = '<div class="list">' + locs.map((l, i) => `<div class="row">
+      <span class="avatar" style="--c1:#ec4899;--c2:#f59e0b;width:32px;height:32px">${icon('pin')}</span>
+      <div><div class="title">${h(l.name)}</div><div class="sub">${l.description ? `<span>${h(l.description)}</span>` : ''}<span>${l.plan_count} aktif iş</span></div></div>
+      <div class="actions">
+        <button class="btn icon sm ghost" data-up="${i}" ${i === 0 ? 'disabled' : ''} title="Yukarı"><svg class="ico" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button>
+        <button class="btn icon sm ghost" data-down="${i}" ${i === locs.length - 1 ? 'disabled' : ''} title="Aşağı"><svg class="ico" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+        <button class="btn icon sm ghost" data-edit="${l.id}">${icon('edit')}</button>
+        <button class="btn icon sm ghost danger" data-del="${l.id}">${icon('trash')}</button></div></div>`).join('') + '</div>';
+    const move = async (i, d) => {
+      const ids = locs.map((l) => l.id);
+      [ids[i], ids[i + d]] = [ids[i + d], ids[i]];
+      try { await api('locations_order', { ids }); invalidate('locations'); route(); } catch (e) { App.err(e); }
+    };
+    $$('[data-up]', box).forEach((b) => (b.onclick = () => move(+b.dataset.up, -1)));
+    $$('[data-down]', box).forEach((b) => (b.onclick = () => move(+b.dataset.down, 1)));
+    $$('[data-edit]', box).forEach((b) => (b.onclick = () => edit(locs.find((l) => l.id == b.dataset.edit))));
+    $$('[data-del]', box).forEach((b) => (b.onclick = async () => {
+      if (!(await App.confirm('Mekan silinecek.', { ok: 'Sil' }))) return;
+      try { await api('location_delete', { id: b.dataset.del }); invalidate('locations'); App.toast('Silindi'); route(); } catch (e) { App.err(e); }
+    }));
+  }
+
+  /* =========================================================
+     Personel
+     ========================================================= */
+  async function viewUsers(v) {
+    v.innerHTML = head('Personel', 'Personel telefonundan bu sitenin adresini açıp kendi kullanıcı adıyla giriş yapar', `
+      <button class="btn" data-link>${icon('phone')}<span>Giriş adresini kopyala</span></button>
+      <button class="btn primary" data-new>${icon('plus')}<span>Yeni personel</span></button>`) + `<div data-box>${skel(4, 80)}</div>`;
+    const users = await get('users', true);
+    const appUrl = location.href.split('#')[0].split('?')[0];
+    $('[data-link]', v).onclick = async () => {
+      try { await navigator.clipboard.writeText(appUrl); App.toast('Adres kopyalandı: ' + appUrl); } catch (e) { App.toast(appUrl, 'info', { duration: 8000 }); }
+    };
+    const edit = (u) => App.modal({
+      title: u ? 'Personeli düzenle' : 'Yeni personel',
+      body: `<form class="form" autocomplete="off">
+        <label class="field"><span>Ad soyad</span><input name="name" value="${h(u ? u.name : '')}"></label>
+        <div class="grid2"><label class="field"><span>Kullanıcı adı</span><input name="username" autocapitalize="none" value="${h(u ? u.username : '')}" placeholder="ornek: ahmet.y"></label>
+        <label class="field"><span>Telefon</span><input name="phone" type="tel" value="${h(u ? u.phone || '' : '')}"></label></div>
+        <div class="grid2"><label class="field"><span>${u ? 'Yeni şifre (değişmeyecekse boş bırakın)' : 'Şifre'}</span><input name="password" type="text" autocomplete="new-password" placeholder="en az 6 karakter"></label>
+        <label class="field"><span>Rol</span><select name="role"><option value="staff">Personel</option><option value="admin" ${u && u.role === 'admin' ? 'selected' : ''}>Yönetici</option></select></label></div>
+        </form>`,
+      actions: [{ label: 'Vazgeç', cls: 'ghost' }, { label: 'Kaydet', cls: 'primary', onClick: async (m) => {
+        await api('user_save', Object.assign(App.formData($('form', m.body)), { id: u ? u.id : null }));
+        invalidate('users'); App.toast('Kaydedildi'); route();
+      } }],
+    });
+    $('[data-new]', v).onclick = () => edit(null);
+    const box = $('[data-box]', v);
+    box.innerHTML = '<div class="pkg-grid stagger">' + users.map((u) => `<div class="glass pkg lift" data-tilt="5">
+      <div class="head">${App.avatar(u.name, 46)}<div style="flex:1;min-width:0"><h3>${h(u.name)}</h3>
+        <div class="muted small">@${h(u.username)} · ${u.role === 'admin' ? 'Yönetici' : 'Personel'}</div></div></div>
+      <div class="small muted" style="display:flex;gap:12px;flex-wrap:wrap">${u.phone ? `<span>${icon('phone')} ${h(u.phone)}</span>` : ''}<span>${icon('list')} ${u.plan_count} aktif iş</span></div>
+      <div class="foot">
+        <a class="btn sm ghost" href="#/atamalar" data-plans="${u.id}">${icon('list')}<span>İşleri</span></a>
+        <button class="btn sm ghost" data-edit="${u.id}">${icon('edit')}<span>Düzenle</span></button>
+        ${u.id !== me.id ? `<button class="btn sm ghost danger" data-del="${u.id}">${icon('trash')}</button>` : ''}</div></div>`).join('') + '</div>';
+    $$('[data-plans]', box).forEach((a) => (a.onclick = () => { sessionStorage.setItem('istakip.pu', a.dataset.plans); sessionStorage.removeItem('istakip.pl'); }));
+    $$('[data-edit]', box).forEach((b) => (b.onclick = () => edit(users.find((u) => u.id == b.dataset.edit))));
+    $$('[data-del]', box).forEach((b) => (b.onclick = async () => {
+      const u = users.find((x) => x.id == b.dataset.del);
+      if (u.plan_count) {
+        App.modal({
+          title: u.name + ' — işleri devret',
+          body: `<p>Bu kişiye atanmış <b>${u.plan_count}</b> aktif iş var. Silmeden önce işleri kime devredelim?</p><br>
+            <label class="field"><span>Yeni sorumlu</span><select name="u">${staffOptions(users.filter((x) => x.id !== u.id), '')}</select></label>`,
+          actions: [{ label: 'Vazgeç', cls: 'ghost' }, { label: 'Devret ve sil', cls: 'warn', onClick: async (m) => {
+            const plans = (await api('plans')).filter((p) => p.user_id == u.id).map((p) => p.id);
+            await api('plans_reassign', { ids: plans, user_id: $('select', m.body).value });
+            await api('user_delete', { id: u.id });
+            invalidate('users'); App.toast(u.name + ' silindi, işleri devredildi'); route();
+          } }],
+        });
+        return;
+      }
+      if (!(await App.confirm(u.name + ' silinecek. Geçmiş kayıtları raporlarda kalır.', { ok: 'Sil' }))) return;
+      try { await api('user_delete', { id: u.id }); invalidate('users'); App.toast('Silindi'); route(); } catch (e) { App.err(e); }
+    }));
+  }
+
+  /* =========================================================
+     Raporlar
+     ========================================================= */
+  async function viewReports(v) {
+    const t = App.today();
+    const d = App.parseDate(t);
+    const monday = App.addDays(t, -((d.getDay() + 6) % 7));
+    const monthStart = t.slice(0, 8) + '01';
+    const prevMonthEnd = App.addDays(monthStart, -1);
+    const prevMonthStart = prevMonthEnd.slice(0, 8) + '01';
+    const ranges = { 'Bu hafta': [monday, t], 'Son 7 gün': [App.addDays(t, -6), t], 'Bu ay': [monthStart, t], 'Geçen ay': [prevMonthStart, prevMonthEnd], 'Son 30 gün': [App.addDays(t, -29), t] };
+    let [from, to] = ranges['Son 7 gün'];
+    let fUser = '', fLoc = '';
+    const [locs, users] = await Promise.all([get('locations', true), get('users', true)]);
+
+    v.innerHTML = head('Raporlar', 'Seçilen dönemde işlerin yapılma durumu', `
+      <button class="btn" data-csv>${icon('download')}<span>Excel (CSV)</span></button>`) +
+      `<div class="glass card" style="margin-bottom:16px"><div class="toolbar">
+        <div class="chips" style="padding:0">${Object.keys(ranges).map((k) => `<button class="chip ${k === 'Son 7 gün' ? 'active' : ''}" data-range="${h(k)}">${h(k)}</button>`).join('')}</div>
+        <input type="date" data-from value="${from}" max="${t}"> <span class="muted">→</span> <input type="date" data-to value="${to}" max="${t}">
+        <select data-loc>${locOptions(locs, '', 'Tüm mekanlar')}</select>
+        <select data-user><option value="">Tüm personel</option>${users.map((u) => `<option value="${u.id}">${h(u.name)}</option>`).join('')}</select>
+      </div></div><div data-out>${skel(4, 120)}</div>`;
+
+    const load = async () => {
+      $('[data-out]', v).style.opacity = .5;
+      try { render(await api('report', null, { from, to, user_id: fUser, location_id: fLoc })); } catch (e) { App.err(e); }
+      $('[data-out]', v).style.opacity = 1;
+    };
+    $$('[data-range]', v).forEach((b) => (b.onclick = () => {
+      [from, to] = ranges[b.dataset.range];
+      $('[data-from]', v).value = from; $('[data-to]', v).value = to;
+      $$('[data-range]', v).forEach((x) => x.classList.toggle('active', x === b)); load();
+    }));
+    $('[data-from]', v).onchange = (e) => { from = e.target.value; $$('[data-range]', v).forEach((x) => x.classList.remove('active')); load(); };
+    $('[data-to]', v).onchange = (e) => { to = e.target.value; $$('[data-range]', v).forEach((x) => x.classList.remove('active')); load(); };
+    $('[data-loc]', v).onchange = (e) => { fLoc = e.target.value; load(); };
+    $('[data-user]', v).onchange = (e) => { fUser = e.target.value; load(); };
+    $('[data-csv]', v).onclick = () => {
+      App.download(`api.php?a=report_csv&from=${from}&to=${to}&user_id=${fUser}&location_id=${fLoc}`);
+    };
+
+    function table(list, title, col) {
+      return `<div class="glass card"><div class="card-head"><h3>${h(title)}</h3></div><div class="table-wrap"><table>
+        <thead><tr><th>${h(col)}</th><th>Toplam</th><th>Yapıldı</th><th>Sorun</th><th>Yapılmadı</th><th>Oran</th></tr></thead><tbody>
+        ${list.map((g) => `<tr><td><b>${h(g.name)}</b></td><td>${g.total}</td><td>${g.done}</td><td>${g.issue}</td><td>${g.missed ? `<b style="color:var(--bad)">${g.missed}</b>` : 0}</td>
+          <td style="min-width:120px"><div class="track-h"><i class="ok" data-w="${g.rate}"></i></div><small class="muted">%${g.rate}</small></td></tr>`).join('')}
+        </tbody></table></div></div>`;
+    }
+
+    function render(r) {
+      const s = r.summary;
+      const out = $('[data-out]', v);
+      const max = Math.max(1, ...r.daily.map((d) => d.total));
+      const stat = (lbl, n, c, ic) => `<div class="glass stat lift" style="--c:${c}"><div class="top"><span class="lbl">${lbl}</span><span class="icon">${icon(ic)}</span></div><div class="num" data-n="${n}">0</div><span class="spark"></span></div>`;
+      out.innerHTML = `<div class="stats stagger">
+          ${stat('Planlanan iş', s.total, '#6366f1', 'list')}${stat('Yapıldı', s.done, '#10b981', 'check')}
+          ${stat('Sorun bildirildi', s.issue, '#8b5cf6', 'flag')}${stat('Yapılmadı', s.missed, '#ef4444', 'x')}
+          ${stat('Geç yapıldı', s.late_done, '#f59e0b', 'clock')}
+          <div class="glass stat lift" style="--c:#06b6d4;place-items:center">${App.ring(s.rate, 92, undefined, 'başarı')}</div></div>
+        <div class="glass card" style="margin-bottom:16px"><div class="card-head"><h3>Günlük dağılım</h3>
+          <div class="legend"><span><i style="background:var(--ok)"></i>Yapıldı</span><span><i style="background:var(--issue)"></i>Sorun</span><span><i style="background:var(--bad)"></i>Yapılmadı</span><span><i style="background:var(--line)"></i>Açık</span></div></div>
+          <div class="colchart">${r.daily.map((d, i) => `<div class="col">
+            <span class="tip">${h(App.fmtDate(d.date))}: ${d.done} yapıldı, ${d.issue} sorun, ${d.missed} yapılmadı${d.open ? ', ' + d.open + ' açık' : ''}</span>
+            ${['done:ok', 'issue:issue', 'missed:bad', 'open:open'].map((k) => { const [f, c] = k.split(':'); return d[f] ? `<i class="${c}" style="height:${(d[f] * 100) / max}%;animation-delay:${i * 0.02}s"></i>` : ''; }).join('')}</div>`).join('')}</div>
+          <div class="axis">${r.daily.map((d, i) => `<span>${r.daily.length <= 16 || i % Math.ceil(r.daily.length / 12) === 0 ? h(App.fmtShort(d.date)) : ''}</span>`).join('')}</div></div>
+        <div class="grid cols-2" style="margin-bottom:16px">${table(r.by_user, 'Personele göre', 'Personel')}${table(r.by_location, 'Mekanlara göre', 'Mekan')}</div>
+        <div class="grid cols-2">${table(r.by_task.slice(0, 15), 'En çok aksayan işler', 'İş')}
+          <div class="glass card"><div class="card-head"><h3>Aksayan kayıtlar</h3><span class="badge missed">${r.problem_count}</span></div>
+          ${r.problems.length ? '<div class="list" style="max-height:520px;overflow:auto">' + r.problems.map((p) => `<div class="row">
+            ${App.badge(p.status)}<div><div class="title">${h(p.task)}</div><div class="sub"><span>${h(p.location)}</span><span>${h(p.user || 'Ortak')}</span>
+            ${p.completion && p.completion.note ? `<span>💬 ${h(p.completion.note)}</span>` : ''}</div></div>
+            <span class="small muted nowrap">${h(App.fmtDate(p.occ_date))}</span></div>`).join('') + '</div>' : '<p class="muted small">Bu dönemde aksayan iş yok. 👏</p>'}</div></div>`;
+      $$('[data-n]', out).forEach((n) => App.countUp(n, +n.dataset.n));
+      App.animateRings(out); App.animateBars(out);
+    }
+    load();
+  }
+
+  /* =========================================================
+     Ayarlar
+     ========================================================= */
+  async function viewSettings(v) {
+    const s = await api('settings');
+    const wd = s.work_days.split(',');
+    v.innerHTML = head('Ayarlar', '') + `<div class="grid cols-2">
+      <form class="glass card form" data-form>
+        <div class="card-head"><h3>Genel</h3></div>
+        <label class="field"><span>Kurum adı</span><input name="company_name" value="${h(s.company_name)}"></label>
+        <div class="field"><span>Çalışma günleri</span><div class="days">${[1, 2, 3, 4, 5, 6, 7].map((d) => `<label><input type="checkbox" name="work_days[]" value="${d}" ${wd.includes(String(d)) ? 'checked' : ''}><span>${App.DAY_SHORT[d]}</span></label>`).join('')}</div>
+          <small>İşler yalnızca çalışma günlerinde planlanır. “X günde 1” işler iş günü üzerinden sayılır.</small></div>
+        <label class="field"><span>Resmi tatiller / kapalı günler</span><textarea name="holidays" placeholder="Her satıra bir tarih: 2026-10-29">${h(s.holidays)}</textarea>
+          <small>Bu günlerde iş planlanmaz. Biçim: YYYY-AA-GG</small></label>
+        <div><button class="btn primary" type="submit">${icon('check')}<span>Kaydet</span></button></div>
+      </form>
+      <div class="grid" style="align-content:start">
+        <div class="glass card"><div class="card-head"><h3>Hesabım</h3></div>
+          <div class="me">${App.avatar(me.name, 44)}<div><b>${h(me.name)}</b><small>@${h(me.username)}</small></div></div><br>
+          <button class="btn" data-pw>${icon('key')}<span>Şifre değiştir</span></button></div>
+        <div class="glass card"><div class="card-head"><h3>Nasıl çalışır?</h3></div>
+          <ol class="muted small" style="margin:0;padding-left:18px;display:grid;gap:6px">
+            <li><b>Mekanlar</b> ve <b>Personel</b> ekleyin.</li>
+            <li><b>İş Paketleri</b>nde işleri sıklıklarıyla şablon olarak tanımlayın.</li>
+            <li>Paketi “Ata” ile bir veya daha fazla mekana ve bir personele atayın.</li>
+            <li>Personel telefonundan giriş yapıp işleri işaretler; isterse not/fotoğraf ekler.</li>
+            <li><b>Günlük Durum</b> ekranından geciken ve yapılmayan işleri takip edin.</li></ol>
+          <p class="muted small" style="margin-top:10px">Bir işin tekrarı, bir sonraki tekrarına kadar açık kalır. Saati geçen iş “gecikti”, bir sonraki tekrar geldiğinde hâlâ yapılmamışsa “yapılmadı” sayılır.</p></div>
+        <p class="muted small">Sürüm ${h('1.0.0')}</p>
+      </div></div>`;
+    $('[data-pw]', v).onclick = App.changePassword;
+    $('[data-form]', v).onsubmit = async (e) => {
+      e.preventDefault();
+      const b = $('button[type=submit]', e.target);
+      b.classList.add('loading');
+      try { await api('settings_save', App.formData(e.target)); App.toast('Ayarlar kaydedildi'); } catch (err) { App.err(err); }
+      b.classList.remove('loading');
+    };
+  }
+
+  route();
+})();
+
+};
+window.__runStaff = function () {
+/* İş Takip — personel (mobil) ekranı */
+(function () {
+  'use strict';
+  const { h, icon, $, $$ } = App;
+  const me = BOOT.user;
+  const root = document.getElementById('app');
+  document.body.classList.add('role-staff');
+
+  let data = null;
+  let filter = 'todo';
+  let celebrated = false;
+  try { filter = localStorage.getItem('istakip.filter') || 'todo'; } catch (e) { /* yoksay */ }
+
+  const ORDER = { overdue: 0, pending: 1, upcoming: 2, issue: 3, done: 4, missed: 5 };
+
+  function shell() {
+    root.innerHTML = `<div class="staff">
+      <div class="s-top">${App.avatar(me.name)}
+        <div class="who"><small>${h(App.greeting())},</small><b>${h(me.name)}</b></div>
+        ${me.role === 'admin' ? `<a class="btn sm" href="index.php">${icon('home')}<span>Yönetim</span></a>` : ''}
+        <button class="btn icon" data-refresh aria-label="Yenile">${icon('refresh')}</button>
+        <button class="btn icon" data-menu aria-label="Menü">${icon('user')}</button>
+      </div>
+      <section class="glass hero" data-tilt="4"><div class="hero-ring"></div><div class="hero-text"></div></section>
+      <div class="chips" role="tablist"></div>
+      <div class="list-area"></div>
+    </div>`;
+    $('[data-refresh]', root).onclick = (e) => { const s = e.currentTarget.querySelector('svg'); s.animate([{ transform: 'rotate(0)' }, { transform: 'rotate(360deg)' }], { duration: 600, easing: 'cubic-bezier(.22,1,.36,1)' }); load(); };
+    $('[data-menu]', root).onclick = () => {
+      const m = App.modal({
+        title: me.name,
+        body: `<div class="grid"><p class="muted">Kullanıcı adı: <b>${h(me.username)}</b></p>
+          <button class="btn block" data-pw>${icon('key')}<span>Şifre değiştir</span></button>
+          <button class="btn block danger" data-out>${icon('logout')}<span>Çıkış yap</span></button>
+          <p class="muted small">İpucu: Tarayıcı menüsünden “Ana ekrana ekle” diyerek uygulama gibi kullanabilirsiniz.</p></div>`,
+      });
+      $('[data-pw]', m.body).onclick = () => { m.close(); App.changePassword(); };
+      $('[data-out]', m.body).onclick = App.logout;
+    };
+  }
+
+  function skeleton() {
+    $('.list-area', root).innerHTML = '<div class="tasks">' + '<div class="skeleton" style="height:74px;border-radius:20px"></div>'.repeat(5) + '</div>';
+  }
+
+  async function load() {
+    try {
+      data = await App.api('my_day');
+      render();
+    } catch (e) { App.err(e); }
+  }
+
+  function counts() {
+    const t = data.tally;
+    return { todo: t.pending + t.overdue, all: t.total, done: t.done + t.issue, overdue: t.overdue };
+  }
+
+  function renderHero() {
+    const t = data.tally;
+    const closed = t.done + t.issue;
+    const pct = t.total ? Math.round((closed * 100) / t.total) : 0;
+    $('.hero-ring', root).innerHTML = App.ring(pct, 104, undefined, 'tamam');
+    $('.hero-text', root).innerHTML = `<h1>${h(App.fmtDate(data.date))}</h1>
+      <p>${h(App.dayName(data.date))} · <b>${closed}</b> / ${t.total} iş tamamlandı</p>
+      <div class="mini">${t.overdue ? App.badge('overdue', t.overdue + ' gecikmiş') : ''}
+        ${t.pending ? App.badge('pending', t.pending + ' bekliyor') : ''}
+        ${t.issue ? App.badge('issue', t.issue + ' sorun') : ''}
+        ${!t.overdue && !t.pending && t.total ? App.badge('done', 'Hepsi bitti') : ''}</div>`;
+    App.animateRings($('.hero', root));
+  }
+
+  function renderChips() {
+    const c = counts();
+    const chip = (k, lbl) => `<button class="chip ${filter === k ? 'active' : ''}" data-f="${k}">${lbl}<span class="n">${c[k]}</span></button>`;
+    $('.chips', root).innerHTML = chip('todo', 'Yapılacak') + chip('all', 'Tümü') + chip('done', 'Tamamlanan');
+    $$('.chip', root).forEach((b) => (b.onclick = () => {
+      filter = b.dataset.f;
+      try { localStorage.setItem('istakip.filter', filter); } catch (e) { /* yoksay */ }
+      renderChips(); renderList();
+    }));
+  }
+
+  function visible(it) {
+    if (filter === 'todo') return it.status === 'pending' || it.status === 'overdue';
+    if (filter === 'done') return it.status === 'done' || it.status === 'issue';
+    return true;
+  }
+
+  function taskCard(it) {
+    const done = it.status === 'done' || it.status === 'issue';
+    const carried = it.occ_date !== data.date;
+    let sub = '';
+    if (it.due_time) sub += `<span>${icon('clock')} ${h(it.due_time)}</span>`;
+    sub += `<span>${h(it.freq)}</span>`;
+    if (carried && !done) sub += `<span class="late">${App.relDay(it.occ_date) === 'Dün' ? 'Dünden kalan' : 'Kalan iş · ' + h(App.fmtDate(it.occ_date))}</span>`;
+    else if (it.status === 'overdue') sub += '<span class="late">Saati geçti</span>';
+    if (done && it.completion) sub += `<span>${h(it.completion.by || '')} · ${h(App.fmtTime(it.completion.at))}</span>`;
+    if (!it.user_id) sub += '<span>Ortak</span>';
+    const tickCls = it.status === 'done' ? 'on' : it.status === 'issue' ? 'issue' : it.status === 'overdue' ? 'overdue' : '';
+    return `<div class="task glass is-${it.status}" data-key="${it.plan_id}|${it.occ_date}" style="${it.color ? '--c:' + h(it.color) : ''}">
+      <span class="stripe"></span>
+      <button class="tick ${tickCls}" aria-label="${done ? 'Tamamlandı' : 'Tamamla'}"><svg viewBox="0 0 24 24">${it.status === 'issue' ? '<path d="M12 6v7M12 17.5v.5"/>' : '<path d="M5 12.5l4.5 4.5L19 7.5"/>'}</svg><span class="burst"></span></button>
+      <div class="t-body"><div class="t-title">${h(it.task)}</div><div class="t-sub">${sub}</div></div>
+      <span class="chev">${icon('chev')}</span></div>`;
+  }
+
+  function renderList() {
+    const area = $('.list-area', root);
+    const items = data.items.filter(visible);
+    if (!data.items.length) {
+      area.innerHTML = `<div class="glass empty"><div class="big">${data.workday ? '☕' : '🌴'}</div>
+        <b>${data.workday ? 'Bugün size atanmış iş yok' : 'Bugün iş günü değil'}</b><span>İyi dinlenmeler!</span></div>`;
+      return;
+    }
+    if (!items.length) {
+      const allDone = filter === 'todo';
+      area.innerHTML = `<div class="glass done-banner"><div class="big">${allDone ? '🎉' : '🗒️'}</div>
+        <b>${allDone ? 'Tebrikler! Bugünkü tüm işler tamam.' : 'Burada henüz bir şey yok.'}</b>
+        <span class="muted">${allDone ? 'Emeğiniz için teşekkürler.' : ''}</span></div>`;
+      return;
+    }
+    const groups = new Map();
+    items.sort((a, b) => (ORDER[a.status] - ORDER[b.status]) || String(a.due_time || '99').localeCompare(String(b.due_time || '99')) || a.task.localeCompare(b.task, 'tr'));
+    items.forEach((it) => { if (!groups.has(it.location)) groups.set(it.location, []); groups.get(it.location).push(it); });
+    let html = '';
+    let gi = 0;
+    for (const [loc, list] of groups) {
+      const all = data.items.filter((i) => i.location === loc);
+      const closed = all.filter((i) => i.status === 'done' || i.status === 'issue').length;
+      html += `<section class="loc-group" style="animation-delay:${gi++ * 0.05}s"><div class="loc-head">${icon('pin')}<h3>${h(loc)}</h3><span class="cnt">${closed}/${all.length}</span></div>
+        <div class="tasks stagger">${list.map(taskCard).join('')}</div></section>`;
+    }
+    area.innerHTML = html;
+  }
+
+  function render() {
+    renderHero(); renderChips(); renderList();
+    const t = data.tally;
+    if (t.total && t.pending + t.overdue === 0 && !celebrated) {
+      celebrated = true;
+      setTimeout(() => App.confetti(innerWidth / 2, innerHeight / 3, 60), 300);
+    }
+  }
+
+  function findItem(key) { return data.items.find((i) => i.plan_id + '|' + i.occ_date === key); }
+
+  function recalc() {
+    const t = { total: 0, done: 0, issue: 0, pending: 0, overdue: 0, missed: 0, upcoming: 0 };
+    data.items.forEach((i) => { t.total++; t[i.status]++; });
+    data.tally = t;
+  }
+
+  async function quickToggle(card, it) {
+    const tick = card.querySelector('.tick');
+    if (it.completion) {
+      if (!App.canUndo(it)) { App.taskSheet(it, load); return; }
+      if (!(await App.confirm('Bu işin tamamlandı işaretini geri almak istiyor musunuz?', { ok: 'Geri al', title: it.task }))) return;
+      try { await App.uncompleteItem(it); App.toast('İşaret geri alındı', 'info'); load(); } catch (e) { App.err(e); }
+      return;
+    }
+    // İyimser güncelleme: önce animasyon, sonra sunucu.
+    const prev = { status: it.status };
+    tick.classList.add('on');
+    card.classList.add('is-done', 'just-done');
+    const r = tick.getBoundingClientRect();
+    App.confetti(r.left + r.width / 2, r.top + r.height / 2, 18);
+    if (navigator.vibrate) navigator.vibrate(12);
+    try {
+      const res = await App.completeItem(it, 'done');
+      Object.assign(it, res);
+      recalc();
+      renderHero(); renderChips();
+      setTimeout(() => { renderList(); if (data.tally.pending + data.tally.overdue === 0) render(); }, filter === 'todo' ? 550 : 0);
+      App.toast('Tamamlandı: ' + it.task, '', {
+        action: 'Geri al',
+        onAction: async () => { try { await App.uncompleteItem(it); celebrated = false; load(); } catch (e) { App.err(e); } },
+      });
+    } catch (e) {
+      it.status = prev.status;
+      tick.classList.remove('on'); card.classList.remove('is-done', 'just-done');
+      App.err(e);
+      if (/zaten/.test(e.message)) load();
+    }
+  }
+
+  root.addEventListener('click', (e) => {
+    const card = e.target.closest('.task');
+    if (!card) return;
+    const it = findItem(card.dataset.key);
+    if (!it) return;
+    if (e.target.closest('.tick')) quickToggle(card, it);
+    else App.taskSheet(it, () => { celebrated = false; load(); });
+  });
+
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+  setInterval(() => { if (!document.hidden && !document.querySelector('.modal-back')) load(); }, 120000);
+
+  shell(); skeleton(); load();
+})();
+
+};
+(function () {
+  App.api = DEMO.api;
+  App.photoUrl = DEMO.photo;
+  App.download = function () { App.toast('Demoda dosya indirilemez. Gerçek kurulumda rapor Excel’de açılan bir CSV olarak iner.', 'info', { duration: 5000 }); };
+  App.logout = function () { App.toast('Demoda çıkış yok. Görünümü üstteki çubuktan değiştirebilirsiniz.', 'info'); };
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href^="index.php"]');
+    if (!a) return;
+    e.preventDefault();
+    DEMO.switchTo(a.getAttribute('href').indexOf('view=staff') >= 0 ? 'staff' : 'admin');
+  }, true);
+  document.getElementById('demo-' + DEMO.mode).checked = true;
+  document.querySelectorAll('input[name=demo-mode]').forEach(function (r) {
+    r.addEventListener('change', function () { DEMO.switchTo(r.value); });
+  });
+  document.getElementById('demo-reset').onclick = function () {
+    App.confirm('Tüm değişiklikler silinip örnek veriler yeniden yüklenecek.', { ok: 'Sıfırla', title: 'Demoyu sıfırla' }).then(function (ok) { if (ok) DEMO.reset(); });
+  };
+  document.body.classList.add(DEMO.mode === 'admin' ? 'role-admin' : 'role-staff');
+  if (DEMO.mode === 'admin') window.__runAdmin(); else window.__runStaff();
+})();
+</script>
