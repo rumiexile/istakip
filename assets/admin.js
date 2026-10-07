@@ -533,7 +533,21 @@
     v.innerHTML = head('Personel', 'Personel telefonundan bu sitenin adresini açıp kendi kullanıcı adıyla giriş yapar', `
       <button class="btn" data-link>${icon('phone')}<span>Giriş adresini kopyala</span></button>
       <button class="btn primary" data-new>${icon('plus')}<span>Yeni personel</span></button>`) + `<div data-box>${skel(4, 80)}</div>`;
-    const users = await get('users', true);
+    const [users, missing] = await Promise.all([get('users', true), api('default_staff')]);
+    if (missing.length) {
+      const b = App.el(`<button class="btn" data-defaults>${icon('users')}<span>Ön tanımlı personeli ekle (${missing.length})</span></button>`);
+      $('.page-head .toolbar', v).prepend(b);
+      b.onclick = () => App.modal({
+        title: 'Ön tanımlı personeli ekle',
+        body: `<p>Şu kişiler personel olarak eklenecek ve her birine geçici bir şifre verilecek:</p><br>
+          <div class="list">${missing.map((n) => `<div class="row">${App.avatar(n, 30)}<div class="title">${h(n)}</div><span></span></div>`).join('')}</div>`,
+        actions: [{ label: 'Vazgeç', cls: 'ghost' }, { label: 'Ekle', cls: 'primary', icon: 'plus', onClick: async () => {
+          const rows = await api('default_staff_add', {});
+          invalidate('users');
+          showCredentials(rows);
+        } }],
+      });
+    }
     const appUrl = location.href.split('#')[0].split('?')[0];
     $('[data-link]', v).onclick = async () => {
       try { await navigator.clipboard.writeText(appUrl); App.toast('Adres kopyalandı: ' + appUrl); } catch (e) { App.toast(appUrl, 'info', { duration: 8000 }); }
@@ -585,6 +599,22 @@
       if (!(await App.confirm(u.name + ' silinecek. Geçmiş kayıtları raporlarda kalır.', { ok: 'Sil' }))) return;
       try { await api('user_delete', { id: u.id }); invalidate('users'); App.toast('Silindi'); route(); } catch (e) { App.err(e); }
     }));
+  }
+
+  function showCredentials(rows) {
+    const text = rows.map((r) => `${r.name}\tKullanıcı adı: ${r.username}\tŞifre: ${r.password}`).join('\n');
+    App.modal({
+      title: 'Personel giriş bilgileri',
+      wide: true,
+      body: `<div class="alert info">Bu şifreler yalnızca şimdi gösterilir. Not alıp personele iletin; unutulan şifre <b>Düzenle</b> ekranından yenilenebilir.</div><br>
+        <div class="table-wrap"><table><thead><tr><th>Ad soyad</th><th>Kullanıcı adı</th><th>Geçici şifre</th></tr></thead><tbody>
+        ${rows.map((r) => `<tr><td><b>${h(r.name)}</b></td><td><code>${h(r.username)}</code></td><td><code>${h(r.password)}</code></td></tr>`).join('')}</tbody></table></div>`,
+      actions: [{ label: 'Bilgileri kopyala', icon: 'list', onClick: async () => {
+        try { await navigator.clipboard.writeText(text); App.toast('Kopyalandı'); } catch (e) { App.toast('Kopyalanamadı; tablodan seçip kopyalayın.', 'bad'); }
+        return false;
+      } }, { label: 'Tamam', cls: 'primary' }],
+      onClose: () => route(),
+    });
   }
 
   function leaveModal(u) {

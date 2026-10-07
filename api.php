@@ -1026,6 +1026,21 @@ try {
             out();
         }
 
+        case 'default_staff': {
+            // Ön tanımlı personelden henüz eklenmemiş olanlar.
+            need_admin();
+            require_once __DIR__ . '/lib/schema.php';
+            $have = array_column(q('SELECT username FROM users')->fetchAll(), 'username');
+            out(array_values(array_map(fn($s) => $s[0], array_filter(DEFAULT_STAFF, fn($s) => !in_array($s[1], $have, true)))));
+        }
+
+        case 'default_staff_add': {
+            need_post();
+            need_admin();
+            require_once __DIR__ . '/lib/schema.php';
+            out(array_map(fn($r) => ['name' => $r[0], 'username' => $r[1], 'password' => $r[2]], schema_seed_staff(db())));
+        }
+
         case 'plans_reassign': {
             need_post();
             need_admin();

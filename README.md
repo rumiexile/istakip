@@ -45,6 +45,10 @@ hâlâ yapılmamışsa o tekrar **yapılmadı** olarak kaydedilir ve raporlara d
 3. **Kurulum sihirbazı:** Tarayıcıda `https://siteniz.com/istakip/install.php` adresini açın.
    Veritabanı bilgilerini, kurum adını ve yönetici hesabını girin. “Örnek verileri yükle” seçeneği,
    sizin listenizdeki işleri 5 hazır paket halinde getirir.
+   “Ön tanımlı personeli ekle” seçeneği şu kişileri ekler: Aysel Akman, Deniz Karabulut, Gülnaz Yalçın,
+   Mahmut Demirel, Mumin Tekin, Yalçın Bıçakcı. Kullanıcı adları `ad.soyad` biçimindedir (örn. `aysel.akman`).
+   Geçici şifreler kurulum bitince **bir kez** gösterilir. Not alıp personele iletin.
+   Uygulama daha önce kurulduysa aynı kişileri yönetici panelinde **Personel → Ön tanımlı personeli ekle** butonuyla ekleyebilirsiniz.
 4. **Güvenlik:** Kurulumdan sonra `install.php` dosyasını silin. Sitede **SSL (https)** açık olsun
    (cPanel → *SSL/TLS Status* → AutoSSL).
 5. **Personeli ekleyin:** Yönetici paneli → *Personel*. “Giriş adresini kopyala” butonuyla adresi personele gönderin.

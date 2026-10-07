@@ -3,7 +3,7 @@
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v2';
+  const KEY = 'istakip-demo-v3';
   const store = {
     get() {
       try { const v = localStorage.getItem(KEY); if (v) return JSON.parse(v); } catch (e) { /* yoksay */ }
@@ -143,6 +143,9 @@
     }
   }
 
+  const DEFAULT_STAFF = [['Aysel Akman', 'aysel.akman'], ['Deniz Karabulut', 'deniz.karabulut'], ['Gülnaz Yalçın', 'gulnaz.yalcin'],
+    ['Mahmut Demirel', 'mahmut.demirel'], ['Mumin Tekin', 'mumin.tekin'], ['Yalçın Bıçakcı', 'yalcin.bicakci']];
+
   /* ---------- örnek veri ---------- */
   function rng(seed) {
     return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -155,9 +158,13 @@
     const id = () => S.seq++;
     const add = (tbl, row) => { row.id = id(); S[tbl].push(row); return row; };
     const admin = add('users', { name: 'Bina Yöneticisi', username: 'yonetici', role: 'admin', phone: null, active: 1, created_at: now });
-    const ahmet = add('users', { name: 'Ahmet Yılmaz', username: 'ahmet', role: 'staff', phone: '0532 000 00 01', active: 1, created_at: now });
-    const ayse = add('users', { name: 'Ayşe Demir', username: 'ayse', role: 'staff', phone: '0532 000 00 02', active: 1, created_at: now });
-    const mehmet = add('users', { name: 'Mehmet Kaya', username: 'mehmet', role: 'staff', phone: '0532 000 00 03', active: 1, created_at: now });
+    const st = (name, username) => add('users', { name, username, role: 'staff', phone: null, active: 1, created_at: now });
+    const aysel = st('Aysel Akman', 'aysel.akman');
+    const deniz = st('Deniz Karabulut', 'deniz.karabulut');
+    const gulnaz = st('Gülnaz Yalçın', 'gulnaz.yalcin');
+    const mahmut = st('Mahmut Demirel', 'mahmut.demirel');
+    const mumin = st('Mumin Tekin', 'mumin.tekin');
+    const yalcin = st('Yalçın Bıçakcı', 'yalcin.bicakci');
     const L = {};
     ['Ana Giriş', 'Kazan Dairesi', 'Kat 1 - Ofisler', 'Kat 1 - Tuvaletler', 'Kat 2 - Ofisler', 'Kat 2 - Tuvaletler', 'Çay Ocağı', 'Toplantı Odası', 'Arşiv', 'Asansör', 'Fotokopi Alanı', 'Yemekhane']
       .forEach((n, i) => { L[n] = add('locations', { name: n, description: null, sort_order: i, active: 1, created_at: now }); });
@@ -204,25 +211,26 @@
           start_date: start, end_date: null, note: null, active: 1, created_at: now });
       });
     };
-    apply('Sabah Açılış', 'Ana Giriş', mehmet, ['Kapıların açılması']);
-    apply('Sabah Açılış', 'Kazan Dairesi', mehmet, ['Kazanın fişinin devreye alınması']);
-    apply('Tuvalet Temizliği', 'Kat 1 - Tuvaletler', ahmet);
-    apply('Tuvalet Temizliği', 'Kat 2 - Tuvaletler', ayse);
-    apply('Ofis Genel Temizlik', 'Kat 1 - Ofisler', ahmet, ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi']);
-    apply('Ofis Genel Temizlik', 'Kat 2 - Ofisler', ayse, ['Çöplerin toplanması', 'Süpürme', 'Halıların gezilmesi ve fırçalanması']);
-    apply('Çay Ocağı ve Ortak Alan', 'Çay Ocağı', mehmet);
+    apply('Sabah Açılış', 'Ana Giriş', mahmut, ['Kapıların açılması']);
+    apply('Sabah Açılış', 'Kazan Dairesi', mahmut, ['Kazanın fişinin devreye alınması']);
+    apply('Tuvalet Temizliği', 'Kat 1 - Tuvaletler', aysel);
+    apply('Tuvalet Temizliği', 'Kat 2 - Tuvaletler', gulnaz);
+    apply('Ofis Genel Temizlik', 'Kat 1 - Ofisler', deniz, ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi']);
+    apply('Ofis Genel Temizlik', 'Kat 1 - Ofisler', aysel, ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği']);
+    apply('Ofis Genel Temizlik', 'Kat 2 - Ofisler', mumin, ['Çöplerin toplanması', 'Süpürme', 'Halıların gezilmesi ve fırçalanması']);
+    apply('Çay Ocağı ve Ortak Alan', 'Çay Ocağı', yalcin);
     apply('Destek Hizmetleri', 'Toplantı Odası', null, ['Toplantı odasının hazırlanması (su, soda)', 'Günlük yemek götürme', 'Evrak taşıma']);
-    apply('Destek Hizmetleri', 'Arşiv', mehmet, ['Arşivin düzenlenmesi', 'Yangın şaft dolaplarının kontrolü']);
-    apply('Destek Hizmetleri', 'Asansör', ahmet, ['Asansör temizliği']);
+    apply('Destek Hizmetleri', 'Arşiv', mahmut, ['Arşivin düzenlenmesi', 'Yangın şaft dolaplarının kontrolü']);
+    apply('Destek Hizmetleri', 'Asansör', mumin, ['Asansör temizliği']);
     S.plans.find((p) => p.task_id === T['Kapıların açılması'].id).note = 'Anahtarlar güvenlik kulübesinde.';
 
     // Örnek izinler
     const sch = new Sched([1, 2, 3, 4, 5], []);
     const workdayBack = (n) => { let d = dn(localToday()); while (n > 0) { d--; if (sch.isWorkday(d)) n--; } return ymd(d); };
     const workdayFwd = (n) => { let d = dn(localToday()); while (n > 0) { d++; if (sch.isWorkday(d)) n--; } return ymd(d); };
-    add('leaves', { user_id: ahmet.id, leave_date: workdayBack(4), note: 'Yıllık izin', created_by: ahmet.id, created_at: now });
-    add('leaves', { user_id: ayse.id, leave_date: workdayBack(2), note: 'Sağlık raporu', created_by: admin.id, created_at: now });
-    add('leaves', { user_id: mehmet.id, leave_date: workdayFwd(3), note: 'Mazeret izni', created_by: mehmet.id, created_at: now });
+    add('leaves', { user_id: aysel.id, leave_date: workdayBack(4), note: 'Yıllık izin', created_by: aysel.id, created_at: now });
+    add('leaves', { user_id: gulnaz.id, leave_date: workdayBack(2), note: 'Sağlık raporu', created_by: admin.id, created_at: now });
+    add('leaves', { user_id: yalcin.id, leave_date: workdayFwd(3), note: 'Mazeret izni', created_by: yalcin.id, created_at: now });
     const onLeave = new Set(S.leaves.map((l) => l.user_id + '|' + l.leave_date));
 
     // Geçmiş kayıtlar
@@ -230,7 +238,7 @@
     const today = dn(localToday());
     const hm = nowHm();
     const issues = ['Sabun stoğu bitti, depodan istendi.', 'Kağıt havlu dispenseri kırık.', 'Çamaşır suyu kalmadı.', 'Süpürge arızalı, elle yapıldı.'];
-    const staff = [ahmet, ayse, mehmet];
+    const staff = [aysel, deniz, gulnaz, mahmut, mumin, yalcin];
     S.plans.forEach((p0) => {
       const p = sch.prep(p0);
       sch.occurrences(p, p._start, today).forEach((o) => {
@@ -240,9 +248,9 @@
         if (isToday && due > hm) return;
         const x = r();
         // Ahmet bugün biraz geride, böylece listede gecikenler görünür.
-        const rate = isToday ? (p0.user_id === ahmet.id ? 0.45 : 0.75) : 0.86;
+        const rate = isToday ? (p0.user_id === aysel.id ? 0.45 : 0.75) : 0.86;
         if (x > rate + 0.04) return;
-        const who = p0.user_id || staff[Math.floor(r() * 3)].id;
+        const who = p0.user_id || staff[Math.floor(r() * staff.length)].id;
         const [h, m] = due.split(':').map(Number);
         let mins = h * 60 + m - 75 + Math.floor(r() * 85);
         if (isToday) { const [nh, nm] = hm.split(':').map(Number); mins = Math.min(mins, nh * 60 + nm - 1); }
@@ -641,6 +649,21 @@
       needAdmin();
       (b.ids || []).forEach((id) => { const p = byId('plans', id); if (p && p.active) p.user_id = +b.user_id || null; });
       save(); return null;
+    },
+    async default_staff() {
+      needAdmin();
+      return DEFAULT_STAFF.filter(([, un]) => !S.users.some((u) => u.username === un)).map(([n]) => n);
+    },
+    async default_staff_add() {
+      needAdmin();
+      const out = [];
+      DEFAULT_STAFF.forEach(([name, username]) => {
+        if (S.users.some((u) => u.username === username)) return;
+        const pw = Array.from({ length: 8 }, () => 'abcdefghjkmnpqrstuvwxyz23456789'[Math.floor(Math.random() * 31)]).join('');
+        S.users.push({ id: nid(), name, username, role: 'staff', phone: null, active: 1, created_at: nowStr() });
+        out.push({ name, username, password: pw });
+      });
+      save(); return out;
     },
     async users() {
       needAdmin();

@@ -9,6 +9,7 @@ date_default_timezone_set('Europe/Istanbul');
 $installed = is_file(APP_ROOT . '/config.php');
 $error = null;
 $done = false;
+$staffCreated = [];
 $v = fn(string $k, string $def = '') => e((string)($_POST[$k] ?? $def));
 
 if (!$installed && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
@@ -63,6 +64,9 @@ if (!$installed && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $ins->execute(['work_days', '1,2,3,4,5']);
         $ins->execute(['holidays', '']);
         $ins->execute(['schema_version', (string)SCHEMA_VERSION]);
+        if (!empty($_POST['staff'])) {
+            $staffCreated = schema_seed_staff($pdo);
+        }
         if (!empty($_POST['seed'])) {
             schema_seed($pdo);
         }
@@ -106,6 +110,15 @@ $driver = $_POST['driver'] ?? 'mysql';
 <?php elseif ($done): ?>
     <h1>Kurulum tamamlandı 🎉</h1>
     <p class="muted">Yönetici hesabınızla giriş yapabilirsiniz. Güvenlik için <code>install.php</code> dosyasını sunucudan silmeniz önerilir.</p>
+    <?php if ($staffCreated): ?>
+    <div class="alert info"><b>Personel giriş bilgileri.</b> Bu şifreler yalnızca şimdi gösterilir; not alıp personele iletin.
+      Unutulan şifreyi yönetici panelinde <b>Personel → Düzenle</b> ekranından yenileyebilirsiniz.</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Ad soyad</th><th>Kullanıcı adı</th><th>Geçici şifre</th></tr></thead>
+      <tbody><?php foreach ($staffCreated as [$n, $un, $pw]): ?>
+        <tr><td><?= e($n) ?></td><td><code><?= e($un) ?></code></td><td><code><?= e($pw) ?></code></td></tr>
+      <?php endforeach; ?></tbody></table></div>
+    <?php endif; ?>
     <a class="btn primary block" href="index.php">Giriş yap</a>
 <?php else: ?>
     <h1>İş Takip Kurulumu</h1>
@@ -135,6 +148,7 @@ $driver = $_POST['driver'] ?? 'mysql';
           <label class="field"><span>Kullanıcı adı</span><input name="admin_user" value="<?= $v('admin_user', 'yonetici') ?>" required autocapitalize="none"></label>
           <label class="field"><span>Şifre (en az 8)</span><input type="password" name="admin_pass" required minlength="8"></label>
         </div>
+        <label class="check"><input type="checkbox" name="staff" value="1" <?= ($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST' || !empty($_POST['staff']) ? 'checked' : '' ?>><span></span>Ön tanımlı personeli ekle: <?= e(implode(', ', array_column(DEFAULT_STAFF, 0))) ?></label>
         <label class="check"><input type="checkbox" name="seed" value="1" <?= ($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST' || !empty($_POST['seed']) ? 'checked' : '' ?>><span></span>Örnek mekanları, işleri ve iş paketi şablonlarını yükle</label>
       </fieldset>
       <button class="btn primary block" type="submit">Kurulumu başlat</button>

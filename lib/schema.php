@@ -116,6 +116,49 @@ function schema_install(PDO $pdo, string $driver): void
     }
 }
 
+/** Kurulumda eklenen ön tanımlı personel: [ad soyad, kullanıcı adı]. */
+const DEFAULT_STAFF = [
+    ['Aysel Akman', 'aysel.akman'],
+    ['Deniz Karabulut', 'deniz.karabulut'],
+    ['Gülnaz Yalçın', 'gulnaz.yalcin'],
+    ['Mahmut Demirel', 'mahmut.demirel'],
+    ['Mumin Tekin', 'mumin.tekin'],
+    ['Yalçın Bıçakcı', 'yalcin.bicakci'],
+];
+
+/** Okunması kolay geçici şifre (karışan 0/O, 1/l harfleri yok). */
+function temp_password(int $len = 8): string
+{
+    $chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+    $out = '';
+    for ($i = 0; $i < $len; $i++) {
+        $out .= $chars[random_int(0, strlen($chars) - 1)];
+    }
+    return $out;
+}
+
+/**
+ * Ön tanımlı personeli ekler, zaten var olan kullanıcı adlarını atlar.
+ * @return array<int,array{0:string,1:string,2:string}> [ad, kullanıcı adı, geçici şifre]
+ */
+function schema_seed_staff(PDO $pdo): array
+{
+    $now = date('Y-m-d H:i:s');
+    $exists = $pdo->prepare('SELECT 1 FROM users WHERE username = ?');
+    $ins = $pdo->prepare("INSERT INTO users (name, username, password_hash, role, active, created_at) VALUES (?, ?, ?, 'staff', 1, ?)");
+    $created = [];
+    foreach (DEFAULT_STAFF as [$name, $username]) {
+        $exists->execute([$username]);
+        if ($exists->fetchColumn()) {
+            continue;
+        }
+        $pw = temp_password();
+        $ins->execute([$name, $username, password_hash($pw, PASSWORD_DEFAULT), $now]);
+        $created[] = [$name, $username, $pw];
+    }
+    return $created;
+}
+
 /** Örnek mekan, iş tanımı ve iş paketi şablonları. */
 function schema_seed(PDO $pdo): void
 {
