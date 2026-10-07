@@ -1,0 +1,13 @@
+{
+  "name": "İş Takip",
+  "short_name": "İş Takip",
+  "start_url": "./index.php",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eef0fb",
+  "theme_color": "#6366f1",
+  "lang": "tr",
+  "icons": [
+    { "src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
