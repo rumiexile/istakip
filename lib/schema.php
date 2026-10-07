@@ -29,6 +29,11 @@ function schema_statements(string $driver): array
             id $pk,
             name VARCHAR(200) NOT NULL,
             description TEXT NULL,
+            freq_type VARCHAR(20) NOT NULL DEFAULT 'daily',
+            freq_interval INT NOT NULL DEFAULT 1,
+            weekdays VARCHAR(20) NULL,
+            month_day INT NULL,
+            due_time VARCHAR(5) NULL,
             active INT NOT NULL DEFAULT 1,
             created_at DATETIME NOT NULL
         )",
@@ -87,6 +92,12 @@ function schema_statements(string $driver): array
             created_at DATETIME NOT NULL,
             UNIQUE (user_id, leave_date)
         )",
+        "CREATE TABLE IF NOT EXISTS location_tasks (
+            id $pk,
+            location_id INT NOT NULL,
+            task_id INT NOT NULL,
+            UNIQUE (location_id, task_id)
+        )",
         "CREATE TABLE IF NOT EXISTS settings (
             k VARCHAR(50) NOT NULL PRIMARY KEY,
             v TEXT NULL
@@ -100,7 +111,7 @@ function schema_statements(string $driver): array
     return $out;
 }
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 function schema_install(PDO $pdo, string $driver): void
 {
@@ -112,6 +123,51 @@ function schema_install(PDO $pdo, string $driver): void
             if (stripos($sql, 'CREATE INDEX') !== 0) {
                 throw $e;
             }
+        }
+    }
+}
+
+/** Eski sürümden yükseltme: yeni sütunlar ve mevcut verilerden çıkarılan ilişkiler. */
+function schema_upgrade(PDO $pdo, string $driver, int $from): void
+{
+    schema_install($pdo, $driver);
+    if ($from < 3) {
+        foreach ([
+            "freq_type VARCHAR(20) NOT NULL DEFAULT 'daily'",
+            'freq_interval INT NOT NULL DEFAULT 1',
+            'weekdays VARCHAR(20) NULL',
+            'month_day INT NULL',
+            'due_time VARCHAR(5) NULL',
+        ] as $col) {
+            try {
+                $pdo->exec('ALTER TABLE tasks ADD COLUMN ' . $col);
+            } catch (PDOException $e) {
+                // Sütun zaten var.
+            }
+        }
+        // İşlerin varsayılan sıklığı: ilk geçtiği paketteki sıklık.
+        $upd = $pdo->prepare('UPDATE tasks SET freq_type = ?, freq_interval = ?, weekdays = ?, month_day = ?, due_time = ? WHERE id = ?');
+        $seen = [];
+        foreach ($pdo->query('SELECT * FROM package_items ORDER BY package_id, sort_order')->fetchAll() as $it) {
+            if (!isset($seen[$it['task_id']])) {
+                $seen[$it['task_id']] = true;
+                $upd->execute([$it['freq_type'], $it['freq_interval'], $it['weekdays'], $it['month_day'], $it['due_time'], $it['task_id']]);
+            }
+        }
+        // Mekan-iş ilişkileri: mevcut atamalardan.
+        link_pairs($pdo, $pdo->query('SELECT DISTINCT location_id, task_id FROM plans')->fetchAll(PDO::FETCH_NUM));
+    }
+}
+
+/** @param array<int,array{0:int,1:int}> $pairs [mekan, iş] */
+function link_pairs(PDO $pdo, array $pairs): void
+{
+    $has = $pdo->prepare('SELECT 1 FROM location_tasks WHERE location_id = ? AND task_id = ?');
+    $ins = $pdo->prepare('INSERT INTO location_tasks (location_id, task_id) VALUES (?, ?)');
+    foreach ($pairs as [$l, $t]) {
+        $has->execute([(int)$l, (int)$t]);
+        if (!$has->fetchColumn()) {
+            $ins->execute([(int)$l, (int)$t]);
         }
     }
 }
@@ -169,8 +225,10 @@ function schema_seed(PDO $pdo): void
         'Arşiv', 'Asansör', 'Fotokopi Alanı', 'Yemekhane',
     ];
     $st = $pdo->prepare('INSERT INTO locations (name, sort_order, active, created_at) VALUES (?, ?, 1, ?)');
+    $locIds = [];
     foreach ($locations as $i => $l) {
         $st->execute([$l, $i, $now]);
+        $locIds[$l] = (int)$pdo->lastInsertId();
     }
 
     // [paket adı, renk, açıklama, [[iş, sıklık, aralık, günler, ayın günü, saat], ...]]
@@ -215,7 +273,7 @@ function schema_seed(PDO $pdo): void
     ];
 
     $taskIds = [];
-    $insTask = $pdo->prepare('INSERT INTO tasks (name, active, created_at) VALUES (?, 1, ?)');
+    $insTask = $pdo->prepare('INSERT INTO tasks (name, freq_type, freq_interval, weekdays, month_day, due_time, active, created_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?)');
     $insPkg = $pdo->prepare('INSERT INTO packages (name, description, color, created_at) VALUES (?, ?, ?, ?)');
     $insItem = $pdo->prepare('INSERT INTO package_items (package_id, task_id, freq_type, freq_interval, weekdays, month_day, due_time, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
     foreach ($packages as [$pname, $color, $desc, $items]) {
@@ -223,10 +281,39 @@ function schema_seed(PDO $pdo): void
         $pid = (int)$pdo->lastInsertId();
         foreach ($items as $i => [$tname, $ft, $iv, $wd, $md, $dt]) {
             if (!isset($taskIds[$tname])) {
-                $insTask->execute([$tname, $now]);
+                $insTask->execute([$tname, $ft, $iv, $wd, $md, $dt, $now]);
                 $taskIds[$tname] = (int)$pdo->lastInsertId();
             }
             $insItem->execute([$pid, $taskIds[$tname], $ft, $iv, $wd, $md, $dt, $i]);
         }
     }
+
+    // Hangi mekanda hangi işler yapılır
+    $tuvalet = ['Lavaboların temizliği', 'Ayna ve klozetlerin temizlenmesi', 'Klozet temizliği', 'Tuvalet çöplerinin alınması',
+        'Tuvalet kağıdı ve kurulama havlularının değişimi', 'Sabun değişimi', 'Zemin giderlerine çamaşır suyu doldurulması'];
+    $ofis = ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Zemin temizliği', 'Halıların gezilmesi ve fırçalanması',
+        'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi'];
+    $map = [
+        'Ana Giriş' => ['Kapıların açılması', 'Zemin temizliği', 'Paspas', 'Camların silinmesi'],
+        'Kazan Dairesi' => ['Kazanın fişinin devreye alınması'],
+        'Kat 1 - Ofisler' => $ofis,
+        'Kat 1 - Tuvaletler' => $tuvalet,
+        'Kat 2 - Ofisler' => $ofis,
+        'Kat 2 - Tuvaletler' => $tuvalet,
+        'Çay Ocağı' => ['Çay ocağı ve ortak alan çöplerinin toplanması', 'Zemin temizliği', 'Su sebilinin kontrolü'],
+        'Toplantı Odası' => ['Toplantı odasının hazırlanması (su, soda)', 'Süpürme', 'Camların silinmesi'],
+        'Arşiv' => ['Arşivin düzenlenmesi', 'Evrak taşıma', 'Yangın şaft dolaplarının kontrolü'],
+        'Asansör' => ['Asansör temizliği'],
+        'Fotokopi Alanı' => ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Çöplerin toplanması'],
+        'Yemekhane' => ['Günlük yemek götürme', 'Zemin temizliği', 'Çöplerin toplanması'],
+    ];
+    $pairs = [];
+    foreach ($map as $loc => $tasks) {
+        foreach ($tasks as $t) {
+            if (isset($locIds[$loc], $taskIds[$t])) {
+                $pairs[] = [$locIds[$loc], $taskIds[$t]];
+            }
+        }
+    }
+    link_pairs($pdo, $pairs);
 }

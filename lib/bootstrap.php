@@ -174,6 +174,6 @@ function migrate_schema(): void
     if ((int)($s['schema_version'] ?? 1) >= SCHEMA_VERSION) {
         return;
     }
-    schema_install(db(), app_config()['db']['driver'] ?? 'mysql');
+    schema_upgrade(db(), app_config()['db']['driver'] ?? 'mysql', (int)($s['schema_version'] ?? 1));
     setting_set('schema_version', (string)SCHEMA_VERSION);
 }

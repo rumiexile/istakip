@@ -3,7 +3,7 @@
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v3';
+  const KEY = 'istakip-demo-v4';
   const store = {
     get() {
       try { const v = localStorage.getItem(KEY); if (v) return JSON.parse(v); } catch (e) { /* yoksay */ }
@@ -153,7 +153,7 @@
 
   function seed() {
     const now = nowStr();
-    const S = { seq: 1, users: [], locations: [], tasks: [], packages: [], package_items: [], plans: [], completions: [], leaves: [], photos: {},
+    const S = { seq: 1, users: [], locations: [], tasks: [], packages: [], package_items: [], plans: [], completions: [], leaves: [], links: [], photos: {},
       settings: { company_name: 'Merkez Bina Destek Hizmetleri', work_days: '1,2,3,4,5', holidays: '' } };
     const id = () => S.seq++;
     const add = (tbl, row) => { row.id = id(); S[tbl].push(row); return row; };
@@ -195,7 +195,7 @@
       const p = add('packages', { name, description: desc, color, created_at: now });
       pk[name] = p;
       items.forEach(([tn, ft, iv, wd, md, dt], i) => {
-        if (!T[tn]) T[tn] = add('tasks', { name: tn, description: null, active: 1, created_at: now });
+        if (!T[tn]) T[tn] = add('tasks', { name: tn, description: null, freq_type: ft, freq_interval: iv, weekdays: wd, month_day: md, due_time: dt, active: 1, created_at: now });
         add('package_items', { package_id: p.id, task_id: T[tn].id, freq_type: ft, freq_interval: iv, weekdays: wd, month_day: md, due_time: dt, sort_order: i });
       });
     });
@@ -223,6 +223,26 @@
     apply('Destek Hizmetleri', 'Arşiv', mahmut, ['Arşivin düzenlenmesi', 'Yangın şaft dolaplarının kontrolü']);
     apply('Destek Hizmetleri', 'Asansör', mumin, ['Asansör temizliği']);
     S.plans.find((p) => p.task_id === T['Kapıların açılması'].id).note = 'Anahtarlar güvenlik kulübesinde.';
+
+    // Hangi mekanda hangi işler yapılır (lib/schema.php ile aynı)
+    const tuv = ['Lavaboların temizliği', 'Ayna ve klozetlerin temizlenmesi', 'Klozet temizliği', 'Tuvalet çöplerinin alınması',
+      'Tuvalet kağıdı ve kurulama havlularının değişimi', 'Sabun değişimi', 'Zemin giderlerine çamaşır suyu doldurulması'];
+    const ofis = ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Zemin temizliği', 'Halıların gezilmesi ve fırçalanması',
+      'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi'];
+    Object.entries({
+      'Ana Giriş': ['Kapıların açılması', 'Zemin temizliği', 'Paspas', 'Camların silinmesi'],
+      'Kazan Dairesi': ['Kazanın fişinin devreye alınması'],
+      'Kat 1 - Ofisler': ofis.concat(['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği']), 'Kat 1 - Tuvaletler': tuv, 'Kat 2 - Ofisler': ofis, 'Kat 2 - Tuvaletler': tuv,
+      'Çay Ocağı': ['Çay ocağı ve ortak alan çöplerinin toplanması', 'Zemin temizliği', 'Su sebilinin kontrolü'],
+      'Toplantı Odası': ['Toplantı odasının hazırlanması (su, soda)', 'Süpürme', 'Camların silinmesi', 'Günlük yemek götürme', 'Evrak taşıma'],
+      'Arşiv': ['Arşivin düzenlenmesi', 'Evrak taşıma', 'Yangın şaft dolaplarının kontrolü'],
+      'Asansör': ['Asansör temizliği'],
+      'Fotokopi Alanı': ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Çöplerin toplanması'],
+      'Yemekhane': ['Günlük yemek götürme', 'Zemin temizliği', 'Çöplerin toplanması'],
+    }).forEach(([loc, tasks]) => tasks.forEach((t) => {
+      if (!S.links.some((x) => x.location_id === L[loc].id && x.task_id === T[t].id)) S.links.push({ location_id: L[loc].id, task_id: T[t].id });
+    }));
+    S.plans.forEach((p) => { if (!S.links.some((x) => x.location_id === p.location_id && x.task_id === p.task_id)) S.links.push({ location_id: p.location_id, task_id: p.task_id }); });
 
     // Örnek izinler
     const sch = new Sched([1, 2, 3, 4, 5], []);
@@ -358,13 +378,20 @@
     if (t && !/^([01]\d|2[0-3]):[0-5]\d$/.test(t)) err('Saat SS:DD biçiminde olmalı.');
     return { freq_type: type, freq_interval: n, weekdays: wd, month_day: md, due_time: t || null };
   }
+  function linkTask(lid, tid) {
+    lid = +lid; tid = +tid;
+    if (!S.links.some((x) => x.location_id === lid && x.task_id === tid)) S.links.push({ location_id: lid, task_id: tid });
+  }
+  function linkIds(key, val, id) {
+    return S.links.filter((x) => x[key] === id && byId('locations', x.location_id)?.active && byId('tasks', x.task_id)?.active).map((x) => x[val]);
+  }
   function resolveTask(src) {
     if (src.task_id && byId('tasks', src.task_id)) return +src.task_id;
     const name = String(src.task_name || '').trim();
     if (!name) err('İş adı gerekli.');
     const ex = S.tasks.find((t) => t.name.toLocaleLowerCase('tr') === name.toLocaleLowerCase('tr'));
     if (ex) { ex.active = 1; return ex.id; }
-    const t = { id: nid(), name: name.slice(0, 200), description: null, active: 1, created_at: nowStr() };
+    const t = { id: nid(), name: name.slice(0, 200), description: null, freq_type: 'daily', freq_interval: 1, weekdays: null, month_day: null, due_time: null, active: 1, created_at: nowStr() };
     S.tasks.push(t);
     return t.id;
   }
@@ -523,33 +550,68 @@
     },
     async locations() {
       return S.locations.filter((l) => l.active).sort((a, b) => a.sort_order - b.sort_order || cmpTr(a.name, b.name))
-        .map((l) => Object.assign({}, l, { plan_count: S.plans.filter((p) => p.location_id === l.id && p.active).length }));
+        .map((l) => Object.assign({}, l, { plan_count: S.plans.filter((p) => p.location_id === l.id && p.active).length, task_ids: linkIds('location_id', 'task_id', l.id) }));
     },
     async location_save(b) {
       needAdmin();
       const name = str(b.name, true, 'Mekan adı');
-      if (b.id) Object.assign(byId('locations', b.id), { name, description: str(b.description), sort_order: +b.sort_order || 0 });
-      else S.locations.push({ id: nid(), name, description: str(b.description), sort_order: +b.sort_order || 0, active: 1, created_at: nowStr() });
-      save(); return {};
+      let id = +b.id;
+      if (id) Object.assign(byId('locations', id), { name, description: str(b.description), sort_order: +b.sort_order || 0 });
+      else { id = nid(); S.locations.push({ id, name, description: str(b.description), sort_order: +b.sort_order || 0, active: 1, created_at: nowStr() }); }
+      if (b.task_ids) { S.links = S.links.filter((x) => x.location_id !== id); b.task_ids.forEach((t) => linkTask(id, t)); }
+      (b.new_tasks || []).forEach((n) => { if (String(n).trim()) linkTask(id, resolveTask({ task_name: n })); });
+      save(); return { id };
+    },
+    async location_task_toggle(b) {
+      needAdmin();
+      if (+b.on) linkTask(b.location_id, b.task_id);
+      else S.links = S.links.filter((x) => !(x.location_id === +b.location_id && x.task_id === +b.task_id));
+      save(); return null;
+    },
+    async location_assign(b) {
+      needAdmin();
+      const lid = +b.location_id;
+      if (!byId('locations', lid)) err('Mekan bulunamadı.');
+      const uid = +b.user_id || null;
+      const start = validDate(b.start_date) ? b.start_date : localToday();
+      const tids = (b.task_ids || []).map(Number).filter(Boolean);
+      if (!tids.length) err('En az bir iş seçin.');
+      let created = 0, skipped = 0;
+      tids.forEach((tid) => {
+        const t = byId('tasks', tid);
+        if (!t || !t.active) return;
+        if (S.plans.some((p) => p.active && p.task_id === tid && p.location_id === lid)) { skipped++; return; }
+        S.plans.push({ id: nid(), task_id: tid, location_id: lid, user_id: uid, package_id: null, freq_type: t.freq_type, freq_interval: t.freq_interval,
+          weekdays: t.weekdays, month_day: t.month_day, due_time: t.due_time, start_date: start, end_date: null, note: null, active: 1, created_at: nowStr() });
+        linkTask(lid, tid);
+        created++;
+      });
+      save(); return { created, skipped };
     },
     async location_delete(b) {
       needAdmin();
       const n = S.plans.filter((p) => p.location_id === +b.id && p.active).length;
       if (n) err(`Bu mekanda ${n} aktif iş ataması var. Önce atamaları kaldırın.`);
-      byId('locations', b.id).active = 0; save(); return null;
+      byId('locations', b.id).active = 0;
+      S.links = S.links.filter((x) => x.location_id !== +b.id);
+      save(); return null;
     },
     async locations_order(b) { needAdmin(); (b.ids || []).forEach((id, i) => { byId('locations', id).sort_order = i; }); save(); return null; },
     async tasks() {
       needAdmin();
       return S.tasks.filter((t) => t.active).sort((a, b) => cmpTr(a.name, b.name))
-        .map((t) => Object.assign({}, t, { plan_count: S.plans.filter((p) => p.task_id === t.id && p.active).length }));
+        .map((t) => Object.assign({}, t, { plan_count: S.plans.filter((p) => p.task_id === t.id && p.active).length,
+          location_ids: linkIds('task_id', 'location_id', t.id), freq: Sched.label(t) }));
     },
     async task_save(b) {
       needAdmin();
       const name = str(b.name, true, 'İş adı');
-      if (b.id) Object.assign(byId('tasks', b.id), { name, description: str(b.description) });
-      else S.tasks.push({ id: nid(), name, description: str(b.description), active: 1, created_at: nowStr() });
-      save(); return {};
+      const f = freqFrom(b);
+      let id = +b.id;
+      if (id) Object.assign(byId('tasks', id), { name, description: str(b.description) }, f);
+      else { id = nid(); S.tasks.push(Object.assign({ id, name, description: str(b.description), active: 1, created_at: nowStr() }, f)); }
+      if (b.location_ids) { S.links = S.links.filter((x) => x.task_id !== id); b.location_ids.forEach((l) => linkTask(l, id)); }
+      save(); return { id };
     },
     async task_delete(b) {
       needAdmin();
@@ -557,6 +619,7 @@
       if (n) err(`Bu iş ${n} aktif atamada kullanılıyor. Önce atamaları kaldırın.`);
       byId('tasks', b.id).active = 0;
       S.package_items = S.package_items.filter((i) => i.task_id !== +b.id);
+      S.links = S.links.filter((x) => x.task_id !== +b.id);
       save(); return null;
     },
     async packages() {
@@ -601,6 +664,7 @@
         S.plans.push({ id: nid(), task_id: it.task_id, location_id: lid, user_id: uid, package_id: +b.package_id, freq_type: it.freq_type,
           freq_interval: it.freq_interval, weekdays: it.weekdays, month_day: it.month_day, due_time: it.due_time, start_date: start,
           end_date: null, note: null, active: 1, created_at: nowStr() });
+        linkTask(lid, it.task_id);
         created++;
       }));
       save(); return { created, skipped };
@@ -615,6 +679,7 @@
       if (end && end < start) err('Bitiş tarihi başlangıçtan önce olamaz.');
       const f = freqFrom(b);
       const vals = Object.assign({ task_id: resolveTask(b), location_id: +b.location_id, user_id: uid }, f);
+      linkTask(vals.location_id, vals.task_id);
       const note = str(b.note);
       const today = localToday();
       if (b.id) {

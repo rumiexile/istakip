@@ -307,13 +307,13 @@
   }
 
   async function planModal(p, done) {
-    const [locs, users, tasks] = await Promise.all([get('locations'), get('users'), get('tasks', true)]);
+    const [locs, users, tasks] = await Promise.all([get('locations', true), get('users'), get('tasks', true)]);
     if (!locs.length) { App.toast('Önce en az bir mekan ekleyin', 'bad'); location.hash = '#/mekanlar'; return; }
     p = p || {};
     App.modal({
       title: p.id ? 'Atamayı düzenle' : 'Yeni iş ataması',
       wide: true,
-      body: `<form class="form">${taskDatalist(tasks, 'dl-tasks')}
+      body: `<form class="form"><datalist id="dl-tasks"></datalist>
         <label class="field"><span>İş</span><input name="task_name" list="dl-tasks" value="${h(p.task_name || '')}" placeholder="Listeden seçin ya da yeni bir iş yazın" required></label>
         <div class="grid2">
           <label class="field"><span>Mekan</span><select name="location_id">${locOptions(locs, p.location_id)}</select></label>
@@ -327,13 +327,46 @@
         <label class="field"><span>Personele not (isteğe bağlı)</span><input name="note" value="${h(p.note || '')}" placeholder="Örn. Çamaşır suyu depodaki mavi dolapta"></label>
         ${p.id ? '<p class="muted small">Not: Sıklık, mekan veya sorumlu değişirse geçmiş kayıtlar korunur; değişiklik bugünden itibaren geçerli olur.</p>' : ''}
       </form>`,
-      onOpen: (m) => App.bindFreq(m.body),
+      onOpen: (m) => {
+        App.bindFreq(m.body);
+        const f = $('form', m.body);
+        // Seçilen mekanda tanımlı işler önce önerilir; yeni atamada işin varsayılan sıklığı doldurulur.
+        const fillList = () => {
+          const loc = locs.find((l) => l.id == f.location_id.value);
+          const ids = new Set(loc ? loc.task_ids : []);
+          const own = tasks.filter((t) => ids.has(t.id));
+          const rest = tasks.filter((t) => !ids.has(t.id));
+          $('#dl-tasks', f).innerHTML = own.concat(rest).map((t) => `<option value="${h(t.name)}">${ids.has(t.id) ? 'Bu mekanın işi' : ''}</option>`).join('');
+          hint();
+        };
+        const hint = () => {
+          const loc = locs.find((l) => l.id == f.location_id.value);
+          const t = tasks.find((x) => x.name.toLocaleLowerCase('tr') === f.task_name.value.trim().toLocaleLowerCase('tr'));
+          let el = $('[data-hint]', f);
+          if (!el) { el = App.el('<p class="muted small" data-hint></p>'); f.task_name.closest('.field').appendChild(el); }
+          el.textContent = !f.task_name.value.trim() ? (loc && loc.task_ids.length ? `${loc.name} için ${loc.task_ids.length} tanımlı iş var; listeden seçebilirsiniz.` : '')
+            : !t ? 'Yeni iş olarak oluşturulacak ve bu mekana bağlanacak.'
+            : loc && !loc.task_ids.includes(t.id) ? 'Bu iş henüz bu mekanda tanımlı değil; kaydedince mekana bağlanacak.' : '';
+        };
+        f.location_id.addEventListener('change', fillList);
+        f.task_name.addEventListener('input', hint);
+        f.task_name.addEventListener('change', () => {
+          const t = tasks.find((x) => x.name.toLocaleLowerCase('tr') === f.task_name.value.trim().toLocaleLowerCase('tr'));
+          if (t && !p.id) {
+            const fs = $('[data-freq]', f).parentElement;
+            fs.innerHTML = '<legend>Sıklık</legend>' + App.freqFields(t, 'pf');
+            App.bindFreq(fs);
+          }
+          hint();
+        });
+        fillList();
+      },
       actions: [{ label: 'Vazgeç', cls: 'ghost' }, { label: 'Kaydet', cls: 'primary', icon: 'check', onClick: async (m) => {
         const f = $('form', m.body);
         const d = Object.assign(App.formData(f), App.readFreq($('[data-freq]', f)));
         if (p.id) d.id = p.id;
         await api('plan_save', d);
-        invalidate('tasks');
+        invalidate('tasks', 'locations');
         App.toast(p.id ? 'Atama güncellendi' : 'İş atandı');
         done && done();
       } }],
@@ -454,76 +487,218 @@
   }
 
   /* =========================================================
+     Mekan ↔ iş ilişkisi: ortak seçim listesi
+     ========================================================= */
+  // items: [{id, name, sub?}], selected: id listesi
+  function pickList(items, selected, name, emptyText) {
+    const sel = new Set((selected || []).map(Number));
+    if (!items.length) return `<p class="muted small">${h(emptyText || 'Liste boş.')}</p>`;
+    return `<div class="pick" data-pick="${name}">
+      <div class="pick-tools"><input type="search" placeholder="Ara" data-pq>
+        <button type="button" class="btn sm ghost" data-pall>Tümünü seç</button><button type="button" class="btn sm ghost" data-pnone>Temizle</button>
+        <span class="muted small" data-pcount></span></div>
+      <div class="pick-items">${items.map((it) => `<label data-n="${h(it.name.toLocaleLowerCase('tr'))}"><input type="checkbox" name="${name}[]" value="${it.id}" ${sel.has(+it.id) ? 'checked' : ''}>
+        <span>${h(it.name)}${it.sub ? `<small>${h(it.sub)}</small>` : ''}</span></label>`).join('')}</div></div>`;
+  }
+  function bindPick(root) {
+    $$('[data-pick]', root).forEach((p) => {
+      const boxes = () => $$('.pick-items input', p);
+      const count = () => { const n = boxes().filter((b) => b.checked).length; $('[data-pcount]', p).textContent = n + ' seçili'; };
+      $('[data-pq]', p).oninput = (e) => { const q = e.target.value.toLocaleLowerCase('tr'); $$('.pick-items label', p).forEach((l) => (l.hidden = !l.dataset.n.includes(q))); };
+      $('[data-pall]', p).onclick = () => { boxes().forEach((b) => { if (!b.closest('label').hidden) b.checked = true; }); count(); };
+      $('[data-pnone]', p).onclick = () => { boxes().forEach((b) => { if (!b.closest('label').hidden) b.checked = false; }); count(); };
+      p.addEventListener('change', count); count();
+    });
+  }
+
+  /* =========================================================
      İş tanımları
      ========================================================= */
-  async function viewTasks(v) {
-    v.innerHTML = head('İş Tanımları', 'Yapılacak işlerin listesi. Açıklama, personelin görevi doğru yapması için gösterilir.', `
-      <button class="btn primary" data-new>${icon('plus')}<span>Yeni iş</span></button>`) + `<div class="glass card" data-box>${skel(6)}</div>`;
-    const tasks = await get('tasks', true);
-    const edit = (t) => App.modal({
+  async function taskModal(t, done) {
+    const locs = await get('locations', true);
+    App.modal({
       title: t ? 'İşi düzenle' : 'Yeni iş',
+      wide: true,
       body: `<form class="form"><label class="field"><span>İş adı</span><input name="name" value="${h(t ? t.name : '')}" placeholder="Örn. Sabun değişimi"></label>
-        <label class="field"><span>Açıklama / talimat</span><textarea name="description" placeholder="Nasıl yapılacağına dair kısa talimat">${h(t ? t.description || '' : '')}</textarea></label></form>`,
-      actions: [{ label: 'Vazgeç', cls: 'ghost' }, { label: 'Kaydet', cls: 'primary', onClick: async (m) => {
-        await api('task_save', Object.assign(App.formData($('form', m.body)), { id: t ? t.id : null }));
-        invalidate('tasks'); App.toast('Kaydedildi'); route();
+        <label class="field"><span>Açıklama / talimat</span><textarea name="description" placeholder="Nasıl yapılacağına dair kısa talimat">${h(t ? t.description || '' : '')}</textarea></label>
+        <fieldset><legend>Varsayılan sıklık</legend><p class="muted small" style="margin-top:-6px">Bu iş bir mekandan personele atanırken bu sıklık kullanılır; atamada değiştirilebilir.</p>${App.freqFields(t || {}, 'tf')}</fieldset>
+        <fieldset><legend>Yapıldığı mekanlar</legend>${pickList(locs.map((l) => ({ id: l.id, name: l.name })), t ? t.location_ids : [], 'location_ids', 'Önce mekan ekleyin.')}</fieldset></form>`,
+      onOpen: (m) => { App.bindFreq(m.body); bindPick(m.body); },
+      actions: [{ label: 'Vazgeç', cls: 'ghost' }, { label: 'Kaydet', cls: 'primary', icon: 'check', onClick: async (m) => {
+        const f = $('form', m.body);
+        const d = Object.assign(App.formData(f), App.readFreq($('[data-freq]', f)), { id: t ? t.id : null });
+        d.location_ids = d.location_ids || [];
+        await api('task_save', d);
+        invalidate('tasks', 'locations'); App.toast('Kaydedildi'); done && done();
       } }],
     });
-    $('[data-new]', v).onclick = () => edit(null);
+  }
+
+  async function viewTasks(v) {
+    v.innerHTML = head('İş Tanımları', 'Yapılacak işler, varsayılan sıklıkları ve yapıldıkları mekanlar', `
+      <a class="btn" href="#/mekanlar" data-matrix>${icon('layers')}<span>Mekan × İş tablosu</span></a>
+      <button class="btn primary" data-new>${icon('plus')}<span>Yeni iş</span></button>`) + `<div class="glass card" data-box>${skel(6)}</div>`;
+    const [tasks, locs] = await Promise.all([get('tasks', true), get('locations', true)]);
+    const locName = Object.fromEntries(locs.map((l) => [l.id, l.name]));
+    $('[data-matrix]', v).onclick = () => sessionStorage.setItem('istakip.locview', 'matrix');
+    $('[data-new]', v).onclick = () => taskModal(null, route);
     const box = $('[data-box]', v);
     if (!tasks.length) { box.innerHTML = emptyBox('📝', 'Henüz iş tanımı yok', 'İş paketi oluştururken yazdığınız işler buraya otomatik eklenir.'); return; }
-    box.innerHTML = `<input type="search" placeholder="Ara" data-q style="max-width:260px;margin-bottom:8px"><div class="list">` + tasks.map((t) => `<div class="row" data-name="${h(t.name.toLocaleLowerCase('tr'))}">
+    box.innerHTML = `<input type="search" placeholder="Ara: iş veya mekan" data-q style="max-width:280px;margin-bottom:8px"><div class="list">` + tasks.map((t) => {
+      const names = t.location_ids.map((id) => locName[id]).filter(Boolean);
+      return `<div class="row" data-name="${h((t.name + ' ' + names.join(' ')).toLocaleLowerCase('tr'))}">
       <span class="avatar" style="--c1:#6366f1;--c2:#06b6d4;width:32px;height:32px">${icon('check')}</span>
-      <div><div class="title">${h(t.name)}</div><div class="sub">${t.description ? `<span>${h(t.description)}</span>` : ''}<span>${t.plan_count} aktif atama</span></div></div>
-      <div class="actions"><button class="btn icon sm ghost" data-edit="${t.id}">${icon('edit')}</button>
-        <button class="btn icon sm ghost danger" data-del="${t.id}">${icon('trash')}</button></div></div>`).join('') + '</div>';
+      <div><div class="title">${h(t.name)}</div><div class="sub"><span>${icon('refresh')} ${h(t.freq)}${t.due_time ? ' · ' + h(t.due_time) : ''}</span><span>${t.plan_count} aktif atama</span>${t.description ? `<span>${h(t.description)}</span>` : ''}</div>
+        <div class="loc-chips">${names.length ? names.map((n) => `<span class="lchip">${icon('pin')}${h(n)}</span>`).join('') : '<span class="lchip none">Mekan seçilmemiş</span>'}</div></div>
+      <div class="actions"><button class="btn icon sm ghost" data-edit="${t.id}" title="Düzenle">${icon('edit')}</button>
+        <button class="btn icon sm ghost danger" data-del="${t.id}" title="Sil">${icon('trash')}</button></div></div>`;
+    }).join('') + '</div>';
     $('[data-q]', box).oninput = (e) => { const q = e.target.value.toLocaleLowerCase('tr'); $$('.row', box).forEach((r) => (r.hidden = !r.dataset.name.includes(q))); };
-    $$('[data-edit]', box).forEach((b) => (b.onclick = () => edit(tasks.find((t) => t.id == b.dataset.edit))));
+    $$('[data-edit]', box).forEach((b) => (b.onclick = () => taskModal(tasks.find((t) => t.id == b.dataset.edit), route)));
     $$('[data-del]', box).forEach((b) => (b.onclick = async () => {
-      if (!(await App.confirm('İş tanımı silinecek ve paketlerden çıkarılacak.', { ok: 'Sil' }))) return;
-      try { await api('task_delete', { id: b.dataset.del }); invalidate('tasks'); App.toast('Silindi'); route(); } catch (e) { App.err(e); }
+      if (!(await App.confirm('İş tanımı silinecek; paketlerden ve mekanlardan çıkarılacak.', { ok: 'Sil' }))) return;
+      try { await api('task_delete', { id: b.dataset.del }); invalidate('tasks', 'locations'); App.toast('Silindi'); route(); } catch (e) { App.err(e); }
     }));
   }
 
   /* =========================================================
      Mekanlar
      ========================================================= */
-  async function viewLocations(v) {
-    v.innerHTML = head('Mekanlar', 'İşlerin yapıldığı yerler (kat, oda, tuvalet, çay ocağı…)', `
-      <button class="btn primary" data-new>${icon('plus')}<span>Yeni mekan</span></button>`) + `<div class="glass card" data-box>${skel(6)}</div>`;
-    const locs = await get('locations', true);
-    const edit = (l) => App.modal({
+  async function locationModal(l, count, done) {
+    const tasks = await get('tasks', true);
+    App.modal({
       title: l ? 'Mekanı düzenle' : 'Yeni mekan',
-      body: `<form class="form"><label class="field"><span>Mekan adı</span><input name="name" value="${h(l ? l.name : '')}" placeholder="Örn. Kat 3 - Erkek Tuvaleti"></label>
-        <label class="field"><span>Açıklama</span><input name="description" value="${h(l ? l.description || '' : '')}" placeholder="Örn. B blok, asansör yanı"></label></form>`,
-      actions: [{ label: 'Vazgeç', cls: 'ghost' }, { label: 'Kaydet', cls: 'primary', onClick: async (m) => {
-        await api('location_save', Object.assign(App.formData($('form', m.body)), { id: l ? l.id : null, sort_order: l ? l.sort_order : locs.length }));
-        invalidate('locations'); App.toast('Kaydedildi'); route();
+      wide: true,
+      body: `<form class="form"><div class="grid2"><label class="field"><span>Mekan adı</span><input name="name" value="${h(l ? l.name : '')}" placeholder="Örn. Kat 3 - Erkek Tuvaleti"></label>
+        <label class="field"><span>Açıklama</span><input name="description" value="${h(l ? l.description || '' : '')}" placeholder="Örn. B blok, asansör yanı"></label></div>
+        <fieldset><legend>Bu mekanda yapılan işler</legend>${pickList(tasks.map((t) => ({ id: t.id, name: t.name, sub: t.freq })), l ? l.task_ids : [], 'task_ids', 'Henüz iş tanımı yok; aşağıya yazarak ekleyebilirsiniz.')}
+          <label class="field"><span>Listede olmayan işler <small>(her satıra bir iş; günlük sıklıkla oluşturulur)</small></span><textarea name="new_tasks_text" rows="2" placeholder="Örn. Pencere pervazlarının silinmesi"></textarea></label></fieldset></form>`,
+      onOpen: (m) => bindPick(m.body),
+      actions: [{ label: 'Vazgeç', cls: 'ghost' }, { label: 'Kaydet', cls: 'primary', icon: 'check', onClick: async (m) => {
+        const d = App.formData($('form', m.body));
+        d.task_ids = d.task_ids || [];
+        d.new_tasks = String(d.new_tasks_text || '').split('\n').map((s) => s.trim()).filter(Boolean);
+        delete d.new_tasks_text;
+        await api('location_save', Object.assign(d, { id: l ? l.id : null, sort_order: l ? l.sort_order : count }));
+        invalidate('locations', 'tasks'); App.toast('Kaydedildi'); done && done();
       } }],
     });
-    $('[data-new]', v).onclick = () => edit(null);
-    const box = $('[data-box]', v);
-    if (!locs.length) { box.innerHTML = emptyBox('📍', 'Henüz mekan yok', 'İşlerin yapılacağı yerleri ekleyin.'); return; }
-    box.innerHTML = '<div class="list">' + locs.map((l, i) => `<div class="row">
-      <span class="avatar" style="--c1:#ec4899;--c2:#f59e0b;width:32px;height:32px">${icon('pin')}</span>
-      <div><div class="title">${h(l.name)}</div><div class="sub">${l.description ? `<span>${h(l.description)}</span>` : ''}<span>${l.plan_count} aktif iş</span></div></div>
-      <div class="actions">
-        <button class="btn icon sm ghost" data-up="${i}" ${i === 0 ? 'disabled' : ''} title="Yukarı"><svg class="ico" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button>
-        <button class="btn icon sm ghost" data-down="${i}" ${i === locs.length - 1 ? 'disabled' : ''} title="Aşağı"><svg class="ico" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
-        <button class="btn icon sm ghost" data-edit="${l.id}">${icon('edit')}</button>
-        <button class="btn icon sm ghost danger" data-del="${l.id}">${icon('trash')}</button></div></div>`).join('') + '</div>';
-    const move = async (i, d) => {
-      const ids = locs.map((l) => l.id);
-      [ids[i], ids[i + d]] = [ids[i + d], ids[i]];
-      try { await api('locations_order', { ids }); invalidate('locations'); route(); } catch (e) { App.err(e); }
+  }
+
+  async function locationAssignModal(l, done) {
+    const [tasks, users, plans] = await Promise.all([get('tasks', true), get('users'), api('plans')]);
+    const mine = tasks.filter((t) => l.task_ids.includes(t.id));
+    if (!mine.length) { App.toast('Bu mekana önce iş ekleyin', 'bad'); locationModal(l, 0, done); return; }
+    const assigned = {};
+    plans.filter((p) => p.location_id === l.id).forEach((p) => { assigned[p.task_id] = p.user_name || 'Ortak'; });
+    const m = App.modal({
+      title: l.name + ' — işleri ata',
+      wide: true,
+      body: `<form class="form">
+        <div class="grid2"><label class="field"><span>Sorumlu personel</span><select name="user_id">${staffOptions(users, '')}</select></label>
+          <label class="field"><span>Başlangıç tarihi</span><input type="date" name="start_date" value="${App.today()}"></label></div>
+        <fieldset><legend>Atanacak işler <small class="muted">(işin varsayılan sıklığıyla)</small></legend>
+        <div class="assign-list">${mine.map((t) => `<label class="check assign-row ${assigned[t.id] ? 'is-assigned' : ''}">
+          <input type="checkbox" name="task_ids[]" value="${t.id}" ${assigned[t.id] ? 'disabled' : 'checked'}><span></span>
+          <b>${h(t.name)}</b><small>${h(t.freq)}${t.due_time ? ' · ' + h(t.due_time) : ''}</small>
+          ${assigned[t.id] ? `<em>Atanmış: ${h(assigned[t.id])}</em>` : ''}</label>`).join('')}</div></fieldset>
+        <p class="muted small" data-count></p></form>`,
+      actions: [{ label: 'Vazgeç', cls: 'ghost' }, { label: 'Ata', cls: 'primary', icon: 'check', onClick: async (mm) => {
+        const d = App.formData($('form', mm.body));
+        if (!d.task_ids || !d.task_ids.length) throw new Error('En az bir iş seçin.');
+        const r = await api('location_assign', Object.assign(d, { location_id: l.id }));
+        App.toast(`${r.created} iş atandı${r.skipped ? `, ${r.skipped} zaten atanmıştı` : ''}`);
+        const rect = mm.root.querySelector('.modal').getBoundingClientRect();
+        App.confetti(rect.left + rect.width / 2, rect.top + 40, 40);
+        done && done();
+      } }],
+    });
+    const f = $('form', m.body);
+    const upd = () => {
+      const n = $$('input[name="task_ids[]"]:checked', f).length;
+      const left = mine.length - Object.keys(assigned).filter((k) => l.task_ids.includes(+k)).length;
+      $('[data-count]', m.body).textContent = left ? `${n} iş atanacak.` : 'Bu mekandaki tüm işler zaten atanmış. Değiştirmek için İş Atamaları ekranını kullanın.';
     };
-    $$('[data-up]', box).forEach((b) => (b.onclick = () => move(+b.dataset.up, -1)));
-    $$('[data-down]', box).forEach((b) => (b.onclick = () => move(+b.dataset.down, 1)));
-    $$('[data-edit]', box).forEach((b) => (b.onclick = () => edit(locs.find((l) => l.id == b.dataset.edit))));
-    $$('[data-del]', box).forEach((b) => (b.onclick = async () => {
-      if (!(await App.confirm('Mekan silinecek.', { ok: 'Sil' }))) return;
-      try { await api('location_delete', { id: b.dataset.del }); invalidate('locations'); App.toast('Silindi'); route(); } catch (e) { App.err(e); }
-    }));
+    f.addEventListener('change', upd); upd();
+  }
+
+  async function viewLocations(v) {
+    let mode = sessionStorage.getItem('istakip.locview') || 'list';
+    v.innerHTML = head('Mekanlar', 'İşlerin yapıldığı yerler ve her mekanda yapılacak işler', `
+      <div class="seg" role="radiogroup"><label><input type="radio" name="lv" value="list" ${mode === 'list' ? 'checked' : ''}><span>Liste</span></label>
+        <label><input type="radio" name="lv" value="matrix" ${mode === 'matrix' ? 'checked' : ''}><span>Mekan × İş tablosu</span></label></div>
+      <button class="btn primary" data-new>${icon('plus')}<span>Yeni mekan</span></button>`) + `<div class="glass card" data-box>${skel(6)}</div>`;
+    const [locs, tasks] = await Promise.all([get('locations', true), get('tasks', true)]);
+    const taskName = Object.fromEntries(tasks.map((t) => [t.id, t.name]));
+    $('[data-new]', v).onclick = () => locationModal(null, locs.length, route);
+    $$('input[name=lv]', v).forEach((r) => (r.onchange = () => { mode = r.value; sessionStorage.setItem('istakip.locview', mode); render(); }));
+    const box = $('[data-box]', v);
+
+    function renderList() {
+      if (!locs.length) { box.innerHTML = emptyBox('📍', 'Henüz mekan yok', 'İşlerin yapılacağı yerleri ekleyin.'); return; }
+      box.innerHTML = '<div class="list">' + locs.map((l, i) => {
+        const names = l.task_ids.map((id) => taskName[id]).filter(Boolean);
+        const shown = names.slice(0, 5);
+        return `<div class="row">
+        <span class="avatar" style="--c1:#ec4899;--c2:#f59e0b;width:32px;height:32px">${icon('pin')}</span>
+        <div><div class="title">${h(l.name)}</div><div class="sub">${l.description ? `<span>${h(l.description)}</span>` : ''}<span>${names.length} tanımlı iş</span><span>${l.plan_count} aktif atama</span></div>
+          <div class="loc-chips">${shown.map((n) => `<span class="lchip">${h(n)}</span>`).join('')}${names.length > 5 ? `<span class="lchip more">+${names.length - 5}</span>` : ''}${!names.length ? '<span class="lchip none">İş tanımlanmamış</span>' : ''}</div></div>
+        <div class="actions">
+          <button class="btn sm" data-assign="${l.id}" title="Bu mekanın işlerini personele ata">${icon('play')}<span>İşleri ata</span></button>
+          <button class="btn icon sm ghost" data-up="${i}" ${i === 0 ? 'disabled' : ''} title="Yukarı"><svg class="ico" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button>
+          <button class="btn icon sm ghost" data-down="${i}" ${i === locs.length - 1 ? 'disabled' : ''} title="Aşağı"><svg class="ico" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+          <button class="btn icon sm ghost" data-edit="${l.id}" title="Düzenle">${icon('edit')}</button>
+          <button class="btn icon sm ghost danger" data-del="${l.id}" title="Sil">${icon('trash')}</button></div></div>`;
+      }).join('') + '</div>';
+      const move = async (i, d) => {
+        const ids = locs.map((l) => l.id);
+        [ids[i], ids[i + d]] = [ids[i + d], ids[i]];
+        try { await api('locations_order', { ids }); invalidate('locations'); route(); } catch (e) { App.err(e); }
+      };
+      $$('[data-assign]', box).forEach((b) => (b.onclick = () => locationAssignModal(locs.find((l) => l.id == b.dataset.assign), route)));
+      $$('[data-up]', box).forEach((b) => (b.onclick = () => move(+b.dataset.up, -1)));
+      $$('[data-down]', box).forEach((b) => (b.onclick = () => move(+b.dataset.down, 1)));
+      $$('[data-edit]', box).forEach((b) => (b.onclick = () => locationModal(locs.find((l) => l.id == b.dataset.edit), locs.length, route)));
+      $$('[data-del]', box).forEach((b) => (b.onclick = async () => {
+        if (!(await App.confirm('Mekan silinecek.', { ok: 'Sil' }))) return;
+        try { await api('location_delete', { id: b.dataset.del }); invalidate('locations'); App.toast('Silindi'); route(); } catch (e) { App.err(e); }
+      }));
+    }
+
+    function renderMatrix() {
+      if (!locs.length || !tasks.length) { box.innerHTML = emptyBox('🧩', 'Tablo için mekan ve iş tanımı gerekli', ''); return; }
+      const has = new Set();
+      locs.forEach((l) => l.task_ids.forEach((t) => has.add(l.id + '|' + t)));
+      const colCount = (l) => l.task_ids.length;
+      const rowCount = (t) => locs.filter((l) => has.has(l.id + '|' + t.id)).length;
+      box.innerHTML = `<div class="toolbar" style="margin-bottom:10px"><input type="search" placeholder="İş ara" data-q style="max-width:240px">
+          <span class="muted small">Hücreye tıklayarak işin o mekanda yapılıp yapılmadığını belirleyin.</span></div>
+        <div class="matrix-wrap"><table class="matrix"><thead><tr><th class="corner">İş \\ Mekan</th>
+          ${locs.map((l) => `<th class="lh"><span>${h(l.name)}</span><small data-cc="${l.id}">${colCount(l)}</small></th>`).join('')}</tr></thead>
+        <tbody>${tasks.map((t) => `<tr data-name="${h(t.name.toLocaleLowerCase('tr'))}"><th class="th"><b>${h(t.name)}</b><small>${h(t.freq)} · <span data-rc="${t.id}">${rowCount(t)}</span> mekan</small></th>
+          ${locs.map((l) => `<td><button type="button" class="cell ${has.has(l.id + '|' + t.id) ? 'on' : ''}" data-l="${l.id}" data-t="${t.id}" title="${h(t.name)} · ${h(l.name)}" aria-pressed="${has.has(l.id + '|' + t.id)}">
+            <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button></td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+      $('[data-q]', box).oninput = (e) => { const q = e.target.value.toLocaleLowerCase('tr'); $$('tbody tr', box).forEach((r) => (r.hidden = !r.dataset.name.includes(q))); };
+      box.querySelector('tbody').addEventListener('click', async (e) => {
+        const c = e.target.closest('.cell');
+        if (!c || c.disabled) return;
+        const on = !c.classList.contains('on');
+        const l = locs.find((x) => x.id == c.dataset.l);
+        const tid = +c.dataset.t;
+        c.classList.toggle('on', on); c.setAttribute('aria-pressed', on); c.disabled = true;
+        try {
+          await api('location_task_toggle', { location_id: l.id, task_id: tid, on: on ? 1 : 0 });
+          if (on) l.task_ids.push(tid); else l.task_ids = l.task_ids.filter((x) => x !== tid);
+          $(`[data-cc="${l.id}"]`, box).textContent = l.task_ids.length;
+          $(`[data-rc="${tid}"]`, box).textContent = locs.filter((x) => x.task_ids.includes(tid)).length;
+          invalidate('tasks', 'locations');
+        } catch (err) { c.classList.toggle('on', !on); App.err(err); }
+        c.disabled = false;
+      });
+    }
+
+    function render() { if (mode === 'matrix') renderMatrix(); else renderList(); }
+    render();
   }
 
   /* =========================================================

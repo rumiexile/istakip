@@ -157,6 +157,32 @@ function freq_from(array $src): array
 }
 
 /** İş tanımını id ya da adla bulur, yoksa oluşturur. */
+/** Mekan ile iş arasında ilişki yoksa kurar. */
+function link_task(int $locationId, int $taskId): void
+{
+    if (!q('SELECT 1 FROM location_tasks WHERE location_id = ? AND task_id = ?', [$locationId, $taskId])->fetchColumn()) {
+        q('INSERT INTO location_tasks (location_id, task_id) VALUES (?, ?)', [$locationId, $taskId]);
+    }
+}
+
+/** "id" => [ilişkili id'ler] */
+function link_index(string $key, string $val): array
+{
+    $out = [];
+    foreach (q("SELECT lt.$key AS k, lt.$val AS v FROM location_tasks lt
+                JOIN locations l ON l.id = lt.location_id AND l.active = 1
+                JOIN tasks t ON t.id = lt.task_id AND t.active = 1")->fetchAll() as $r) {
+        $out[(int)$r['k']][] = (int)$r['v'];
+    }
+    return $out;
+}
+
+function ids_in(string $k): array
+{
+    global $in;
+    return array_values(array_unique(array_filter(array_map('intval', (array)($in[$k] ?? [])))));
+}
+
 function resolve_task(array $src): int
 {
     $id = (int)($src['task_id'] ?? 0);
@@ -706,6 +732,10 @@ try {
             need_user();
             $rows = q('SELECT l.*, (SELECT COUNT(*) FROM plans p WHERE p.location_id = l.id AND p.active = 1) AS plan_count
                        FROM locations l WHERE l.active = 1 ORDER BY l.sort_order, l.name')->fetchAll();
+            $links = link_index('location_id', 'task_id');
+            foreach ($rows as &$r) {
+                $r['task_ids'] = $links[(int)$r['id']] ?? [];
+            }
             out($rows);
         }
 
@@ -722,6 +752,18 @@ try {
                 q('INSERT INTO locations (name, description, sort_order, active, created_at) VALUES (?, ?, ?, 1, ?)', [$name, $desc, $sort, now_str()]);
                 $id = (int)db()->lastInsertId();
             }
+            if (array_key_exists('task_ids', $in)) {
+                q('DELETE FROM location_tasks WHERE location_id = ?', [$id]);
+                foreach (ids_in('task_ids') as $tid) {
+                    link_task($id, $tid);
+                }
+            }
+            // Mekan formunda yeni yazılan işler
+            foreach ((array)($in['new_tasks'] ?? []) as $nt) {
+                if (trim((string)$nt) !== '') {
+                    link_task($id, resolve_task(['task_name' => $nt]));
+                }
+            }
             out(['id' => $id]);
         }
 
@@ -734,6 +776,7 @@ try {
                 fail("Bu mekanda $n aktif iş ataması var. Önce atamaları kaldırın.");
             }
             q('UPDATE locations SET active = 0 WHERE id = ?', [$id]);
+            q('DELETE FROM location_tasks WHERE location_id = ?', [$id]);
             out();
         }
 
@@ -750,8 +793,14 @@ try {
 
         case 'tasks': {
             need_admin();
-            out(q('SELECT t.*, (SELECT COUNT(*) FROM plans p WHERE p.task_id = t.id AND p.active = 1) AS plan_count
-                   FROM tasks t WHERE t.active = 1 ORDER BY t.name')->fetchAll());
+            $rows = q('SELECT t.*, (SELECT COUNT(*) FROM plans p WHERE p.task_id = t.id AND p.active = 1) AS plan_count
+                       FROM tasks t WHERE t.active = 1 ORDER BY t.name')->fetchAll();
+            $links = link_index('task_id', 'location_id');
+            foreach ($rows as &$r) {
+                $r['location_ids'] = $links[(int)$r['id']] ?? [];
+                $r['freq'] = Sched::label($r);
+            }
+            out($rows);
         }
 
         case 'task_save': {
@@ -760,13 +809,73 @@ try {
             $id = i_in('id', 0);
             $name = s_in('name', 200, true, 'İş adı');
             $desc = s_in('description', 2000);
+            $f = freq_from($in);
+            $fv = [$f['freq_type'], $f['freq_interval'], $f['weekdays'], $f['month_day'], $f['due_time']];
             if ($id) {
-                q('UPDATE tasks SET name = ?, description = ? WHERE id = ?', [$name, $desc, $id]);
+                q('UPDATE tasks SET name = ?, description = ?, freq_type = ?, freq_interval = ?, weekdays = ?, month_day = ?, due_time = ? WHERE id = ?',
+                    array_merge([$name, $desc], $fv, [$id]));
             } else {
-                q('INSERT INTO tasks (name, description, active, created_at) VALUES (?, ?, 1, ?)', [$name, $desc, now_str()]);
+                q('INSERT INTO tasks (name, description, freq_type, freq_interval, weekdays, month_day, due_time, active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)',
+                    array_merge([$name, $desc], $fv, [now_str()]));
                 $id = (int)db()->lastInsertId();
             }
+            if (array_key_exists('location_ids', $in)) {
+                q('DELETE FROM location_tasks WHERE task_id = ?', [$id]);
+                foreach (ids_in('location_ids') as $lid) {
+                    link_task($lid, $id);
+                }
+            }
             out(['id' => $id]);
+        }
+
+        case 'location_task_toggle': {
+            need_post();
+            need_admin();
+            $lid = i_in('location_id', 0);
+            $tid = i_in('task_id', 0);
+            if (!empty($in['on'])) {
+                link_task($lid, $tid);
+            } else {
+                q('DELETE FROM location_tasks WHERE location_id = ? AND task_id = ?', [$lid, $tid]);
+            }
+            out();
+        }
+
+        case 'location_assign': {
+            // Bir mekanın işlerini (varsayılan sıklıklarıyla) bir personele atar.
+            need_post();
+            need_admin();
+            $lid = i_in('location_id', 0);
+            if (!q('SELECT 1 FROM locations WHERE id = ? AND active = 1', [$lid])->fetchColumn()) {
+                fail('Mekan bulunamadı.');
+            }
+            $userId = i_in('user_id') ?: null;
+            $start = d_in('start_date') ?? date('Y-m-d');
+            $tids = ids_in('task_ids');
+            if (!$tids) {
+                fail('En az bir iş seçin.');
+            }
+            $created = 0;
+            $skipped = 0;
+            db()->beginTransaction();
+            foreach ($tids as $tid) {
+                $t = q('SELECT * FROM tasks WHERE id = ? AND active = 1', [$tid])->fetch();
+                if (!$t) {
+                    continue;
+                }
+                $dup = q('SELECT 1 FROM plans WHERE active = 1 AND task_id = ? AND location_id = ?', [$tid, $lid])->fetchColumn();
+                if ($dup) {
+                    $skipped++;
+                    continue;
+                }
+                q('INSERT INTO plans (task_id, location_id, user_id, freq_type, freq_interval, weekdays, month_day, due_time, start_date, active, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)',
+                    [$tid, $lid, $userId, $t['freq_type'], $t['freq_interval'], $t['weekdays'], $t['month_day'], $t['due_time'], $start, now_str()]);
+                link_task($lid, $tid);
+                $created++;
+            }
+            db()->commit();
+            out(['created' => $created, 'skipped' => $skipped]);
         }
 
         case 'task_delete': {
@@ -779,6 +888,7 @@ try {
             }
             q('UPDATE tasks SET active = 0 WHERE id = ?', [$id]);
             q('DELETE FROM package_items WHERE task_id = ?', [$id]);
+            q('DELETE FROM location_tasks WHERE task_id = ?', [$id]);
             out();
         }
 
@@ -871,6 +981,7 @@ try {
                     q('INSERT INTO plans (task_id, location_id, user_id, package_id, freq_type, freq_interval, weekdays, month_day, due_time, start_date, active, created_at)
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)',
                         [$it['task_id'], $lid, $userId, $pid, $it['freq_type'], $it['freq_interval'], $it['weekdays'], $it['month_day'], $it['due_time'], $start, now_str()]);
+                    link_task((int)$lid, (int)$it['task_id']);
                     $created++;
                 }
             }
@@ -908,6 +1019,7 @@ try {
             $tid = resolve_task($in);
             $f = freq_from($in);
             $vals = [$tid, $lid, $userId, $f['freq_type'], $f['freq_interval'], $f['weekdays'], $f['month_day'], $f['due_time']];
+            link_task($lid, $tid);
             if ($id) {
                 $old = q('SELECT * FROM plans WHERE id = ? AND active = 1', [$id])->fetch();
                 if (!$old) {
