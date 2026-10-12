@@ -3,7 +3,7 @@
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v4';
+  const KEY = 'istakip-demo-v5';
   const store = {
     get() {
       try { const v = localStorage.getItem(KEY); if (v) return JSON.parse(v); } catch (e) { /* yoksay */ }
@@ -146,6 +146,12 @@
   const DEFAULT_STAFF = [['Aysel Akman', 'aysel.akman'], ['Deniz Karabulut', 'deniz.karabulut'], ['Gülnaz Yalçın', 'gulnaz.yalcin'],
     ['Mahmut Demirel', 'mahmut.demirel'], ['Mumin Tekin', 'mumin.tekin'], ['Yalçın Bıçakcı', 'yalcin.bicakci']];
 
+  function looksConsumable(name) {
+    const n = name.toLocaleLowerCase('tr');
+    if (n.includes('temizl')) return false;
+    return /tuvalet ka[gğ]ı|havlu|sabun|sebil|ö[gğ]ütücü|(^|\s)pil(\s|$)/.test(n);
+  }
+
   /* ---------- örnek veri ---------- */
   function rng(seed) {
     return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -174,20 +180,21 @@
       ['Tuvalet Temizliği', '#06b6d4', 'Her tuvalet için günlük temizlik ve sarf malzeme', [
         ['Lavaboların temizliği', 'daily', 1, null, null, '10:00'], ['Ayna ve klozetlerin temizlenmesi', 'daily', 1, null, null, '10:00'],
         ['Klozet temizliği', 'daily', 1, null, null, '15:00'], ['Tuvalet çöplerinin alınması', 'daily', 1, null, null, '16:00'],
-        ['Tuvalet kağıdı ve kurulama havlularının değişimi', 'daily', 1, null, null, '09:30'], ['Sabun değişimi', 'daily', 1, null, null, '09:30'],
+        ['Tuvalet kağıdı', 'daily', 1, null, null, '09:30'], ['Kağıt havlu', 'daily', 1, null, null, '09:30'], ['Sıvı sabun', 'daily', 1, null, null, '09:30'],
         ['Zemin giderlerine çamaşır suyu doldurulması', 'daily', 1, null, null, '17:00']]],
       ['Ofis Genel Temizlik', '#6366f1', 'Ofis katları için rutin temizlik', [
         ['Çöplerin toplanması', 'daily', 1, null, null, '09:00'], ['Süpürme', 'daily', 1, null, null, '11:00'], ['Paspas', 'daily', 1, null, null, '11:30'],
         ['Zemin temizliği', 'daily', 1, null, null, '14:00'], ['Halıların gezilmesi ve fırçalanması', 'daily', 1, null, null, '14:00'],
-        ['Halı kenarlarına paspas atılması', 'every_n_days', 2, null, null, '15:00'], ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'daily', 1, null, null, '16:00'],
+        ['Halı kenarlarına paspas atılması', 'every_n_days', 2, null, null, '15:00'], ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'daily', 1, null, null, '16:00'], ['Kağıt öğütücü haznesi', 'daily', 1, null, null, '16:00'],
         ['Çöp atılması (genel)', 'every_n_days', 3, null, null, '17:00'], ['Camların silinmesi', 'monthly', 1, null, 15, null]]],
       ['Çay Ocağı ve Ortak Alan', '#10b981', 'Çay ocağı, ortak alanlar ve su sebili', [
         ['Çay ocağı ve ortak alan çöplerinin toplanması', 'daily', 1, null, null, '12:30'], ['Zemin temizliği', 'daily', 1, null, null, '13:00'],
-        ['Su sebilinin kontrolü', 'daily', 1, null, null, '09:00']]],
+        ['Su sebili', 'daily', 1, null, null, '09:00']]],
       ['Destek Hizmetleri', '#ec4899', 'Taşıma, arşiv, toplantı ve güvenlik kontrolleri', [
         ['Günlük yemek götürme', 'daily', 1, null, null, '12:00'], ['Evrak taşıma', 'daily', 1, null, null, null],
         ['Toplantı odasının hazırlanması (su, soda)', 'daily', 1, null, null, '08:30'], ['Arşivin düzenlenmesi', 'weekly', 1, '5', null, null],
-        ['Yangın şaft dolaplarının kontrolü', 'weekly', 1, '1', null, null], ['Asansör temizliği', 'weekly', 2, '3', null, null]]],
+        ['Yangın şaft dolaplarının kontrolü', 'weekly', 1, '1', null, null], ['Asansör temizliği', 'weekly', 2, '3', null, null],
+        ['Pil geri dönüşüm kutusu', 'weekly', 1, '5', null, null]]],
     ];
     const T = {};
     const pk = {};
@@ -195,11 +202,12 @@
       const p = add('packages', { name, description: desc, color, created_at: now });
       pk[name] = p;
       items.forEach(([tn, ft, iv, wd, md, dt], i) => {
-        if (!T[tn]) T[tn] = add('tasks', { name: tn, description: null, freq_type: ft, freq_interval: iv, weekdays: wd, month_day: md, due_time: dt, active: 1, created_at: now });
+        if (!T[tn]) T[tn] = add('tasks', { name: tn, description: null, freq_type: ft, freq_interval: iv, weekdays: wd, month_day: md, due_time: dt,
+          kind: looksConsumable(tn) ? 'consumable' : 'normal', active: 1, created_at: now });
         add('package_items', { package_id: p.id, task_id: T[tn].id, freq_type: ft, freq_interval: iv, weekdays: wd, month_day: md, due_time: dt, sort_order: i });
       });
     });
-    T['Sabun değişimi'].description = 'Sıvı sabun haznesini doldurun; boşalan bidonu depoya bildirin.';
+    T['Sıvı sabun'].description = 'Haznede sabun var mı bakın; azsa doldurun ve “Değiştirildi” olarak işaretleyin.';
     T['Yangın şaft dolaplarının kontrolü'].description = 'Hortum, vana ve yangın tüpü basınç göstergesini kontrol edin.';
     const start = ymd(dn(localToday()) - 28);
     const apply = (pkgName, locName, user, only) => {
@@ -216,28 +224,31 @@
     apply('Tuvalet Temizliği', 'Kat 1 - Tuvaletler', aysel);
     apply('Tuvalet Temizliği', 'Kat 2 - Tuvaletler', gulnaz);
     apply('Ofis Genel Temizlik', 'Kat 1 - Ofisler', deniz, ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi']);
-    apply('Ofis Genel Temizlik', 'Kat 1 - Ofisler', aysel, ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği']);
+    apply('Ofis Genel Temizlik', 'Kat 1 - Ofisler', aysel, ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Kağıt öğütücü haznesi']);
     apply('Ofis Genel Temizlik', 'Kat 2 - Ofisler', mumin, ['Çöplerin toplanması', 'Süpürme', 'Halıların gezilmesi ve fırçalanması']);
     apply('Çay Ocağı ve Ortak Alan', 'Çay Ocağı', yalcin);
     apply('Destek Hizmetleri', 'Toplantı Odası', null, ['Toplantı odasının hazırlanması (su, soda)', 'Günlük yemek götürme', 'Evrak taşıma']);
     apply('Destek Hizmetleri', 'Arşiv', mahmut, ['Arşivin düzenlenmesi', 'Yangın şaft dolaplarının kontrolü']);
+    apply('Destek Hizmetleri', 'Ana Giriş', mahmut, ['Pil geri dönüşüm kutusu']);
+    apply('Ofis Genel Temizlik', 'Fotokopi Alanı', deniz, ['Kağıt öğütücü haznesi']);
+    apply('Tuvalet Temizliği', 'Çay Ocağı', yalcin, ['Kağıt havlu']);
     apply('Destek Hizmetleri', 'Asansör', mumin, ['Asansör temizliği']);
     S.plans.find((p) => p.task_id === T['Kapıların açılması'].id).note = 'Anahtarlar güvenlik kulübesinde.';
 
     // Hangi mekanda hangi işler yapılır (lib/schema.php ile aynı)
     const tuv = ['Lavaboların temizliği', 'Ayna ve klozetlerin temizlenmesi', 'Klozet temizliği', 'Tuvalet çöplerinin alınması',
-      'Tuvalet kağıdı ve kurulama havlularının değişimi', 'Sabun değişimi', 'Zemin giderlerine çamaşır suyu doldurulması'];
+      'Tuvalet kağıdı', 'Kağıt havlu', 'Sıvı sabun', 'Zemin giderlerine çamaşır suyu doldurulması'];
     const ofis = ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Zemin temizliği', 'Halıların gezilmesi ve fırçalanması',
       'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi'];
     Object.entries({
-      'Ana Giriş': ['Kapıların açılması', 'Zemin temizliği', 'Paspas', 'Camların silinmesi'],
+      'Ana Giriş': ['Kapıların açılması', 'Zemin temizliği', 'Paspas', 'Camların silinmesi', 'Pil geri dönüşüm kutusu'],
       'Kazan Dairesi': ['Kazanın fişinin devreye alınması'],
-      'Kat 1 - Ofisler': ofis.concat(['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği']), 'Kat 1 - Tuvaletler': tuv, 'Kat 2 - Ofisler': ofis, 'Kat 2 - Tuvaletler': tuv,
-      'Çay Ocağı': ['Çay ocağı ve ortak alan çöplerinin toplanması', 'Zemin temizliği', 'Su sebilinin kontrolü'],
+      'Kat 1 - Ofisler': ofis.concat(['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Kağıt öğütücü haznesi']), 'Kat 1 - Tuvaletler': tuv, 'Kat 2 - Ofisler': ofis, 'Kat 2 - Tuvaletler': tuv,
+      'Çay Ocağı': ['Çay ocağı ve ortak alan çöplerinin toplanması', 'Zemin temizliği', 'Su sebili', 'Kağıt havlu'],
       'Toplantı Odası': ['Toplantı odasının hazırlanması (su, soda)', 'Süpürme', 'Camların silinmesi', 'Günlük yemek götürme', 'Evrak taşıma'],
       'Arşiv': ['Arşivin düzenlenmesi', 'Evrak taşıma', 'Yangın şaft dolaplarının kontrolü'],
       'Asansör': ['Asansör temizliği'],
-      'Fotokopi Alanı': ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Çöplerin toplanması'],
+      'Fotokopi Alanı': ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Kağıt öğütücü haznesi', 'Çöplerin toplanması'],
       'Yemekhane': ['Günlük yemek götürme', 'Zemin temizliği', 'Çöplerin toplanması'],
     }).forEach(([loc, tasks]) => tasks.forEach((t) => {
       if (!S.links.some((x) => x.location_id === L[loc].id && x.task_id === T[t].id)) S.links.push({ location_id: L[loc].id, task_id: T[t].id });
@@ -276,7 +287,9 @@
         if (isToday) { const [nh, nm] = hm.split(':').map(Number); mins = Math.min(mins, nh * 60 + nm - 1); }
         const at = ymd(o) + ' ' + pad(Math.floor(mins / 60)) + ':' + pad(mins % 60) + ':00';
         const issue = x > rate;
-        add('completions', { plan_id: p0.id, occ_date: ymd(o), user_id: who, status: issue ? 'issue' : 'done',
+        const kind = S.tasks.find((t) => t.id === p0.task_id).kind;
+        const st = issue ? 'issue' : kind === 'consumable' && r() < 0.35 ? 'replaced' : 'done';
+        add('completions', { plan_id: p0.id, occ_date: ymd(o), user_id: who, status: st,
           note: issue ? issues[Math.floor(r() * issues.length)] : null, photo: null, created_at: at });
       });
     });
@@ -298,7 +311,7 @@
   function plansQuery(filter) {
     return S.plans.filter(filter || (() => true)).map((p) => {
       const t = byId('tasks', p.task_id), l = byId('locations', p.location_id), u = p.user_id ? byId('users', p.user_id) : null, k = p.package_id ? byId('packages', p.package_id) : null;
-      return Object.assign({}, p, { task_name: t.name, task_desc: t.description, location_name: l.name, location_sort: l.sort_order,
+      return Object.assign({}, p, { task_name: t.name, task_desc: t.description, task_kind: t.kind || 'normal', location_name: l.name, location_sort: l.sort_order,
         user_name: u ? u.name : null, package_name: k ? k.name : null, package_color: k ? k.color : null });
     }).sort((a, b) => a.location_sort - b.location_sort || cmpTr(a.location_name, b.location_name) || cmpTr(a.due_time, b.due_time) || cmpTr(a.task_name, b.task_name));
   }
@@ -328,7 +341,7 @@
     return {
       plan_id: p.id, occ_date: o, task: p.task_name, task_desc: p.task_desc, location: p.location_name, location_id: p.location_id,
       user: p.user_name, user_id: p.user_id, package: p.package_name, color: p.package_color, due_time: p.due_time,
-      freq: Sched.label(p), note: p.note, status,
+      freq: Sched.label(p), kind: p.task_kind || 'normal', note: p.note, status,
       completion: c ? { id: c.id, by: c.by_name, by_id: c.user_id, at: c.created_at, status: c.status, note: c.note, photo: !!c.photo, late } : null,
     };
   }
@@ -391,7 +404,7 @@
     if (!name) err('İş adı gerekli.');
     const ex = S.tasks.find((t) => t.name.toLocaleLowerCase('tr') === name.toLocaleLowerCase('tr'));
     if (ex) { ex.active = 1; return ex.id; }
-    const t = { id: nid(), name: name.slice(0, 200), description: null, freq_type: 'daily', freq_interval: 1, weekdays: null, month_day: null, due_time: null, active: 1, created_at: nowStr() };
+    const t = { id: nid(), name: name.slice(0, 200), description: null, kind: 'normal', freq_type: 'daily', freq_interval: 1, weekdays: null, month_day: null, due_time: null, active: 1, created_at: nowStr() };
     S.tasks.push(t);
     return t.id;
   }
@@ -463,10 +476,11 @@
     async complete(b) {
       const u = me();
       const planId = +b.plan_id, occ = b.occ_date;
-      const status = b.status === 'issue' ? 'issue' : 'done';
+      let status = ['issue', 'replaced'].includes(b.status) ? b.status : 'done';
       const note = str(b.note);
       const p = plansQuery((x) => x.id === planId && x.active)[0];
       if (!p) err('İş bulunamadı.');
+      if (status === 'replaced' && p.task_kind !== 'consumable') status = 'done';
       if (u.role !== 'admin' && p.user_id !== null && p.user_id !== u.id) err('Bu iş size atanmamış.');
       const sc = sched(), pp = sc.prep(p), [today, hm] = todayCtx(), o = dn(occ);
       if (!sc.isDue(pp, o) || o > today) err('Bu tarih için böyle bir iş yok.');
@@ -478,6 +492,23 @@
       S.completions.push(c);
       save();
       const cc = cmap(occ, occ)[planId + '|' + occ];
+      return itemOut(pp, o, cc, sc.status(pp, o, cc, today, hm));
+    },
+    async mark_replaced(b) {
+      const u = me();
+      const c = S.completions.find((x) => x.plan_id === +b.plan_id && x.occ_date === b.occ_date);
+      const p = plansQuery((x) => x.id === +b.plan_id)[0];
+      if (!c || !p) err('Kayıt bulunamadı.');
+      if (p.task_kind !== 'consumable') err('Bu iş bir sarf malzemesi değil.');
+      if (u.role !== 'admin') {
+        if (c.user_id !== u.id) err('Bu kaydı başka biri işaretlemiş; değiştirmek için yöneticinize başvurun.');
+        if (c.created_at.slice(0, 10) !== localToday()) err('Geçmiş günlerdeki kayıtlar değiştirilemez.');
+      }
+      if (c.status === 'issue') err('Sorun bildirilen kayıt değiştirilemez; önce işareti geri alın.');
+      c.status = +b.revert ? 'done' : 'replaced';
+      save();
+      const sc = sched(), pp = sc.prep(p), [today, hm] = todayCtx(), o = dn(b.occ_date);
+      const cc = cmap(b.occ_date, b.occ_date)[p.id + '|' + b.occ_date];
       return itemOut(pp, o, cc, sc.status(pp, o, cc, today, hm));
     },
     async uncomplete(b) {
@@ -544,7 +575,18 @@
         if (i.completion && i.completion.late) lateDone++;
       });
       const problems = items.filter((i) => ['missed', 'issue', 'overdue'].includes(i.status)).sort((a, b2) => cmpTr(b2.occ_date, a.occ_date));
+      const cons = {};
+      items.filter((i) => i.kind === 'consumable').forEach((i) => {
+        const r = cons[i.task] = cons[i.task] || { name: i.task, total: 0, checked: 0, replaced: 0, issue: 0, missed: 0, locations: {} };
+        r.total++;
+        const cs = i.completion && i.completion.status;
+        if (cs === 'replaced') { r.replaced++; r.locations[i.location] = (r.locations[i.location] || 0) + 1; }
+        else if (cs === 'done') r.checked++;
+        else if (cs === 'issue') r.issue++;
+        else if (i.status === 'missed') r.missed++;
+      });
       return { from: ymd(from), to: ymd(to), summary: Object.assign(tally(items), { late_done: lateDone }),
+        consumables: Object.values(cons).sort((a, c) => c.replaced - a.replaced || cmpTr(a.name, c.name)),
         by_user: groupTally(items, 'user', 'Ortak (herkes)'), by_location: groupTally(items, 'location', '-'), by_task: groupTally(items, 'task', '-'),
         daily: Object.values(daily), problems: problems.slice(0, 300), problem_count: problems.length };
     },
@@ -608,8 +650,9 @@
       const name = str(b.name, true, 'İş adı');
       const f = freqFrom(b);
       let id = +b.id;
-      if (id) Object.assign(byId('tasks', id), { name, description: str(b.description) }, f);
-      else { id = nid(); S.tasks.push(Object.assign({ id, name, description: str(b.description), active: 1, created_at: nowStr() }, f)); }
+      const kind = b.kind === 'consumable' ? 'consumable' : 'normal';
+      if (id) Object.assign(byId('tasks', id), { name, description: str(b.description), kind }, f);
+      else { id = nid(); S.tasks.push(Object.assign({ id, name, description: str(b.description), kind, active: 1, created_at: nowStr() }, f)); }
       if (b.location_ids) { S.links = S.links.filter((x) => x.task_id !== id); b.location_ids.forEach((l) => linkTask(l, id)); }
       save(); return { id };
     },

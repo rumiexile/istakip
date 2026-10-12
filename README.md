@@ -17,6 +17,7 @@ siteyi açıp işleri işaretler. Yönetici de geciken ve yapılmayan işleri an
 | **İş Paketleri** | Şablonlar: “Tuvalet Temizliği” gibi bir paketi bir kerede birden çok mekana ve kişiye atama, paket kopyalama. |
 | **Mekanlar ↔ İşler** | Her mekanda hangi işlerin yapılacağı tanımlanır: iş tanımlarken mekanları, mekan tanımlarken işleri seçin ya da **Mekan × İş tablosundan** hücreye tıklayarak eşleştirin. Her işin varsayılan sıklığı vardır; mekan listesindeki **İşleri ata** ile bir mekanın tüm işleri tek seferde bir personele atanır. |
 | **Personel** | Personel silinirken üzerindeki işler başkasına devredilir. |
+| **Sarf malzemeleri** | Tuvalet kağıdı, kağıt havlu, sıvı sabun, su sebili, kağıt öğütücü haznesi, pil geri dönüşüm kutusu gibi işler “Sarf malzemesi” türündedir: personel bir kez dokununca **Kontrol edildi**, ikinci dokunuşta **Değiştirildi** kaydedilir. Raporlarda malzeme başına kontrol ve değişim sayıları ile en çok değişen mekanlar görünür. Tür, iş formundan değiştirilebilir. |
 | **Raporlar** | Tarih aralığı, personel ve mekan filtresi. Günlük grafik, en çok aksayan işler, Excel'de açılan CSV dışa aktarma. |
 | **Ayarlar** | Kurum adı, çalışma günleri, resmi tatiller. |
 | **Personel ekranı (mobil)** | Bugünün işleri mekana göre gruplu. Tek dokunuşla tamamlama ve geri alma, “Sorun var” bildirimi, not ve fotoğraf ekleme. Son 14 günün şeridiyle geçmiş günlere bakma, “Bugün izinliyim” ve ileri tarihli izin bildirme. |

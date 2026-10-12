@@ -11,6 +11,9 @@
   let day = null; // null = bugün
   let filter = 'todo';
   let celebrated = false;
+  // Bu oturumda "kontrol edildi" yapılan sarf malzemeleri, ikinci dokunuş için "Yapılacak" listesinde kalır.
+  const recentChecked = new Set();
+  const SWAP_PATH = '<path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/>';
   try { filter = localStorage.getItem('istakip.filter') || 'todo'; } catch (e) { /* yoksay */ }
 
   const ORDER = { overdue: 0, pending: 1, upcoming: 2, issue: 3, done: 4, missed: 5, leave: 6 };
@@ -196,7 +199,8 @@
 
   function visible(it) {
     const f = activeFilter();
-    if (f === 'todo') return it.status === 'pending' || it.status === 'overdue' || (data.on_leave && it.status === 'leave');
+    if (f === 'todo') return it.status === 'pending' || it.status === 'overdue' || (data.on_leave && it.status === 'leave')
+      || (recentChecked.has(it.plan_id + '|' + it.occ_date) && it.completion && it.completion.status === 'done');
     if (f === 'done') return it.status === 'done' || it.status === 'issue';
     if (f === 'open') return ['pending', 'overdue', 'missed'].includes(it.status);
     return true;
@@ -212,12 +216,17 @@
     else if (it.status === 'leave') sub += '<span class="lv">İzinli</span>';
     else if (carried && !done) sub += `<span class="late">${App.relDay(it.occ_date) === 'Dün' ? 'Dünden kalan' : 'Kalan iş · ' + h(App.fmtDate(it.occ_date))}</span>`;
     else if (it.status === 'overdue') sub += `<span class="late">${isPast() ? 'Hâlâ yapılabilir' : 'Saati geçti'}</span>`;
+    const cons = it.kind === 'consumable';
+    const cs = it.completion && it.completion.status;
+    if (cons && cs === 'done') sub += App.canUndo(it) ? '<span class="cons-hint">Kontrol edildi · değiştirdiyseniz tekrar dokunun</span>' : '<span class="cons-ok">Kontrol edildi</span>';
+    else if (cons && cs === 'replaced') sub += '<span class="cons-rep">Değiştirildi</span>';
+    else if (cons && !it.completion) sub += '<span class="cons">Sarf malzemesi</span>';
     if (done && it.completion) sub += `<span>${h(it.completion.by || '')} · ${h(App.fmtTime(it.completion.at))}${it.completion.late ? ' · geç' : ''}</span>`;
     if (!it.user_id) sub += '<span>Ortak</span>';
-    const tickCls = it.status === 'done' ? 'on' : it.status === 'issue' ? 'issue' : it.status === 'overdue' ? 'overdue' : it.status === 'missed' ? 'missed' : '';
-    return `<div class="task glass is-${it.status}" data-key="${it.plan_id}|${it.occ_date}" style="${it.color ? '--c:' + h(it.color) : ''}">
+    const tickCls = cs === 'replaced' ? 'replaced' : it.status === 'done' ? 'on' : it.status === 'issue' ? 'issue' : it.status === 'overdue' ? 'overdue' : it.status === 'missed' ? 'missed' : '';
+    return `<div class="task glass is-${it.status}${cons && cs === 'done' && App.canUndo(it) ? ' is-cons-checked' : ''}" data-key="${it.plan_id}|${it.occ_date}" style="${it.color ? '--c:' + h(it.color) : ''}">
       <span class="stripe"></span>
-      <button class="tick ${tickCls}" aria-label="${done ? 'Tamamlandı' : 'Tamamla'}"><svg viewBox="0 0 24 24">${it.status === 'issue' ? '<path d="M12 6v7M12 17.5v.5"/>' : it.status === 'missed' ? '<path d="M7 7l10 10M17 7L7 17"/>' : '<path d="M5 12.5l4.5 4.5L19 7.5"/>'}</svg><span class="burst"></span></button>
+      <button class="tick ${tickCls}" aria-label="${done ? 'Tamamlandı' : 'Tamamla'}"><svg viewBox="0 0 24 24">${cs === 'replaced' ? SWAP_PATH : it.status === 'issue' ? '<path d="M12 6v7M12 17.5v.5"/>' : it.status === 'missed' ? '<path d="M7 7l10 10M17 7L7 17"/>' : '<path d="M5 12.5l4.5 4.5L19 7.5"/>'}</svg><span class="burst"></span></button>
       <div class="t-body"><div class="t-title">${h(it.task)}</div><div class="t-sub">${sub}</div></div>
       <span class="chev">${icon('chev')}</span></div>`;
   }
@@ -277,9 +286,30 @@
   async function quickToggle(card, it) {
     const tick = card.querySelector('.tick');
     if (it.status === 'missed') { App.taskSheet(it, load); return; }
+    const key = it.plan_id + '|' + it.occ_date;
+    if (it.completion && it.kind === 'consumable' && it.completion.status === 'done' && App.canUndo(it)) {
+      // Sarf malzemesi, ikinci dokunuş: "Değiştirildi"
+      tick.classList.add('replaced');
+      tick.querySelector('svg').innerHTML = SWAP_PATH;
+      card.classList.remove('just-done'); void card.offsetWidth; card.classList.add('just-done');
+      const r = tick.getBoundingClientRect();
+      App.confetti(r.left + r.width / 2, r.top + r.height / 2, 14);
+      if (navigator.vibrate) navigator.vibrate([10, 40, 10]);
+      try {
+        Object.assign(it, await App.replaceItem(it));
+        recentChecked.delete(key);
+        setTimeout(() => renderList(), activeFilter() === 'todo' ? 650 : 0);
+        App.toast('Değiştirildi: ' + it.task, '', {
+          action: 'Geri al',
+          onAction: async () => { try { Object.assign(it, await App.replaceItem(it, true)); recentChecked.add(key); renderList(); } catch (e) { App.err(e); } },
+        });
+      } catch (e) { App.err(e); load(); }
+      return;
+    }
     if (it.completion) {
       if (!App.canUndo(it)) { App.taskSheet(it, load); return; }
-      if (!(await App.confirm('Bu işin tamamlandı işaretini geri almak istiyor musunuz?', { ok: 'Geri al', title: it.task }))) return;
+      const msg = it.kind === 'consumable' ? 'Bu malzemenin “Değiştirildi” işaretini kaldırıp yeniden açık hale getirmek istiyor musunuz?' : 'Bu işin tamamlandı işaretini geri almak istiyor musunuz?';
+      if (!(await App.confirm(msg, { ok: 'Geri al', title: it.task }))) return;
       try { await App.uncompleteItem(it); App.toast('İşaret geri alındı', 'info'); load(); } catch (e) { App.err(e); }
       return;
     }
@@ -293,11 +323,13 @@
     try {
       const res = await App.completeItem(it, 'done');
       Object.assign(it, res);
+      const cons = it.kind === 'consumable';
+      if (cons) recentChecked.add(key);
       recalc();
       renderHero(); renderChips();
-      setTimeout(() => { renderList(); if (data.tally.pending + data.tally.overdue === 0) render(); }, activeFilter() === 'todo' ? 550 : 0);
+      setTimeout(() => { renderList(); if (data.tally.pending + data.tally.overdue === 0) render(); }, activeFilter() === 'todo' && !cons ? 550 : 0);
       App.api('my_history').then((hh) => { history = hh; renderStrip(); }).catch(() => {});
-      App.toast('Tamamlandı: ' + it.task, '', {
+      App.toast(cons ? 'Kontrol edildi: ' + it.task + ' · değiştirdiyseniz tekrar dokunun' : 'Tamamlandı: ' + it.task, '', {
         action: 'Geri al',
         onAction: async () => { try { await App.uncompleteItem(it); celebrated = false; load(); } catch (e) { App.err(e); } },
       });

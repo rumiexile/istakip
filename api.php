@@ -208,7 +208,7 @@ function resolve_task(array $src): int
 
 function plans_query(string $where = '1=1', array $params = []): array
 {
-    return q("SELECT p.*, t.name AS task_name, t.description AS task_desc, l.name AS location_name,
+    return q("SELECT p.*, t.name AS task_name, t.description AS task_desc, t.kind AS task_kind, l.name AS location_name,
                      l.sort_order AS location_sort, u.name AS user_name, pk.name AS package_name, pk.color AS package_color
               FROM plans p
               JOIN tasks t ON t.id = p.task_id
@@ -271,6 +271,7 @@ function item_out(array $p, int $occ, ?array $c, string $status): array
         'color' => $p['package_color'] ?: null,
         'due_time' => $p['due_time'],
         'freq' => Sched::label($p),
+        'kind' => $p['task_kind'] ?? 'normal',
         'note' => $p['note'],
         'status' => $status,
         'completion' => $c ? [
@@ -322,6 +323,35 @@ function day_items(Sched $S, array $plans, int $day): array
         $items[] = item_out($p, $occ, $c, $st);
     }
     return $items;
+}
+
+/** Sarf malzemesi başına kontrol / değişim / sorun sayıları. */
+function consumable_summary(array $items): array
+{
+    $g = [];
+    foreach ($items as $i) {
+        if ($i['kind'] !== 'consumable') {
+            continue;
+        }
+        $r = &$g[$i['task']];
+        $r = $r ?? ['name' => $i['task'], 'total' => 0, 'checked' => 0, 'replaced' => 0, 'issue' => 0, 'missed' => 0, 'locations' => []];
+        $r['total']++;
+        $cs = $i['completion']['status'] ?? null;
+        if ($cs === 'replaced') {
+            $r['replaced']++;
+            $r['locations'][$i['location']] = ($r['locations'][$i['location']] ?? 0) + 1;
+        } elseif ($cs === 'done') {
+            $r['checked']++;
+        } elseif ($cs === 'issue') {
+            $r['issue']++;
+        } elseif ($i['status'] === 'missed') {
+            $r['missed']++;
+        }
+        unset($r);
+    }
+    $out = array_values($g);
+    usort($out, fn($a, $b) => $b['replaced'] <=> $a['replaced'] ?: strcmp($a['name'], $b['name']));
+    return $out;
 }
 
 function tally(array $items): array
@@ -541,11 +571,14 @@ try {
             $u = need_user();
             $planId = i_in('plan_id', 0);
             $occ = d_in('occ_date', true);
-            $status = ($in['status'] ?? 'done') === 'issue' ? 'issue' : 'done';
+            $status = in_array($in['status'] ?? '', ['issue', 'replaced'], true) ? $in['status'] : 'done';
             $note = s_in('note', 1000);
             $p = plans_query('p.id = ? AND p.active = 1', [$planId])[0] ?? null;
             if (!$p) {
                 fail('İş bulunamadı.', 404);
+            }
+            if ($status === 'replaced' && $p['task_kind'] !== 'consumable') {
+                $status = 'done';
             }
             if ($u['role'] !== 'admin' && $p['user_id'] !== null && (int)$p['user_id'] !== (int)$u['id']) {
                 fail('Bu iş size atanmamış.', 403);
@@ -571,6 +604,40 @@ try {
                 [$planId, $occ, $u['id'], $status, $note, $photo, now_str()]);
             $c = completions_map($occ, $occ)[$planId . '|' . $occ];
             out(item_out($pp, $o, $c, $S->status($pp, $o, $c, $today, $nowHm)));
+        }
+
+        case 'mark_replaced': {
+            // Sarf malzemesi: "Kontrol edildi" kaydını "Değiştirildi" yapar (revert=1 ile geri alır).
+            need_post();
+            $u = need_user();
+            $planId = i_in('plan_id', 0);
+            $occ = d_in('occ_date', true);
+            $c = q('SELECT * FROM completions WHERE plan_id = ? AND occ_date = ?', [$planId, $occ])->fetch();
+            $p = plans_query('p.id = ?', [$planId])[0] ?? null;
+            if (!$c || !$p) {
+                fail('Kayıt bulunamadı.', 404);
+            }
+            if ($p['task_kind'] !== 'consumable') {
+                fail('Bu iş bir sarf malzemesi değil.');
+            }
+            if ($u['role'] !== 'admin') {
+                if ((int)$c['user_id'] !== (int)$u['id']) {
+                    fail('Bu kaydı başka biri işaretlemiş; değiştirmek için yöneticinize başvurun.', 403);
+                }
+                if (substr((string)$c['created_at'], 0, 10) !== date('Y-m-d')) {
+                    fail('Geçmiş günlerdeki kayıtlar değiştirilemez.', 403);
+                }
+            }
+            $revert = !empty($in['revert']);
+            if ($c['status'] === 'issue') {
+                fail('Sorun bildirilen kayıt değiştirilemez; önce işareti geri alın.');
+            }
+            q('UPDATE completions SET status = ? WHERE id = ?', [$revert ? 'done' : 'replaced', $c['id']]);
+            $S = Sched::fromSettings();
+            $pp = $S->prep($p);
+            [$today, $nowHm] = today_ctx();
+            $cc = completions_map($occ, $occ)[$planId . '|' . $occ];
+            out(item_out($pp, Sched::dn($occ), $cc, $S->status($pp, Sched::dn($occ), $cc, $today, $nowHm)));
         }
 
         case 'uncomplete': {
@@ -685,7 +752,8 @@ try {
                     $c = $i['completion'];
                     fputcsv($fh, [
                         $i['occ_date'], $i['location'], $i['task'], $i['freq'], $i['due_time'] ?? '',
-                        $i['user'] ?? 'Ortak', $labels[$i['status']] ?? $i['status'],
+                        $i['user'] ?? 'Ortak',
+                        ($c['status'] ?? '') === 'replaced' ? 'Değiştirildi' : ($i['kind'] === 'consumable' && $i['status'] === 'done' ? 'Kontrol edildi' : ($labels[$i['status']] ?? $i['status'])),
                         $c['by'] ?? '', $c['at'] ?? '', ($c['late'] ?? false) ? 'Evet' : '', $c['note'] ?? '',
                     ], ';');
                 }
@@ -717,6 +785,7 @@ try {
                 'from' => Sched::ymd($from),
                 'to' => Sched::ymd($to),
                 'summary' => tally($items) + ['late_done' => $lateDone],
+                'consumables' => consumable_summary($items),
                 'by_user' => group_tally($items, 'user', 'Ortak (herkes)'),
                 'by_location' => group_tally($items, 'location', '-'),
                 'by_task' => group_tally($items, 'task', '-'),
@@ -810,12 +879,13 @@ try {
             $name = s_in('name', 200, true, 'İş adı');
             $desc = s_in('description', 2000);
             $f = freq_from($in);
-            $fv = [$f['freq_type'], $f['freq_interval'], $f['weekdays'], $f['month_day'], $f['due_time']];
+            $kind = ($in['kind'] ?? '') === 'consumable' ? 'consumable' : 'normal';
+            $fv = [$f['freq_type'], $f['freq_interval'], $f['weekdays'], $f['month_day'], $f['due_time'], $kind];
             if ($id) {
-                q('UPDATE tasks SET name = ?, description = ?, freq_type = ?, freq_interval = ?, weekdays = ?, month_day = ?, due_time = ? WHERE id = ?',
+                q('UPDATE tasks SET name = ?, description = ?, freq_type = ?, freq_interval = ?, weekdays = ?, month_day = ?, due_time = ?, kind = ? WHERE id = ?',
                     array_merge([$name, $desc], $fv, [$id]));
             } else {
-                q('INSERT INTO tasks (name, description, freq_type, freq_interval, weekdays, month_day, due_time, active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)',
+                q('INSERT INTO tasks (name, description, freq_type, freq_interval, weekdays, month_day, due_time, kind, active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)',
                     array_merge([$name, $desc], $fv, [now_str()]));
                 $id = (int)db()->lastInsertId();
             }

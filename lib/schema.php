@@ -34,6 +34,7 @@ function schema_statements(string $driver): array
             weekdays VARCHAR(20) NULL,
             month_day INT NULL,
             due_time VARCHAR(5) NULL,
+            kind VARCHAR(12) NOT NULL DEFAULT 'normal',
             active INT NOT NULL DEFAULT 1,
             created_at DATETIME NOT NULL
         )",
@@ -111,7 +112,7 @@ function schema_statements(string $driver): array
     return $out;
 }
 
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 function schema_install(PDO $pdo, string $driver): void
 {
@@ -157,6 +158,29 @@ function schema_upgrade(PDO $pdo, string $driver, int $from): void
         // Mekan-iş ilişkileri: mevcut atamalardan.
         link_pairs($pdo, $pdo->query('SELECT DISTINCT location_id, task_id FROM plans')->fetchAll(PDO::FETCH_NUM));
     }
+    if ($from < 4) {
+        try {
+            $pdo->exec("ALTER TABLE tasks ADD COLUMN kind VARCHAR(12) NOT NULL DEFAULT 'normal'");
+        } catch (PDOException $e) {
+            // Sütun zaten var.
+        }
+        // Adından sarf malzemesi olduğu anlaşılan işleri işaretle; yönetici iş formundan değiştirebilir.
+        $upd = $pdo->prepare("UPDATE tasks SET kind = 'consumable' WHERE id = ?");
+        foreach ($pdo->query('SELECT id, name FROM tasks')->fetchAll() as $t) {
+            if (looks_consumable((string)$t['name'])) {
+                $upd->execute([$t['id']]);
+            }
+        }
+    }
+}
+
+function looks_consumable(string $name): bool
+{
+    $n = mb_strtolower(str_replace(['İ', 'I'], ['i', 'ı'], $name));
+    if (str_contains($n, 'temizl')) {
+        return false; // "… çevresi temizliği" gibi temizlik işleri sarf malzemesi değildir.
+    }
+    return (bool)preg_match('/tuvalet ka[gğ]ı|havlu|sabun|sebil|ö[gğ]ütücü|\bpil\b/u', $n);
 }
 
 /** @param array<int,array{0:int,1:int}> $pairs [mekan, iş] */
@@ -242,8 +266,9 @@ function schema_seed(PDO $pdo): void
             ['Ayna ve klozetlerin temizlenmesi', 'daily', 1, null, null, '10:00'],
             ['Klozet temizliği', 'daily', 1, null, null, '15:00'],
             ['Tuvalet çöplerinin alınması', 'daily', 1, null, null, '16:00'],
-            ['Tuvalet kağıdı ve kurulama havlularının değişimi', 'daily', 1, null, null, '09:30'],
-            ['Sabun değişimi', 'daily', 1, null, null, '09:30'],
+            ['Tuvalet kağıdı', 'daily', 1, null, null, '09:30'],
+            ['Kağıt havlu', 'daily', 1, null, null, '09:30'],
+            ['Sıvı sabun', 'daily', 1, null, null, '09:30'],
             ['Zemin giderlerine çamaşır suyu doldurulması', 'daily', 1, null, null, '17:00'],
         ]],
         ['Ofis Genel Temizlik', '#6366f1', 'Ofis katları için rutin temizlik', [
@@ -254,13 +279,14 @@ function schema_seed(PDO $pdo): void
             ['Halıların gezilmesi ve fırçalanması', 'daily', 1, null, null, '14:00'],
             ['Halı kenarlarına paspas atılması', 'every_n_days', 2, null, null, '15:00'],
             ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'daily', 1, null, null, '16:00'],
+            ['Kağıt öğütücü haznesi', 'daily', 1, null, null, '16:00'],
             ['Çöp atılması (genel)', 'every_n_days', 3, null, null, '17:00'],
             ['Camların silinmesi', 'monthly', 1, null, 15, null],
         ]],
         ['Çay Ocağı ve Ortak Alan', '#10b981', 'Çay ocağı, ortak alanlar ve su sebili', [
             ['Çay ocağı ve ortak alan çöplerinin toplanması', 'daily', 1, null, null, '12:30'],
             ['Zemin temizliği', 'daily', 1, null, null, '13:00'],
-            ['Su sebilinin kontrolü', 'daily', 1, null, null, '09:00'],
+            ['Su sebili', 'daily', 1, null, null, '09:00'],
         ]],
         ['Destek Hizmetleri', '#ec4899', 'Taşıma, arşiv, toplantı ve güvenlik kontrolleri', [
             ['Günlük yemek götürme', 'daily', 1, null, null, '12:00'],
@@ -269,11 +295,12 @@ function schema_seed(PDO $pdo): void
             ['Arşivin düzenlenmesi', 'weekly', 1, '5', null, null],
             ['Yangın şaft dolaplarının kontrolü', 'weekly', 1, '1', null, null],
             ['Asansör temizliği', 'weekly', 2, '3', null, null],
+            ['Pil geri dönüşüm kutusu', 'weekly', 1, '5', null, null],
         ]],
     ];
 
     $taskIds = [];
-    $insTask = $pdo->prepare('INSERT INTO tasks (name, freq_type, freq_interval, weekdays, month_day, due_time, active, created_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?)');
+    $insTask = $pdo->prepare('INSERT INTO tasks (name, freq_type, freq_interval, weekdays, month_day, due_time, kind, active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)');
     $insPkg = $pdo->prepare('INSERT INTO packages (name, description, color, created_at) VALUES (?, ?, ?, ?)');
     $insItem = $pdo->prepare('INSERT INTO package_items (package_id, task_id, freq_type, freq_interval, weekdays, month_day, due_time, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
     foreach ($packages as [$pname, $color, $desc, $items]) {
@@ -281,7 +308,7 @@ function schema_seed(PDO $pdo): void
         $pid = (int)$pdo->lastInsertId();
         foreach ($items as $i => [$tname, $ft, $iv, $wd, $md, $dt]) {
             if (!isset($taskIds[$tname])) {
-                $insTask->execute([$tname, $ft, $iv, $wd, $md, $dt, $now]);
+                $insTask->execute([$tname, $ft, $iv, $wd, $md, $dt, looks_consumable($tname) ? 'consumable' : 'normal', $now]);
                 $taskIds[$tname] = (int)$pdo->lastInsertId();
             }
             $insItem->execute([$pid, $taskIds[$tname], $ft, $iv, $wd, $md, $dt, $i]);
@@ -290,21 +317,21 @@ function schema_seed(PDO $pdo): void
 
     // Hangi mekanda hangi işler yapılır
     $tuvalet = ['Lavaboların temizliği', 'Ayna ve klozetlerin temizlenmesi', 'Klozet temizliği', 'Tuvalet çöplerinin alınması',
-        'Tuvalet kağıdı ve kurulama havlularının değişimi', 'Sabun değişimi', 'Zemin giderlerine çamaşır suyu doldurulması'];
+        'Tuvalet kağıdı', 'Kağıt havlu', 'Sıvı sabun', 'Zemin giderlerine çamaşır suyu doldurulması'];
     $ofis = ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Zemin temizliği', 'Halıların gezilmesi ve fırçalanması',
         'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi'];
     $map = [
-        'Ana Giriş' => ['Kapıların açılması', 'Zemin temizliği', 'Paspas', 'Camların silinmesi'],
+        'Ana Giriş' => ['Kapıların açılması', 'Zemin temizliği', 'Paspas', 'Camların silinmesi', 'Pil geri dönüşüm kutusu'],
         'Kazan Dairesi' => ['Kazanın fişinin devreye alınması'],
         'Kat 1 - Ofisler' => $ofis,
         'Kat 1 - Tuvaletler' => $tuvalet,
         'Kat 2 - Ofisler' => $ofis,
         'Kat 2 - Tuvaletler' => $tuvalet,
-        'Çay Ocağı' => ['Çay ocağı ve ortak alan çöplerinin toplanması', 'Zemin temizliği', 'Su sebilinin kontrolü'],
+        'Çay Ocağı' => ['Çay ocağı ve ortak alan çöplerinin toplanması', 'Zemin temizliği', 'Su sebili', 'Kağıt havlu'],
         'Toplantı Odası' => ['Toplantı odasının hazırlanması (su, soda)', 'Süpürme', 'Camların silinmesi'],
         'Arşiv' => ['Arşivin düzenlenmesi', 'Evrak taşıma', 'Yangın şaft dolaplarının kontrolü'],
         'Asansör' => ['Asansör temizliği'],
-        'Fotokopi Alanı' => ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Çöplerin toplanması'],
+        'Fotokopi Alanı' => ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Kağıt öğütücü haznesi', 'Çöplerin toplanması'],
         'Yemekhane' => ['Günlük yemek götürme', 'Zemin temizliği', 'Çöplerin toplanması'],
     ];
     $pairs = [];

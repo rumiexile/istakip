@@ -92,6 +92,13 @@
     done: 'Yapıldı', issue: 'Sorun bildirildi', pending: 'Bekliyor', overdue: 'Gecikti', missed: 'Yapılmadı', upcoming: 'Planlandı', leave: 'İzinli',
   };
   App.badge = (st, txt) => `<span class="badge ${st}">${App.h(txt || App.STATUS[st] || st)}</span>`;
+  /** Sarf malzemelerinde "Yapıldı" yerine "Kontrol edildi" / "Değiştirildi" gösterir. */
+  App.itemBadge = (it) => {
+    const cs = it.completion && it.completion.status;
+    if (cs === 'replaced') return App.badge('replaced', 'Değiştirildi');
+    if (it.kind === 'consumable' && cs === 'done') return App.badge('done', 'Kontrol edildi');
+    return App.badge(it.status);
+  };
 
   App.initials = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toLocaleUpperCase('tr');
   const PAL = [['#6366f1', '#ec4899'], ['#06b6d4', '#6366f1'], ['#10b981', '#06b6d4'], ['#f59e0b', '#ef4444'], ['#8b5cf6', '#06b6d4'], ['#ec4899', '#f59e0b']];
@@ -407,6 +414,7 @@
     return App.api('complete', fd);
   };
   App.uncompleteItem = (it) => App.api('uncomplete', { plan_id: it.plan_id, occ_date: it.occ_date });
+  App.replaceItem = (it, revert) => App.api('mark_replaced', { plan_id: it.plan_id, occ_date: it.occ_date, revert: revert ? 1 : 0 });
 
   App.taskSheet = (it, onChange) => {
     const c = it.completion;
@@ -414,7 +422,7 @@
     const canMark = !c && it.status !== 'upcoming' && (it.status !== 'missed' || isAdmin);
     const carried = it.occ_date !== App.today();
     let body = `<div class="sheet-task">
-      <div class="meta">${badge(it.status)}<span class="tag">${icon('pin')}${h(it.location)}</span>
+      <div class="meta">${App.itemBadge(it)}${it.kind === 'consumable' ? '<span class="badge plain cons">Sarf malzemesi</span>' : ''}<span class="tag">${icon('pin')}${h(it.location)}</span>
         <span class="tag">${icon('refresh')}${h(it.freq)}</span>
         ${it.due_time ? `<span class="tag">${icon('clock')}${h(it.due_time)}</span>` : ''}
         ${carried ? `<span class="tag">${icon('calendar')}${h(App.fmtDate(it.occ_date, true))}</span>` : ''}
@@ -431,14 +439,25 @@
     } else if (canMark) {
       body += `<label class="field"><span>Not (isteğe bağlı, sorun bildirirken zorunlu)</span><textarea name="note" placeholder="Örn. sabun bitti, depodan istendi"></textarea></label>
         <label class="photo-drop">${icon('camera')}<span>Fotoğraf ekle (isteğe bağlı)</span><input type="file" accept="image/*" capture="environment" hidden></label>
-        <div class="big-actions"><button class="btn warn" data-act="issue">${icon('flag')}<span>Sorun var</span></button>
-        <button class="btn success" data-act="done">${icon('check')}<span>Tamamlandı</span></button></div>`;
+        ${it.kind === 'consumable'
+          ? `<div class="big-actions three"><button class="btn warn" data-act="issue">${icon('flag')}<span>Sorun var</span></button>
+            <button class="btn success" data-act="done">${icon('check')}<span>Kontrol edildi</span></button>
+            <button class="btn replace" data-act="replaced">${icon('swap')}<span>Değiştirildi</span></button></div>
+            <p class="muted small">Listede tek dokunuş “Kontrol edildi”, ikinci dokunuş “Değiştirildi” olarak kaydeder.</p>`
+          : `<div class="big-actions"><button class="btn warn" data-act="issue">${icon('flag')}<span>Sorun var</span></button>
+            <button class="btn success" data-act="done">${icon('check')}<span>Tamamlandı</span></button></div>`}`;
     } else if (it.status === 'missed') {
       body += `<div class="alert bad">Bu işin süresi geçti, yapılmadı olarak kaydedildi.</div>`;
     }
     body += '</div>';
 
     const actions = [];
+    if (c && it.kind === 'consumable' && c.status !== 'issue' && App.canUndo(it)) {
+      const toReplaced = c.status !== 'replaced';
+      actions.push({ label: toReplaced ? 'Değiştirildi olarak işaretle' : '“Kontrol edildi”ye çevir', cls: toReplaced ? 'replace' : '', icon: 'swap', onClick: async () => {
+        await App.replaceItem(it, !toReplaced); App.toast(toReplaced ? 'Değiştirildi olarak kaydedildi' : 'Kontrol edildi olarak kaydedildi'); onChange && onChange();
+      } });
+    }
     if (c && App.canUndo(it)) {
       actions.push({ label: 'İşareti geri al', cls: 'danger', icon: 'refresh', onClick: async () => {
         await App.uncompleteItem(it); App.toast('İşaret geri alındı', 'info'); onChange && onChange();
@@ -466,8 +485,8 @@
         try {
           const r = await App.completeItem(it, status, note, photo);
           const rect = b.getBoundingClientRect();
-          if (status === 'done') App.confetti(rect.left + rect.width / 2, rect.top, 30);
-          App.toast(status === 'done' ? 'Harika, iş tamamlandı!' : 'Sorun bildirildi', status === 'done' ? '' : 'info');
+          if (status !== 'issue') App.confetti(rect.left + rect.width / 2, rect.top, 30);
+          App.toast(status === 'replaced' ? 'Değiştirildi olarak kaydedildi' : status === 'done' ? (it.kind === 'consumable' ? 'Kontrol edildi' : 'Harika, iş tamamlandı!') : 'Sorun bildirildi', status === 'issue' ? 'info' : '');
           m.close();
           onChange && onChange(r);
         } catch (e) { App.err(e); b.classList.remove('loading'); }

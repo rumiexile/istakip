@@ -443,7 +443,7 @@ input[type=color]::-webkit-color-swatch { border: 2px solid var(--glass-border);
 }
 .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--c); }
 .badge.done { --c: var(--ok); } .badge.issue { --c: var(--issue); } .badge.pending { --c: var(--pending); }
-.badge.overdue { --c: var(--warn); } .badge.missed { --c: var(--bad); } .badge.upcoming { --c: var(--info); } .badge.leave { --c: var(--leave); }
+.badge.overdue { --c: var(--warn); } .badge.missed { --c: var(--bad); } .badge.upcoming { --c: var(--info); } .badge.leave { --c: var(--leave); } .badge.replaced { --c: var(--accent-2); } .badge.cons { --c: var(--accent-2); }
 .badge.overdue::before, .badge.missed::before { animation: blink 1.6s infinite; }
 .badge.plain::before { display: none; }
 @keyframes blink { 50% { opacity: .25; } }
@@ -609,6 +609,16 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
 .task .t-sub .late { color: var(--warn); font-weight: 700; }
 .task .t-sub .miss { color: var(--bad); font-weight: 700; }
 .task .t-sub .lv { color: var(--leave); font-weight: 700; }
+.task .t-sub .cons { color: var(--accent-2); font-weight: 700; }
+.task.is-cons-checked { opacity: 1; }
+.task.is-cons-checked .t-title { text-decoration: none; }
+.task .t-sub .cons-ok { color: var(--ok); font-weight: 700; }
+.task .t-sub .cons-hint { color: var(--accent-2); font-weight: 700; animation: hintPulse 2.2s ease-in-out infinite; }
+.task .t-sub .cons-rep { color: var(--accent-2); font-weight: 700; }
+@keyframes hintPulse { 50% { opacity: .55; } }
+.tick.replaced { background: linear-gradient(135deg, #06b6d4, #3b82f6); border-color: transparent; box-shadow: 0 8px 18px -6px #06b6d4; }
+.tick.replaced svg { stroke-dashoffset: 0; animation: spinIn .5s var(--spring); }
+@keyframes spinIn { from { transform: rotate(-180deg) scale(.4); } }
 .task.is-leave, .task.is-missed { opacity: .7; }
 .tick.missed { --c: var(--bad); border-style: dashed; }
 .tick.missed svg { stroke: var(--bad); stroke-dashoffset: 0; }
@@ -650,6 +660,9 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
 .photo-drop img { max-width: 100%; max-height: 220px; border-radius: 12px; }
 .photo-thumb { display: block; max-width: 100%; border-radius: 14px; margin-top: 6px; }
 .big-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.big-actions.three { grid-template-columns: 1fr 1fr 1fr; }
+@media (max-width: 420px) { .big-actions.three { grid-template-columns: 1fr 1fr; } .big-actions.three .warn { grid-column: span 2; order: 3; } }
+.btn.replace { color: #fff; background: linear-gradient(135deg, #06b6d4, #3b82f6); border-color: rgba(255,255,255,.35); }
 .big-actions .btn { min-height: 52px; font-size: 15px; border-radius: 18px; }
 
 .done-banner { text-align: center; padding: 26px 18px; display: grid; gap: 8px; justify-items: center; margin-top: 14px; }

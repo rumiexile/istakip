@@ -166,7 +166,7 @@
             <td><b>${h(it.task)}</b><div class="muted small">${h(it.freq)}${it.occ_date !== data.date ? ' · ' + h(App.fmtDate(it.occ_date)) + ' tarihli' : ''}</div></td>
             <td class="nowrap">${it.user ? h(it.user) : '<span class="muted">Ortak</span>'}</td>
             <td class="nowrap">${h(it.due_time || '—')}</td>
-            <td>${App.badge(it.status)}${it.completion && it.completion.late ? ' <span class="badge overdue plain">geç</span>' : ''}</td>
+            <td>${App.itemBadge(it)}${it.completion && it.completion.late ? ' <span class="badge overdue plain">geç</span>' : ''}</td>
             <td class="nowrap small">${it.completion ? `${h(it.completion.by || '')} · ${h(App.fmtTime(it.completion.at))}${it.completion.photo ? ' ' + icon('camera') : ''}${it.completion.note ? ' 💬' : ''}` : '<span class="muted">—</span>'}</td></tr>`).join('');
         }
         html += '</tbody></table></div>';
@@ -521,6 +521,10 @@
       wide: true,
       body: `<form class="form"><label class="field"><span>İş adı</span><input name="name" value="${h(t ? t.name : '')}" placeholder="Örn. Sabun değişimi"></label>
         <label class="field"><span>Açıklama / talimat</span><textarea name="description" placeholder="Nasıl yapılacağına dair kısa talimat">${h(t ? t.description || '' : '')}</textarea></label>
+        <div class="field"><span>Tür</span><div class="seg" role="radiogroup">
+          <label><input type="radio" name="kind" value="normal" ${!t || t.kind !== 'consumable' ? 'checked' : ''}><span>Normal iş</span></label>
+          <label><input type="radio" name="kind" value="consumable" ${t && t.kind === 'consumable' ? 'checked' : ''}><span>Sarf malzemesi</span></label></div>
+          <small>Sarf malzemesinde (tuvalet kağıdı, kağıt havlu, sabun, su sebili, kağıt öğütücü, pil kutusu…) personel bir kez dokununca <b>Kontrol edildi</b>, ikinci dokunuşta <b>Değiştirildi</b> kaydedilir.</small></div>
         <fieldset><legend>Varsayılan sıklık</legend><p class="muted small" style="margin-top:-6px">Bu iş bir mekandan personele atanırken bu sıklık kullanılır; atamada değiştirilebilir.</p>${App.freqFields(t || {}, 'tf')}</fieldset>
         <fieldset><legend>Yapıldığı mekanlar</legend>${pickList(locs.map((l) => ({ id: l.id, name: l.name })), t ? t.location_ids : [], 'location_ids', 'Önce mekan ekleyin.')}</fieldset></form>`,
       onOpen: (m) => { App.bindFreq(m.body); bindPick(m.body); },
@@ -548,7 +552,7 @@
       const names = t.location_ids.map((id) => locName[id]).filter(Boolean);
       return `<div class="row" data-name="${h((t.name + ' ' + names.join(' ')).toLocaleLowerCase('tr'))}">
       <span class="avatar" style="--c1:#6366f1;--c2:#06b6d4;width:32px;height:32px">${icon('check')}</span>
-      <div><div class="title">${h(t.name)}</div><div class="sub"><span>${icon('refresh')} ${h(t.freq)}${t.due_time ? ' · ' + h(t.due_time) : ''}</span><span>${t.plan_count} aktif atama</span>${t.description ? `<span>${h(t.description)}</span>` : ''}</div>
+      <div><div class="title">${h(t.name)}${t.kind === 'consumable' ? ' <span class="badge plain cons">Sarf malzemesi</span>' : ''}</div><div class="sub"><span>${icon('refresh')} ${h(t.freq)}${t.due_time ? ' · ' + h(t.due_time) : ''}</span><span>${t.plan_count} aktif atama</span>${t.description ? `<span>${h(t.description)}</span>` : ''}</div>
         <div class="loc-chips">${names.length ? names.map((n) => `<span class="lchip">${icon('pin')}${h(n)}</span>`).join('') : '<span class="lchip none">Mekan seçilmemiş</span>'}</div></div>
       <div class="actions"><button class="btn icon sm ghost" data-edit="${t.id}" title="Düzenle">${icon('edit')}</button>
         <button class="btn icon sm ghost danger" data-del="${t.id}" title="Sil">${icon('trash')}</button></div></div>`;
@@ -893,6 +897,13 @@
             ${['done:ok', 'issue:issue', 'missed:bad', 'leave:leave', 'open:open'].map((k) => { const [f, c] = k.split(':'); return d[f] ? `<i class="${c}" style="height:${(d[f] * 100) / max}%;animation-delay:${i * 0.02}s"></i>` : ''; }).join('')}</div>`).join('')}</div>
           <div class="axis">${r.daily.map((d, i) => `<span>${r.daily.length <= 16 || i % Math.ceil(r.daily.length / 12) === 0 ? h(App.fmtShort(d.date)) : ''}</span>`).join('')}</div></div>
         <div class="grid cols-2" style="margin-bottom:16px">${table(r.by_user, 'Personele göre', 'Personel')}${table(r.by_location, 'Mekanlara göre', 'Mekan')}</div>
+        ${r.consumables && r.consumables.length ? `<div class="glass card" style="margin-bottom:16px"><div class="card-head"><h3>Sarf malzemeleri</h3>
+          <span class="muted small">Seçilen dönemde kaç kez kontrol edildi, kaç kez değiştirildi</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Malzeme</th><th>Kontrol edildi</th><th>Değiştirildi</th><th>Sorun</th><th>Yapılmadı</th><th>En çok değişen mekanlar</th></tr></thead><tbody>
+          ${r.consumables.map((c) => `<tr><td><b>${h(c.name)}</b></td><td>${c.checked}</td><td><b style="color:var(--accent-2)">${c.replaced}</b></td><td>${c.issue}</td>
+            <td>${c.missed ? `<b style="color:var(--bad)">${c.missed}</b>` : 0}</td>
+            <td class="small">${Object.entries(c.locations).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([l, n]) => `${h(l)} (${n})`).join(', ') || '<span class="muted">—</span>'}</td></tr>`).join('')}
+          </tbody></table></div></div>` : ''}
         <div class="grid cols-2">${table(r.by_task.slice(0, 15), 'En çok aksayan işler', 'İş')}
           <div class="glass card"><div class="card-head"><h3>Aksayan kayıtlar</h3><span class="badge missed">${r.problem_count}</span></div>
           ${r.problems.length ? '<div class="list" style="max-height:520px;overflow:auto">' + r.problems.map((p) => `<div class="row">
