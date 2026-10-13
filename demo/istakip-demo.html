@@ -978,7 +978,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
   function seed() {
     const now = nowStr();
     const S = { seq: 1, users: [], locations: [], tasks: [], packages: [], package_items: [], plans: [], completions: [], leaves: [], links: [], photos: {},
-      settings: { company_name: 'Merkez Bina Destek Hizmetleri', work_days: '1,2,3,4,5', holidays: '' } };
+      settings: { company_name: 'YÖKAK Destek Hizmetleri', work_days: '1,2,3,4,5', holidays: '' } };
     const id = () => S.seq++;
     const add = (tbl, row) => { row.id = id(); S[tbl].push(row); return row; };
     const admin = add('users', { name: 'Bina Yöneticisi', username: 'yonetici', role: 'admin', phone: null, active: 1, created_at: now });
@@ -1117,6 +1117,8 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
   }
 
   let S = store.get() || seed();
+  // Önceki demo sürümünden kalan kurum adını güncelle (diğer değişiklikler korunur).
+  if (S.settings && S.settings.company_name === 'Merkez Bina Destek Hizmetleri') S.settings.company_name = 'YÖKAK Destek Hizmetleri';
   const save = () => store.set(S);
   save();
 

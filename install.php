@@ -143,7 +143,7 @@ $driver = $_POST['driver'] ?? 'mysql';
       <fieldset>
         <legend>Kurum ve yönetici</legend>
         <div class="grid2">
-          <label class="field span2"><span>Kurum adı</span><input name="company" value="<?= $v('company') ?>" placeholder="Örn. Merkez Bina Destek Hizmetleri"></label>
+          <label class="field span2"><span>Kurum adı</span><input name="company" value="<?= $v('company') ?>" placeholder="Örn. YÖKAK Destek Hizmetleri"></label>
           <label class="field span2"><span>Yönetici ad soyad</span><input name="admin_name" value="<?= $v('admin_name') ?>" required></label>
           <label class="field"><span>Kullanıcı adı</span><input name="admin_user" value="<?= $v('admin_user', 'yonetici') ?>" required autocapitalize="none"></label>
           <label class="field"><span>Şifre (en az 8)</span><input type="password" name="admin_pass" required minlength="8"></label>
