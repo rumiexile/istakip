@@ -56,7 +56,7 @@ hâlâ yapılmamışsa o tekrar **yapılmadı** olarak kaydedilir ve raporlara d
    Uygulama daha önce kurulduysa aynı kişileri yönetici panelinde **Personel → Ön tanımlı personeli ekle** butonuyla ekleyebilirsiniz.
    “Demodaki iş dağılımını da yükle” seçeneği (personel ve örnek veri seçiliyken) demodaki atamaların aynısını
    kurulum gününden başlayarak oluşturur: Tuvalet Erkek Aysel Akman'a, Tuvalet Kadın Gülnaz Yalçın'a,
-   Uzman Yardımcıları Koridoru Deniz Karabulut'a, Makam Koridoru ve YÖK Girişi (Asansör) temizliği Mumin Tekin'e,
+   Uzman Yardımcıları Koridoru ve Çay Ocağı Deniz Karabulut'a, Makam Koridoru ve YÖK Girişi (Asansör) temizliği Mumin Tekin'e,
    Ana Giriş (Bahçe) açılışı ve Arşiv Mahmut Demirel'e, giriş zeminleri ve Fotokopi Alanı Yalçın Bıçakcı'ya;
    toplantı hazırlığı, yemek götürme ve evrak taşıma ortaktır.
    Dağılım sonradan **İş Atamaları** ekranından değiştirilebilir.

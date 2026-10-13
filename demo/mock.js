@@ -3,7 +3,7 @@
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v7';
+  const KEY = 'istakip-demo-v8';
   const store = {
     get() {
       try { const v = localStorage.getItem(KEY); if (v) return JSON.parse(v); } catch (e) { /* yoksay */ }
@@ -186,7 +186,7 @@
     const mumin = st('Mumin Tekin', 'mumin.tekin');
     const yalcin = st('Yalçın Bıçakcı', 'yalcin.bicakci');
     const L = {};
-    ['Uzman Yardımcıları Koridoru', 'Makam Koridoru', 'Tuvalet Erkek', 'Tuvalet Kadın', 'Ana Giriş (Bahçe)', 'YÖK Girişi (Asansör)', 'Fotokopi Alanı', 'Arşiv']
+    ['Uzman Yardımcıları Koridoru', 'Makam Koridoru', 'Tuvalet Erkek', 'Tuvalet Kadın', 'Ana Giriş (Bahçe)', 'YÖK Girişi (Asansör)', 'Fotokopi Alanı', 'Arşiv', 'Çay Ocağı']
       .forEach((n, i) => { L[n] = add('locations', { name: n, description: null, sort_order: i, active: 1, created_at: now }); });
     const P = [
       ['Sabah Açılış', '#f59e0b', 'Mesai başlangıcında yapılacak işler', [
@@ -243,7 +243,8 @@
     apply('Tuvalet Temizliği', 'Tuvalet Erkek', aysel);
     apply('Tuvalet Temizliği', 'Tuvalet Kadın', gulnaz);
     apply('Ofis Genel Temizlik', 'Uzman Yardımcıları Koridoru', deniz, ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi']);
-    apply('Çay Ocağı ve Ortak Alan', 'Uzman Yardımcıları Koridoru', deniz, ['Çay ocağı ve ortak alan çöplerinin toplanması', 'Su sebili']);
+    apply('Çay Ocağı ve Ortak Alan', 'Çay Ocağı', deniz, ['Çay ocağı ve ortak alan çöplerinin toplanması', 'Su sebili', 'Zemin temizliği']);
+    apply('Tuvalet Temizliği', 'Çay Ocağı', deniz, ['Kağıt havlu']);
     apply('Ofis Genel Temizlik', 'Makam Koridoru', mumin, ['Çöplerin toplanması', 'Süpürme', 'Halıların gezilmesi ve fırçalanması']);
     apply('Destek Hizmetleri', 'Makam Koridoru', null, ['Toplantı odasının hazırlanması (su, soda)', 'Günlük yemek götürme']);
     apply('Destek Hizmetleri', 'YÖK Girişi (Asansör)', mumin, ['Asansör temizliği']);
@@ -257,7 +258,7 @@
     const ofis = ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Zemin temizliği', 'Halıların gezilmesi ve fırçalanması',
       'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi'];
     Object.entries({
-      'Uzman Yardımcıları Koridoru': ofis.concat(['Çay ocağı ve ortak alan çöplerinin toplanması', 'Su sebili']),
+      'Uzman Yardımcıları Koridoru': ofis,
       'Makam Koridoru': ofis.concat(['Toplantı odasının hazırlanması (su, soda)', 'Günlük yemek götürme']),
       'Tuvalet Erkek': tuv,
       'Tuvalet Kadın': tuv,
@@ -265,6 +266,7 @@
       'YÖK Girişi (Asansör)': ['Asansör temizliği', 'Zemin temizliği', 'Paspas', 'Camların silinmesi'],
       'Fotokopi Alanı': ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Kağıt öğütücü haznesi', 'Çöplerin toplanması'],
       'Arşiv': ['Arşivin düzenlenmesi', 'Evrak taşıma', 'Yangın şaft dolaplarının kontrolü'],
+      'Çay Ocağı': ['Çay ocağı ve ortak alan çöplerinin toplanması', 'Su sebili', 'Zemin temizliği', 'Kağıt havlu'],
     }).forEach(([loc, tasks]) => tasks.forEach((t) => {
       if (!S.links.some((x) => x.location_id === L[loc].id && x.task_id === T[t].id)) S.links.push({ location_id: L[loc].id, task_id: T[t].id });
     }));
