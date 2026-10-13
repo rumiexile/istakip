@@ -807,7 +807,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v10';
+  const KEY = 'istakip-demo-v11';
   const store = {
     get() {
       try { const v = localStorage.getItem(KEY); if (v) return JSON.parse(v); } catch (e) { /* yoksay */ }
@@ -961,7 +961,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
     }
   }
 
-  const DEFAULT_STAFF = [['Aysel Akman', 'aysel.akman'], ['Deniz Karabulut', 'deniz.karabulut'], ['Gülnaz Yalçın', 'gulnaz.yalcin'],
+  const DEFAULT_STAFF = [['Aysel Akman', 'aysel.akman'], ['Deniz Kara', 'deniz.kara'], ['Gülnaz Çetin', 'gulnaz.cetin'],
     ['Mahmut Demirel', 'mahmut.demirel'], ['Mumin Tekin', 'mumin.tekin'], ['Yalçın Bıçakcı', 'yalcin.bicakci']];
 
   function looksConsumable(name) {
@@ -984,8 +984,8 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
     const admin = add('users', { name: 'Bina Yöneticisi', username: 'yonetici', role: 'admin', phone: null, active: 1, created_at: now });
     const st = (name, username) => add('users', { name, username, role: 'staff', phone: null, active: 1, created_at: now });
     const aysel = st('Aysel Akman', 'aysel.akman');
-    const deniz = st('Deniz Karabulut', 'deniz.karabulut');
-    const gulnaz = st('Gülnaz Yalçın', 'gulnaz.yalcin');
+    const deniz = st('Deniz Kara', 'deniz.kara');
+    const gulnaz = st('Gülnaz Çetin', 'gulnaz.cetin');
     const mahmut = st('Mahmut Demirel', 'mahmut.demirel');
     const mumin = st('Mumin Tekin', 'mumin.tekin');
     const yalcin = st('Yalçın Bıçakcı', 'yalcin.bicakci');
@@ -1025,6 +1025,22 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
         ['Makam ikram tabağı kontrolü', 'daily', 1, null, null, '09:30'],
         ['Çay ocağı rulosunun değiştirilmesi', 'daily', 1, null, null, '09:30'],
         ['Toplantıların ikramlarının hazırlanması ve sunumu', 'daily', 1, null, null, null]]],
+      ['Koridor İş Paketi', '#0f766e', 'Koridor sorumlusunun odalar, tuvaletler, çay servisi ve toplantı odası işleri', [
+        ['Çay demleme', 'daily', 1, null, null, '08:15', '08:15,13:00'],
+        ['Odalarda masa üstü, pencere önü temizliği ve düzeni', 'daily', 1, null, null, '09:00'],
+        ['Tuvalet zemin temizliği', 'daily', 1, null, null, '10:00'],
+        ['Tuvalet klozet temizliği', 'daily', 1, null, null, '10:00'],
+        ['Tuvalet lavabo temizliği', 'daily', 1, null, null, '10:00'],
+        ['Tuvalet ayna temizliği', 'daily', 1, null, null, '10:00'],
+        ['Tuvalet kağıdı ve havlu kağıt kontrolü', 'daily', 1, null, null, '09:30'],
+        ['Sabunluk kontrolü', 'daily', 1, null, null, '09:30'],
+        ['Saatlik lavaboların yapılması', 'daily', 1, null, null, '09:00', '09:00,10:00,11:00,12:00,13:00,14:00,15:00,16:00,17:00'],
+        ['Detaylı tuvalet temizliği', 'weekly', 1, '5', null, '15:00'],
+        ['Koridor pencere küpeşte önü temizliği', 'weekly', 1, '2,4', null, '14:00'],
+        ['Çay servis hizmetleri', 'daily', 1, null, null, null],
+        ['Başkanlık yemek getirme', 'daily', 1, null, null, '12:00'],
+        ['Toplantı odalarında temizlik ve düzen oluşturulması', 'daily', 1, null, null, '08:30'],
+        ['Detaylı oda temizliği', 'weekly', 1, '3', null, '14:00']]],
     ];
     const T = {};
     const pk = {};
@@ -1038,6 +1054,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
         add('package_items', { package_id: p.id, task_id: T[tn].id, freq_type: ft, freq_interval: iv, weekdays: wd, month_day: md, due_time: dt, times, sort_order: i });
       });
     });
+    T['Odalarda masa üstü, pencere önü temizliği ve düzeni'].description = 'Makam odası dahil.';
     T['Sıvı sabun'].description = 'Haznede sabun var mı bakın; azsa doldurun ve “Değiştirildi” olarak işaretleyin.';
     T['Yangın şaft dolaplarının kontrolü'].description = 'Hortum, vana ve yangın tüpü basınç göstergesini kontrol edin.';
     const start = ymd(dn(localToday()) - 28);
@@ -1050,6 +1067,8 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
           start_date: start, end_date: null, note: null, active: 1, created_at: now });
       });
     };
+    apply('Koridor İş Paketi', 'Uzman Yardımcıları Koridoru', deniz);
+    apply('Koridor İş Paketi', 'Makam Koridoru', gulnaz);
     apply('Sabah Açılış', 'Ana Giriş (Bahçe)', mahmut, ['Kapıların açılması']);
     apply('Sabah Açılış', 'Çay Ocağı', aysel, ['Çay kazanının fişinin devreye alınması']);
     apply('Destek Hizmetleri', 'Ana Giriş (Bahçe)', mahmut, ['Pil geri dönüşüm kutusu']);
@@ -1073,8 +1092,8 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
     const ofis = ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Zemin temizliği', 'Halıların gezilmesi ve fırçalanması',
       'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi'];
     Object.entries({
-      'Uzman Yardımcıları Koridoru': ofis,
-      'Makam Koridoru': ofis,
+      'Uzman Yardımcıları Koridoru': ofis.concat(['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Tuvalet kağıdı ve havlu kağıt kontrolü', 'Sabunluk kontrolü', 'Saatlik lavaboların yapılması', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği']),
+      'Makam Koridoru': ofis.concat(['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Tuvalet kağıdı ve havlu kağıt kontrolü', 'Sabunluk kontrolü', 'Saatlik lavaboların yapılması', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği']),
       'Tuvalet Erkek': tuv,
       'Tuvalet Kadın': tuv,
       'Ana Giriş (Bahçe)': ['Kapıların açılması', 'Zemin temizliği', 'Paspas', 'Camların silinmesi', 'Pil geri dönüşüm kutusu'],

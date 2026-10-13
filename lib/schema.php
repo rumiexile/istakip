@@ -243,8 +243,8 @@ function link_pairs(PDO $pdo, array $pairs): void
 /** Kurulumda eklenen ön tanımlı personel: [ad soyad, kullanıcı adı]. */
 const DEFAULT_STAFF = [
     ['Aysel Akman', 'aysel.akman'],
-    ['Deniz Karabulut', 'deniz.karabulut'],
-    ['Gülnaz Yalçın', 'gulnaz.yalcin'],
+    ['Deniz Kara', 'deniz.kara'],
+    ['Gülnaz Çetin', 'gulnaz.cetin'],
     ['Mahmut Demirel', 'mahmut.demirel'],
     ['Mumin Tekin', 'mumin.tekin'],
     ['Yalçın Bıçakcı', 'yalcin.bicakci'],
@@ -359,6 +359,23 @@ function schema_seed(PDO $pdo): void
             ['Çay ocağı rulosunun değiştirilmesi', 'daily', 1, null, null, '09:30'],
             ['Toplantıların ikramlarının hazırlanması ve sunumu', 'daily', 1, null, null, null],
         ]],
+        ['Koridor İş Paketi', '#0f766e', 'Koridor sorumlusunun odalar, tuvaletler, çay servisi ve toplantı odası işleri', [
+            ['Çay demleme', 'daily', 1, null, null, '08:15', '08:15,13:00'],
+            ['Odalarda masa üstü, pencere önü temizliği ve düzeni', 'daily', 1, null, null, '09:00'],
+            ['Tuvalet zemin temizliği', 'daily', 1, null, null, '10:00'],
+            ['Tuvalet klozet temizliği', 'daily', 1, null, null, '10:00'],
+            ['Tuvalet lavabo temizliği', 'daily', 1, null, null, '10:00'],
+            ['Tuvalet ayna temizliği', 'daily', 1, null, null, '10:00'],
+            ['Tuvalet kağıdı ve havlu kağıt kontrolü', 'daily', 1, null, null, '09:30'],
+            ['Sabunluk kontrolü', 'daily', 1, null, null, '09:30'],
+            ['Saatlik lavaboların yapılması', 'daily', 1, null, null, '09:00', '09:00,10:00,11:00,12:00,13:00,14:00,15:00,16:00,17:00'],
+            ['Detaylı tuvalet temizliği', 'weekly', 1, '5', null, '15:00'],
+            ['Koridor pencere küpeşte önü temizliği', 'weekly', 1, '2,4', null, '14:00'],
+            ['Çay servis hizmetleri', 'daily', 1, null, null, null],
+            ['Başkanlık yemek getirme', 'daily', 1, null, null, '12:00'],
+            ['Toplantı odalarında temizlik ve düzen oluşturulması', 'daily', 1, null, null, '08:30'],
+            ['Detaylı oda temizliği', 'weekly', 1, '3', null, '14:00'],
+        ]],
     ];
 
     $taskIds = [];
@@ -379,14 +396,20 @@ function schema_seed(PDO $pdo): void
         }
     }
 
+    // İş açıklamaları
+    $desc = $pdo->prepare('UPDATE tasks SET description = ? WHERE id = ?');
+    if (isset($taskIds['Odalarda masa üstü, pencere önü temizliği ve düzeni'])) {
+        $desc->execute(['Makam odası dahil.', $taskIds['Odalarda masa üstü, pencere önü temizliği ve düzeni']]);
+    }
+
     // Hangi mekanda hangi işler yapılır
     $tuvalet = ['Tuvalet kontrolü', 'Lavaboların temizliği', 'Ayna ve klozetlerin temizlenmesi', 'Klozet temizliği', 'Tuvalet çöplerinin alınması',
         'Tuvalet kağıdı', 'Kağıt havlu', 'Sıvı sabun', 'Zemin giderlerine çamaşır suyu doldurulması'];
     $ofis = ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Zemin temizliği', 'Halıların gezilmesi ve fırçalanması',
         'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi'];
     $map = [
-        'Uzman Yardımcıları Koridoru' => $ofis,
-        'Makam Koridoru' => $ofis,
+        'Uzman Yardımcıları Koridoru' => array_merge($ofis, ['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Tuvalet kağıdı ve havlu kağıt kontrolü', 'Sabunluk kontrolü', 'Saatlik lavaboların yapılması', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği']),
+        'Makam Koridoru' => array_merge($ofis, ['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Tuvalet kağıdı ve havlu kağıt kontrolü', 'Sabunluk kontrolü', 'Saatlik lavaboların yapılması', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği']),
         'Tuvalet Erkek' => $tuvalet,
         'Tuvalet Kadın' => $tuvalet,
         'Ana Giriş (Bahçe)' => ['Kapıların açılması', 'Zemin temizliği', 'Paspas', 'Camların silinmesi', 'Pil geri dönüşüm kutusu'],
@@ -411,6 +434,8 @@ function schema_seed(PDO $pdo): void
  * demo/mock.js içindeki apply() çağrılarıyla aynıdır.
  */
 const DEMO_ASSIGNMENTS = [
+    ['Koridor İş Paketi', 'Uzman Yardımcıları Koridoru', 'deniz.kara', null],
+    ['Koridor İş Paketi', 'Makam Koridoru', 'gulnaz.cetin', null],
     ['Sabah Açılış', 'Ana Giriş (Bahçe)', 'mahmut.demirel', ['Kapıların açılması']],
     ['Sabah Açılış', 'Çay Ocağı', 'aysel.akman', ['Çay kazanının fişinin devreye alınması']],
     ['Destek Hizmetleri', 'Ana Giriş (Bahçe)', 'mahmut.demirel', ['Pil geri dönüşüm kutusu']],
@@ -418,8 +443,8 @@ const DEMO_ASSIGNMENTS = [
     ['Destek Hizmetleri', 'Arşiv', 'mahmut.demirel', ['Arşivin düzenlenmesi', 'Yangın şaft dolaplarının kontrolü']],
     ['Destek Hizmetleri', 'Arşiv', null, ['Evrak taşıma']],
     ['Tuvalet Temizliği', 'Tuvalet Erkek', 'aysel.akman', null],
-    ['Tuvalet Temizliği', 'Tuvalet Kadın', 'gulnaz.yalcin', null],
-    ['Ofis Genel Temizlik', 'Uzman Yardımcıları Koridoru', 'deniz.karabulut', ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi']],
+    ['Tuvalet Temizliği', 'Tuvalet Kadın', 'gulnaz.cetin', null],
+    ['Ofis Genel Temizlik', 'Uzman Yardımcıları Koridoru', 'deniz.kara', ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi']],
     ['Çay Ocağı ve Ortak Alan', 'Çay Ocağı', 'aysel.akman', ['Çay ocağı ve ortak alan çöplerinin toplanması']],
     ['Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', 'aysel.akman', null],
     ['Ofis Genel Temizlik', 'Makam Koridoru', 'mumin.tekin', ['Çöplerin toplanması', 'Süpürme', 'Halıların gezilmesi ve fırçalanması']],

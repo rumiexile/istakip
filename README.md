@@ -50,15 +50,15 @@ hâlâ yapılmamışsa o tekrar **yapılmadı** olarak kaydedilir ve raporlara d
 3. **Kurulum sihirbazı:** Tarayıcıda `https://siteniz.com/istakip/install.php` adresini açın.
    Veritabanı bilgilerini, kurum adını ve yönetici hesabını girin. “Örnek verileri yükle” seçeneği,
    sizin listenizdeki işleri 5 hazır paket halinde getirir.
-   “Ön tanımlı personeli ekle” seçeneği şu kişileri ekler: Aysel Akman, Deniz Karabulut, Gülnaz Yalçın,
+   “Ön tanımlı personeli ekle” seçeneği şu kişileri ekler: Aysel Akman, Deniz Kara, Gülnaz Çetin,
    Mahmut Demirel, Mumin Tekin, Yalçın Bıçakcı. Kullanıcı adları `ad.soyad` biçimindedir (örn. `aysel.akman`).
    Geçici şifreler kurulum bitince **bir kez** gösterilir. Not alıp personele iletin.
    Uygulama daha önce kurulduysa aynı kişileri yönetici panelinde **Personel → Ön tanımlı personeli ekle** butonuyla ekleyebilirsiniz.
    “Demodaki iş dağılımını da yükle” seçeneği (personel ve örnek veri seçiliyken) demodaki atamaların aynısını
-   kurulum gününden başlayarak oluşturur: Tuvalet Erkek ve Çay Ocağı (Çay Ocağı Ana Sorumluluk Paketi) Aysel Akman'a,
-   Tuvalet Kadın Gülnaz Yalçın'a, Uzman Yardımcıları Koridoru Deniz Karabulut'a, Makam Koridoru ve YÖK Girişi (Asansör)
-   temizliği Mumin Tekin'e, Ana Giriş (Bahçe) açılışı ve Arşiv Mahmut Demirel'e, giriş zeminleri ve Fotokopi Alanı
-   Yalçın Bıçakcı'ya; evrak taşıma ortaktır.
+   kurulum gününden başlayarak oluşturur: Uzman Yardımcıları Koridoru (Koridor İş Paketi) Deniz Kara'ya,
+   Makam Koridoru (Koridor İş Paketi) Gülnaz Çetin'e, Çay Ocağı (Çay Ocağı Ana Sorumluluk Paketi) ve Tuvalet Erkek
+   Aysel Akman'a, Tuvalet Kadın Gülnaz Çetin'e, YÖK Girişi (Asansör) temizliği ve Makam Koridoru çöp/süpürme/halı Mumin Tekin'e,
+   Ana Giriş (Bahçe) açılışı ve Arşiv Mahmut Demirel'e, giriş zeminleri ve Fotokopi Alanı Yalçın Bıçakcı'ya; evrak taşıma ortaktır.
    Dağılım sonradan **İş Atamaları** ekranından değiştirilebilir.
 4. **Güvenlik:** Kurulumdan sonra `install.php` dosyasını silin. Sitede **SSL (https)** açık olsun
    (cPanel → *SSL/TLS Status* → AutoSSL).
