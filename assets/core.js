@@ -349,7 +349,25 @@
     document.addEventListener('keydown', onKey);
     back.addEventListener('pointerdown', (e) => { if (e.target === back) m.close(); });
     back.querySelector('[data-x]').onclick = () => m.close();
+    // Uzun içerik: kaydırma ipucu (alt/üst solma ve "aşağıda devamı var" oku)
+    const more = App.el(`<button type="button" class="scroll-more" aria-label="Aşağı kaydır" tabindex="-1">${App.icon('chev')}</button>`);
+    more.onclick = () => bodyEl.scrollBy({ top: bodyEl.clientHeight * 0.8, behavior: 'smooth' });
+    bodyEl.after(more);
+    const sync = () => {
+      const max = bodyEl.scrollHeight - bodyEl.clientHeight;
+      bodyEl.classList.toggle('more-below', max > 4 && bodyEl.scrollTop < max - 4);
+      bodyEl.classList.toggle('more-above', bodyEl.scrollTop > 4);
+      more.classList.toggle('show', max > 4 && bodyEl.scrollTop < max - 4);
+      const modal = bodyEl.parentElement;
+      more.style.bottom = (modal.clientHeight - bodyEl.offsetTop - bodyEl.offsetHeight + 10) + 'px';
+    };
+    bodyEl.addEventListener('scroll', sync, { passive: true });
+    if (window.ResizeObserver) { const ro = new ResizeObserver(sync); ro.observe(bodyEl); if (bodyEl.firstElementChild) ro.observe(bodyEl.firstElementChild); }
+    else window.addEventListener('resize', sync);
+    bodyEl.addEventListener('input', sync); bodyEl.addEventListener('change', () => setTimeout(sync, 30));
+    m.sync = sync;
     document.body.appendChild(back);
+    requestAnimationFrame(sync); setTimeout(sync, 600);
     const first = bodyEl.querySelector('input:not([type=hidden]):not([type=checkbox]):not([type=radio]), select, textarea');
     if (first && window.matchMedia('(hover: hover)').matches) setTimeout(() => first.focus(), 80);
     onOpen && onOpen(m);

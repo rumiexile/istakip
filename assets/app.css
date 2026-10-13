@@ -525,7 +525,26 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
 .modal.wide { width: min(860px, 100%); }
 .modal header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 20px 22px 6px; }
 .modal header h3 { font-size: 19px; }
-.modal .body { padding: 14px 22px; overflow: auto; }
+.modal { position: relative; }
+.modal .body { padding: 14px 22px; overflow: auto; min-height: 0; flex: 1 1 auto; overscroll-behavior: contain;
+  scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--text) 28%, transparent) transparent;
+  --fade-top: 0px; --fade-bot: 0px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top), #000 calc(100% - var(--fade-bot)), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top), #000 calc(100% - var(--fade-bot)), transparent 100%); }
+.modal .body.more-above { --fade-top: 26px; }
+.modal .body.more-below { --fade-bot: 48px; }
+.modal .body::-webkit-scrollbar { width: 10px; }
+.modal .body::-webkit-scrollbar-track { background: transparent; margin: 8px 0; }
+.modal .body::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text) 24%, transparent); border-radius: 10px; border: 3px solid transparent; background-clip: padding-box; }
+.modal .body::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--accent) 60%, transparent); }
+.scroll-more { position: absolute; left: 50%; z-index: 3; width: 38px; height: 38px; margin-left: -19px; border-radius: 50%; padding: 0; cursor: pointer;
+  display: grid; place-items: center; color: var(--accent); border: 1px solid var(--glass-border); background: var(--glass-strong);
+  box-shadow: 0 8px 20px -8px rgba(30,41,99,.55), inset 0 1px 0 var(--glass-edge);
+  bottom: 14px; opacity: 0; pointer-events: none; transform: translateY(8px) scale(.8); transition: opacity .3s, transform .4s var(--spring); }
+.scroll-more.show { opacity: 1; pointer-events: auto; transform: none; animation: nudge 1.8s 1s ease-in-out infinite; }
+.scroll-more:hover { transform: scale(1.12); }
+.scroll-more svg { width: 20px; height: 20px; transform: rotate(90deg); }
+@keyframes nudge { 0%, 100% { translate: 0 0; } 50% { translate: 0 5px; } }
 .modal footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 22px 20px; flex-wrap: wrap; }
 .modal-back.closing { animation: fadeOut .25s var(--ease) forwards; }
 .modal-back.closing .modal { animation: modalOut .25s var(--ease) forwards; }
@@ -873,3 +892,14 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
 .cel-by { font-size: 12.5px; color: #d97706; font-weight: 700; }
 .cel-more { text-align: center; }
 @media (max-height: 700px) { .celebrate-star { width: 96px; height: 96px; } .celebrate-star .core { width: 74px; height: 74px; } .celebrate-star .core svg { width: 42px; height: 42px; } }
+/* Pencere hiçbir zaman ekrandan taşmasın; uzun etiketler satır kırsın */
+.modal { min-width: 0; max-width: 100%; }
+.modal .body { overflow-x: hidden; }
+.modal .badge { white-space: normal; text-align: left; }
+/* Ana alanın içeriği sayfayı yatayda genişletmesin (telefonda sayfanın uzaklaşmasını önler) */
+.main { overflow-x: clip; }
+.row > div { min-width: 0; }
+@media (max-width: 560px) {
+  .row:has(> .actions) { grid-template-columns: auto minmax(0, 1fr); }
+  .row > .actions { grid-column: 1 / -1; justify-content: flex-end; flex-wrap: wrap; opacity: 1; }
+}

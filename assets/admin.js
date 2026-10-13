@@ -413,7 +413,13 @@
     const f = $('form', m.body);
     const upd = () => {
       const p = pkgs.find((x) => x.id == f.package_id.value);
-      $('[data-preview]', m.body).innerHTML = `<div class="small" style="display:flex;flex-wrap:wrap;gap:6px">${p.items.map((i) => `<span class="badge plain" style="--c:${h(p.color)}">${h(i.task_name)} · ${h(i.freq)}</span>`).join('')}</div>`;
+      const pv = $('[data-preview]', m.body);
+      const all = pv.dataset.all === String(p.id);
+      const shown = all ? p.items : p.items.slice(0, 6);
+      pv.innerHTML = `<div class="small" style="display:flex;flex-wrap:wrap;gap:6px">${shown.map((i) => `<span class="badge plain" style="--c:${h(p.color)}">${h(i.task_name)} · ${h(i.freq)}</span>`).join('')}
+        ${p.items.length > 6 ? `<button type="button" class="chip" data-more style="padding:3px 10px;font-size:12px">${all ? 'Daha az göster' : `+${p.items.length - 6} iş daha`}</button>` : ''}</div>`;
+      const mb = $('[data-more]', pv);
+      if (mb) mb.onclick = () => { pv.dataset.all = all ? '' : String(p.id); upd(); };
       const n = $$('input[name="location_ids[]"]:checked', f).length;
       $('[data-count]', m.body).textContent = n ? `${p.items.length} iş × ${n} mekan = ${p.items.length * n} atama oluşturulacak.` : 'Mekan seçin.';
     };
