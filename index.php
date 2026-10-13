@@ -35,7 +35,7 @@ $v = APP_VERSION;
 <?php if (!$user): ?>
 <main class="auth-wrap">
   <form class="glass auth-card" id="login-form" data-tilt>
-    <div class="brand-mark big"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg></div>
+    <div class="brand-mark big"><?= LOGO_SVG ?></div>
     <h1><?= e($company) ?></h1>
     <p class="muted">Günlük iş takibi için giriş yapın</p>
     <label class="field"><span>Kullanıcı adı</span><input name="username" autocomplete="username" autocapitalize="none" required></label>

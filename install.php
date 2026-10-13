@@ -106,7 +106,7 @@ $driver = $_POST['driver'] ?? 'mysql';
 <div class="bg-scene" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
 <main class="auth-wrap">
   <section class="glass auth-card install-card">
-    <div class="brand-mark big"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg></div>
+    <div class="brand-mark big"><?= LOGO_SVG ?></div>
 <?php if ($installed && !$done): ?>
     <h1>Kurulum tamamlanmış</h1>
     <p class="muted">Uygulama zaten kurulu. Yeniden kurmak için sunucudaki <code>config.php</code> dosyasını silin.</p>

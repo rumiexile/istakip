@@ -279,11 +279,19 @@ input[type=color]::-webkit-color-swatch { border: 2px solid var(--glass-border);
 .install-card { width: min(640px, 100%); }
 .brand-mark {
   width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center; flex: none;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6 55%, #06b6d4);
-  box-shadow: 0 10px 24px -8px rgba(99,102,241,.8), inset 0 1px 0 rgba(255,255,255,.5);
+  background: linear-gradient(160deg, rgba(255,255,255,.98), rgba(236,244,252,.9));
+  box-shadow: 0 10px 24px -10px rgba(26,126,193,.75), inset 0 1px 0 #fff, 0 0 0 1px rgba(26,126,193,.14);
+  transition: transform .45s var(--spring);
 }
-.brand-mark svg { width: 60%; height: 60%; fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
-  stroke-dasharray: 30; stroke-dashoffset: 30; animation: draw 1s .3s var(--ease) forwards; }
+.brand-mark:hover { transform: translateY(-2px) rotate(-4deg) scale(1.06); }
+.brand-mark svg.logo { width: 78%; height: auto; display: block; overflow: visible; }
+.brand-mark .l1 { fill: #6BBDEB; } .brand-mark .l2 { fill: #1A7EC1; } .brand-mark .l3 { fill: #27568F; }
+.brand-mark .l1, .brand-mark .l2, .brand-mark .l3 { animation: logoIn .7s var(--spring) both; }
+.brand-mark .l2 { animation-delay: .08s; } .brand-mark .l3 { animation-delay: .16s; }
+@keyframes logoIn { from { opacity: 0; transform: translateY(14px); } }
+.issue-note { font-size: 13px; margin: 2px 0 3px; color: var(--text-2); overflow-wrap: anywhere; }
+.issue-note svg { width: 14px; height: 14px; vertical-align: -2px; }
+.s-top .brand-mark { width: 38px; height: 38px; }
 .brand-mark.big { width: 60px; height: 60px; border-radius: 19px; animation: float 6s ease-in-out infinite; }
 @keyframes draw { to { stroke-dashoffset: 0; } }
 @keyframes float { 50% { transform: translateY(-6px) rotate(-3deg); } }

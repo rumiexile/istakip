@@ -305,11 +305,19 @@ input[type=color]::-webkit-color-swatch { border: 2px solid var(--glass-border);
 .install-card { width: min(640px, 100%); }
 .brand-mark {
   width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center; flex: none;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6 55%, #06b6d4);
-  box-shadow: 0 10px 24px -8px rgba(99,102,241,.8), inset 0 1px 0 rgba(255,255,255,.5);
+  background: linear-gradient(160deg, rgba(255,255,255,.98), rgba(236,244,252,.9));
+  box-shadow: 0 10px 24px -10px rgba(26,126,193,.75), inset 0 1px 0 #fff, 0 0 0 1px rgba(26,126,193,.14);
+  transition: transform .45s var(--spring);
 }
-.brand-mark svg { width: 60%; height: 60%; fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
-  stroke-dasharray: 30; stroke-dashoffset: 30; animation: draw 1s .3s var(--ease) forwards; }
+.brand-mark:hover { transform: translateY(-2px) rotate(-4deg) scale(1.06); }
+.brand-mark svg.logo { width: 78%; height: auto; display: block; overflow: visible; }
+.brand-mark .l1 { fill: #6BBDEB; } .brand-mark .l2 { fill: #1A7EC1; } .brand-mark .l3 { fill: #27568F; }
+.brand-mark .l1, .brand-mark .l2, .brand-mark .l3 { animation: logoIn .7s var(--spring) both; }
+.brand-mark .l2 { animation-delay: .08s; } .brand-mark .l3 { animation-delay: .16s; }
+@keyframes logoIn { from { opacity: 0; transform: translateY(14px); } }
+.issue-note { font-size: 13px; margin: 2px 0 3px; color: var(--text-2); overflow-wrap: anywhere; }
+.issue-note svg { width: 14px; height: 14px; vertical-align: -2px; }
+.s-top .brand-mark { width: 38px; height: 38px; }
 .brand-mark.big { width: 60px; height: 60px; border-radius: 19px; animation: float 6s ease-in-out infinite; }
 @keyframes draw { to { stroke-dashoffset: 0; } }
 @keyframes float { 50% { transform: translateY(-6px) rotate(-3deg); } }
@@ -1394,7 +1402,13 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
         });
       });
       missed.sort((a, b2) => cmpTr(b2.occ_date, a.occ_date));
-      return { date: ymd(day), today: ymd(today), now: hm, workday: sc.isWorkday(day), items, tally: tally(items),
+      const pmap = {};
+      plansQuery((p) => p.start_date <= ymd(day)).forEach((p) => { pmap[p.id] = sc.prep(p); });
+      const issues = Object.values(cm).filter((c) => c.status === 'issue' && pmap[c.plan_id]).map((c) => {
+        const p = pmap[c.plan_id], ps = sc.slots(p)[c.slot || 0] || p;
+        return itemOut(ps, dn(c.occ_date), c, 'issue');
+      }).sort((a, b2) => cmpTr(b2.completion.at, a.completion.at));
+      return { date: ymd(day), issues: issues.slice(0, 100), issue_count: issues.length, today: ymd(today), now: hm, workday: sc.isWorkday(day), items, tally: tally(items),
         by_location: groupTally(items, 'location', '-'), by_user: groupTally(items, 'user', 'Ortak (herkes)'),
         missed: missed.slice(0, 200), missed_count: missed.length,
         staff_count: S.users.filter((u) => u.active && u.role === 'staff').length,
@@ -1809,6 +1823,8 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
 
   App.initials = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toLocaleUpperCase('tr');
   const PAL = [['#6366f1', '#ec4899'], ['#06b6d4', '#6366f1'], ['#10b981', '#06b6d4'], ['#f59e0b', '#ef4444'], ['#8b5cf6', '#06b6d4'], ['#ec4899', '#f59e0b']];
+  App.LOGO = '<svg class="logo" viewBox="185 312 683 400" aria-hidden="true"><path class="l1" d="M191 550H300Q324 550 337 571L357 602L289 706Z"/><path class="l2" d="M314 706L483 444Q503 412 545 411H638L480 657Q450 704 390 706Z"/><path class="l3" d="M449 706Q485 702 503 672L706 352Q727 318 768 317H862L636 672Q614 705 576 706Z"/></svg>';
+
   App.avatar = (name, size) => {
     let h = 0; for (const c of String(name)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
     const [a, b] = PAL[h % PAL.length];
@@ -2275,7 +2291,7 @@ window.__runAdmin = function () {
   /* ---------- iskelet ---------- */
   root.innerHTML = `<div class="shell">
     <aside class="side"><div class="glass nav-card">
-      <div class="brand"><div class="brand-mark"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg></div>
+      <div class="brand"><div class="brand-mark">${App.LOGO}</div>
         <div><b>${h(BOOT.company)}</b><small>Yönetim paneli</small></div></div>
       <nav class="nav"><span class="pill"></span>${ROUTES.map((r) => `<a href="#/${r.id}" data-r="${r.id}">${icon(r.icon)}<span>${r.label}</span></a>`).join('')}</nav>
       <div class="side-foot">
@@ -2285,7 +2301,7 @@ window.__runAdmin = function () {
           <button class="btn icon sm ghost" data-out title="Çıkış">${icon('logout')}</button></div>
       </div></div></aside>
     <main class="main">
-      <div class="topbar glass"><div class="brand-mark"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg></div>
+      <div class="topbar glass"><div class="brand-mark">${App.LOGO}</div>
         <b>${h(BOOT.company)}</b>
         <a class="btn icon sm" href="index.php?view=staff" title="Personel ekranı">${icon('phone')}</a>
         <button class="btn icon sm" data-out title="Çıkış">${icon('logout')}</button></div>
@@ -2378,11 +2394,12 @@ window.__runAdmin = function () {
         stat('closed', 'Tamamlanan', t.done + t.issue, '#10b981', 'check') +
         stat('pending', 'Bekleyen', t.pending, '#64748b', 'clock') +
         stat('overdue', 'Geciken', t.overdue, '#f59e0b', 'alert') +
-        stat('issue', 'Sorun bildirilen', t.issue, '#8b5cf6', 'flag') +
+        stat('issues', 'Sorun bildirilen (7 gün)', data.issue_count, '#8b5cf6', 'flag') +
         stat('missed', 'Yapılmayan (7 gün)', data.missed_count, '#ef4444', 'x');
       $$('[data-n]', v).forEach((n) => App.countUp(n, +n.dataset.n));
       $$('[data-filter]', v).forEach((s) => (s.onclick = () => {
         if (s.dataset.filter === 'missed') { $('[data-missed]', v)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+        if (s.dataset.filter === 'issues') { $('[data-issues]', v)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
         filter = s.dataset.filter; renderList(); $('[data-list]', v).scrollIntoView({ behavior: 'smooth', block: 'start' });
       }));
       renderList();
@@ -2450,6 +2467,14 @@ window.__runAdmin = function () {
             <div class="legend"><span><i style="background:var(--ok)"></i>Yapıldı</span><span><i style="background:var(--issue)"></i>Sorun</span><span><i style="background:var(--warn)"></i>Gecikti</span></div>
             <p class="muted small">${data.staff_count} aktif personel</p>
             ${data.on_leave.length ? `<div class="small"><span class="badge leave">İzinli</span> ${data.on_leave.map((u) => h(u.name)).join(', ')}</div>` : ''}</div></div>
+        <div class="glass card" data-issues><div class="card-head"><h3>Bildirilen sorunlar</h3><span class="badge issue">${data.issue_count}</span></div>
+          ${data.issues.length ? '<div class="list">' + data.issues.map((it, i) => `<div class="row clickable" data-issue="${i}" style="cursor:pointer">
+            <span class="dot" style="background:var(--issue)"></span>
+            <div style="min-width:0"><div class="title">${h(it.task)}${it.slot_count > 1 ? ` <span class="slot-pill">${h(App.slotLabel(it))}</span>` : ''}</div>
+              <div class="issue-note">“${h(it.completion.note || '')}”${it.completion.photo ? ' ' + icon('camera') : ''}</div>
+              <div class="sub"><span>${h(it.location)}</span><span>${h(it.completion.by || '')}</span></div></div>
+            <span class="small muted nowrap">${h(App.relDay(it.completion.at))} ${h(App.fmtTime(it.completion.at))}</span></div>`).join('') + '</div>'
+            : '<p class="muted small">Son 7 günde bildirilen sorun yok. 👍</p>'}</div>
         <div class="glass card"><div class="card-head"><h3>Mekanlara göre</h3></div>${bars(data.by_location, 'Veri yok')}</div>
         <div class="glass card"><div class="card-head"><h3>Personele göre</h3></div>${bars(data.by_user, 'Veri yok')}</div>
         <div class="glass card" data-missed><div class="card-head"><h3>Son 7 günde yapılmayanlar</h3><span class="badge missed">${data.missed_count}</span></div>
@@ -2459,6 +2484,7 @@ window.__runAdmin = function () {
             <span class="small muted nowrap">${h(App.relDay(m.occ_date))}</span></div>`).join('') + '</div>' +
             (data.missed.length > 30 ? `<a class="btn sm block" href="#/raporlar" style="margin-top:10px">Tümünü raporda gör</a>` : '')
             : '<p class="muted small">Harika! Yapılmayan iş yok. ✨</p>'}</div>`;
+      $$('[data-issue]', side).forEach((r) => (r.onclick = () => App.taskSheet(data.issues[+r.dataset.issue], load)));
       App.animateRings(side); App.animateBars(side);
     }
 
@@ -3232,7 +3258,7 @@ window.__runStaff = function () {
 
   function shell() {
     root.innerHTML = `<div class="staff">
-      <div class="s-top">${App.avatar(me.name)}
+      <div class="s-top"><div class="brand-mark">${App.LOGO}</div>${App.avatar(me.name)}
         <div class="who"><small>${h(App.greeting())},</small><b>${h(me.name)}</b></div>
         ${me.role === 'admin' ? `<a class="btn sm" href="index.php">${icon('home')}<span>Yönetim</span></a>` : ''}
         <button class="btn icon" data-refresh aria-label="Yenile">${icon('refresh')}</button>

@@ -588,7 +588,13 @@
         });
       });
       missed.sort((a, b2) => cmpTr(b2.occ_date, a.occ_date));
-      return { date: ymd(day), today: ymd(today), now: hm, workday: sc.isWorkday(day), items, tally: tally(items),
+      const pmap = {};
+      plansQuery((p) => p.start_date <= ymd(day)).forEach((p) => { pmap[p.id] = sc.prep(p); });
+      const issues = Object.values(cm).filter((c) => c.status === 'issue' && pmap[c.plan_id]).map((c) => {
+        const p = pmap[c.plan_id], ps = sc.slots(p)[c.slot || 0] || p;
+        return itemOut(ps, dn(c.occ_date), c, 'issue');
+      }).sort((a, b2) => cmpTr(b2.completion.at, a.completion.at));
+      return { date: ymd(day), issues: issues.slice(0, 100), issue_count: issues.length, today: ymd(today), now: hm, workday: sc.isWorkday(day), items, tally: tally(items),
         by_location: groupTally(items, 'location', '-'), by_user: groupTally(items, 'user', 'Ortak (herkes)'),
         missed: missed.slice(0, 200), missed_count: missed.length,
         staff_count: S.users.filter((u) => u.active && u.role === 'staff').length,

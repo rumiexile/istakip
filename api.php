@@ -737,6 +737,22 @@ try {
             }
             usort($missed, fn($a, $b) => strcmp($b['occ_date'], $a['occ_date']));
 
+            // Son 7 günde (seçilen gün dahil) personelin bildirdiği sorunlar, en yenisi önce
+            $issues = [];
+            $byId = [];
+            foreach (plans_query('p.start_date <= ?', [Sched::ymd($day)]) as $p) {
+                $byId[(int)$p['id']] = $S->prep($p);
+            }
+            foreach ($cmap as $c) {
+                $p = $byId[(int)$c['plan_id']] ?? null;
+                if ($c['status'] !== 'issue' || !$p) {
+                    continue;
+                }
+                $ps = $S->slots($p)[(int)($c['slot'] ?? 0)] ?? $p;
+                $issues[] = item_out($ps, Sched::dn(substr((string)$c['occ_date'], 0, 10)), $c, 'issue');
+            }
+            usort($issues, fn($a, $b) => strcmp((string)$b['completion']['at'], (string)$a['completion']['at']));
+
             out([
                 'date' => Sched::ymd($day),
                 'today' => Sched::ymd($today),
@@ -748,6 +764,8 @@ try {
                 'by_user' => group_tally($items, 'user', 'Ortak (herkes)'),
                 'missed' => array_slice($missed, 0, 200),
                 'missed_count' => count($missed),
+                'issues' => array_slice($issues, 0, 100),
+                'issue_count' => count($issues),
                 'staff_count' => (int)q("SELECT COUNT(*) FROM users WHERE active = 1 AND role = 'staff'")->fetchColumn(),
                 'on_leave' => q('SELECT u.id, u.name, l.note FROM leaves l JOIN users u ON u.id = l.user_id WHERE l.leave_date = ? AND u.active = 1 ORDER BY u.name',
                     [Sched::ymd($day)])->fetchAll(),

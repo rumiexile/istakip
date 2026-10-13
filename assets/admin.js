@@ -27,7 +27,7 @@
   /* ---------- iskelet ---------- */
   root.innerHTML = `<div class="shell">
     <aside class="side"><div class="glass nav-card">
-      <div class="brand"><div class="brand-mark"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg></div>
+      <div class="brand"><div class="brand-mark">${App.LOGO}</div>
         <div><b>${h(BOOT.company)}</b><small>Yönetim paneli</small></div></div>
       <nav class="nav"><span class="pill"></span>${ROUTES.map((r) => `<a href="#/${r.id}" data-r="${r.id}">${icon(r.icon)}<span>${r.label}</span></a>`).join('')}</nav>
       <div class="side-foot">
@@ -37,7 +37,7 @@
           <button class="btn icon sm ghost" data-out title="Çıkış">${icon('logout')}</button></div>
       </div></div></aside>
     <main class="main">
-      <div class="topbar glass"><div class="brand-mark"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg></div>
+      <div class="topbar glass"><div class="brand-mark">${App.LOGO}</div>
         <b>${h(BOOT.company)}</b>
         <a class="btn icon sm" href="index.php?view=staff" title="Personel ekranı">${icon('phone')}</a>
         <button class="btn icon sm" data-out title="Çıkış">${icon('logout')}</button></div>
@@ -130,11 +130,12 @@
         stat('closed', 'Tamamlanan', t.done + t.issue, '#10b981', 'check') +
         stat('pending', 'Bekleyen', t.pending, '#64748b', 'clock') +
         stat('overdue', 'Geciken', t.overdue, '#f59e0b', 'alert') +
-        stat('issue', 'Sorun bildirilen', t.issue, '#8b5cf6', 'flag') +
+        stat('issues', 'Sorun bildirilen (7 gün)', data.issue_count, '#8b5cf6', 'flag') +
         stat('missed', 'Yapılmayan (7 gün)', data.missed_count, '#ef4444', 'x');
       $$('[data-n]', v).forEach((n) => App.countUp(n, +n.dataset.n));
       $$('[data-filter]', v).forEach((s) => (s.onclick = () => {
         if (s.dataset.filter === 'missed') { $('[data-missed]', v)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+        if (s.dataset.filter === 'issues') { $('[data-issues]', v)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
         filter = s.dataset.filter; renderList(); $('[data-list]', v).scrollIntoView({ behavior: 'smooth', block: 'start' });
       }));
       renderList();
@@ -202,6 +203,14 @@
             <div class="legend"><span><i style="background:var(--ok)"></i>Yapıldı</span><span><i style="background:var(--issue)"></i>Sorun</span><span><i style="background:var(--warn)"></i>Gecikti</span></div>
             <p class="muted small">${data.staff_count} aktif personel</p>
             ${data.on_leave.length ? `<div class="small"><span class="badge leave">İzinli</span> ${data.on_leave.map((u) => h(u.name)).join(', ')}</div>` : ''}</div></div>
+        <div class="glass card" data-issues><div class="card-head"><h3>Bildirilen sorunlar</h3><span class="badge issue">${data.issue_count}</span></div>
+          ${data.issues.length ? '<div class="list">' + data.issues.map((it, i) => `<div class="row clickable" data-issue="${i}" style="cursor:pointer">
+            <span class="dot" style="background:var(--issue)"></span>
+            <div style="min-width:0"><div class="title">${h(it.task)}${it.slot_count > 1 ? ` <span class="slot-pill">${h(App.slotLabel(it))}</span>` : ''}</div>
+              <div class="issue-note">“${h(it.completion.note || '')}”${it.completion.photo ? ' ' + icon('camera') : ''}</div>
+              <div class="sub"><span>${h(it.location)}</span><span>${h(it.completion.by || '')}</span></div></div>
+            <span class="small muted nowrap">${h(App.relDay(it.completion.at))} ${h(App.fmtTime(it.completion.at))}</span></div>`).join('') + '</div>'
+            : '<p class="muted small">Son 7 günde bildirilen sorun yok. 👍</p>'}</div>
         <div class="glass card"><div class="card-head"><h3>Mekanlara göre</h3></div>${bars(data.by_location, 'Veri yok')}</div>
         <div class="glass card"><div class="card-head"><h3>Personele göre</h3></div>${bars(data.by_user, 'Veri yok')}</div>
         <div class="glass card" data-missed><div class="card-head"><h3>Son 7 günde yapılmayanlar</h3><span class="badge missed">${data.missed_count}</span></div>
@@ -211,6 +220,7 @@
             <span class="small muted nowrap">${h(App.relDay(m.occ_date))}</span></div>`).join('') + '</div>' +
             (data.missed.length > 30 ? `<a class="btn sm block" href="#/raporlar" style="margin-top:10px">Tümünü raporda gör</a>` : '')
             : '<p class="muted small">Harika! Yapılmayan iş yok. ✨</p>'}</div>`;
+      $$('[data-issue]', side).forEach((r) => (r.onclick = () => App.taskSheet(data.issues[+r.dataset.issue], load)));
       App.animateRings(side); App.animateBars(side);
     }
 

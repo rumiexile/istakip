@@ -21,7 +21,7 @@
 
   function shell() {
     root.innerHTML = `<div class="staff">
-      <div class="s-top">${App.avatar(me.name)}
+      <div class="s-top"><div class="brand-mark">${App.LOGO}</div>${App.avatar(me.name)}
         <div class="who"><small>${h(App.greeting())},</small><b>${h(me.name)}</b></div>
         ${me.role === 'admin' ? `<a class="btn sm" href="index.php">${icon('home')}<span>Yönetim</span></a>` : ''}
         <button class="btn icon" data-refresh aria-label="Yenile">${icon('refresh')}</button>
