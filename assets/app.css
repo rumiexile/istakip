@@ -766,3 +766,56 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
 @keyframes starWiggle { 40% { transform: rotate(-18deg) scale(1.2); } 70% { transform: rotate(10deg); } }
 .toast.insp .tdot { background: linear-gradient(135deg, #fde047, #f59e0b); }
 .toast.insp .tdot svg { fill: #fff; stroke: none; }
+
+/* ---------- görev tebliğ belgesi ---------- */
+.pkg .foot { flex-wrap: wrap; }
+.doc-editor { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 18px; align-items: start; }
+@media (max-width: 760px) { .doc-editor { grid-template-columns: minmax(0, 1fr); } .doc-preview-wrap { position: static; } }
+.doc-form textarea { min-height: 0; }
+.doc-form .field small { font-weight: 500; color: var(--muted); }
+.doc-preview-wrap { position: sticky; top: 0; display: grid; gap: 6px; }
+.doc-preview { position: relative; overflow: hidden; border-radius: 10px; background: #fff;
+  box-shadow: 0 1px 2px rgba(15,23,42,.1), 0 18px 40px -18px rgba(15,23,42,.45); animation: pop .4s var(--spring); }
+.doc-scale { transform-origin: 0 0; width: 210mm; }
+
+.doc-page {
+  width: 210mm; min-height: 297mm; padding: 16mm 18mm 18mm; background: #fff; color: #111;
+  font-family: "Times New Roman", Times, "Liberation Serif", serif; font-size: 11.5pt; line-height: 1.45;
+}
+.doc-page * { color: #111; }
+.doc-head { display: grid; grid-template-columns: 26mm 1fr 26mm; align-items: center; gap: 6mm; padding-bottom: 5mm; margin-bottom: 7mm; border-bottom: 1.2pt solid #1A7EC1; }
+.doc-logo svg { width: 26mm; height: auto; display: block; }
+.doc-logo .l1 { fill: #6BBDEB; } .doc-logo .l2 { fill: #1A7EC1; } .doc-logo .l3 { fill: #27568F; }
+.doc-org { text-align: center; font-weight: 700; font-size: 12.5pt; line-height: 1.35; letter-spacing: .02em; }
+.doc-head-space { height: 32mm; }
+.doc-meta { display: flex; justify-content: space-between; gap: 8mm; margin-bottom: 1.5mm; }
+.doc-meta span { display: inline-block; min-width: 13mm; font-weight: 700; }
+.doc-meta .r { white-space: nowrap; }
+.doc-to { margin: 8mm 0 4mm; font-weight: 700; }
+.doc-body { text-align: justify; margin-bottom: 5mm; }
+.doc-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 10.5pt; margin: 2mm 0 6mm; }
+.doc-table th, .doc-table td { border: .6pt solid #555; padding: 1.6mm 2.2mm; vertical-align: top; text-align: left; }
+.doc-table th { background: #eef3f8; font-size: 10pt; text-transform: none; letter-spacing: 0; white-space: nowrap; }
+.doc-table .c { text-align: center; }
+.doc-table tr.doc-loc td { background: #f4f6f8; font-weight: 700; }
+.doc-table tbody tr:hover { background: none; }
+.doc-table tr { break-inside: avoid; }
+.doc-desc { font-size: 9.5pt; color: #444 !important; margin-top: .6mm; }
+.doc-signs { display: grid; grid-template-columns: 1fr 1fr; gap: 12mm; margin-top: 10mm; break-inside: avoid; }
+.doc-sign-h { display: block; text-align: center; letter-spacing: .08em; margin-bottom: 3mm; }
+.doc-ack { font-style: italic; font-size: 10.5pt; margin: 0 0 2mm; text-align: center; }
+.doc-line { display: grid; grid-template-columns: 22mm 1fr; align-items: end; gap: 2mm; min-height: 8mm; }
+.doc-line span::after { content: ":"; float: right; }
+.doc-line b { font-weight: 400; border-bottom: .5pt dotted #777; min-height: 6mm; padding-bottom: .5mm; }
+.doc-line.sig { min-height: 16mm; }
+
+#print-root { display: none; }
+@media print {
+  @page { size: A4; margin: 12mm 0 14mm; }
+  body.printing { background: #fff !important; }
+  body.printing > *:not(#print-root) { display: none !important; }
+  body.printing #print-root { display: block; }
+  #print-root .doc-page { width: auto; min-height: 0; padding: 4mm 18mm 0; box-shadow: none; }
+  #print-root .doc-head-space { height: 26mm; }
+  #print-root * { -webkit-print-color-adjust: exact; print-color-adjust: exact; animation: none !important; }
+}

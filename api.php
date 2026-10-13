@@ -1381,6 +1381,17 @@ try {
             out();
         }
 
+        case 'doc_settings_save': {
+            // Görev tebliğ belgesinin varsayılan antet, metin ve imza bilgileri
+            need_post();
+            need_admin();
+            foreach (['doc_header' => 600, 'doc_intro' => 3000, 'doc_signer_name' => 120, 'doc_signer_title' => 160,
+                      'doc_staff_title' => 120, 'doc_subject' => 200, 'doc_print_header' => 1] as $k => $max) {
+                setting_set($k, (string)(s_in($k, $max) ?? ''));
+            }
+            out();
+        }
+
         default:
             fail('Bilinmeyen işlem.', 404);
     }

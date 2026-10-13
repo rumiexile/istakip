@@ -718,6 +718,119 @@
   /* =========================================================
      Personel
      ========================================================= */
+  /* ---------- görev tebliğ belgesi ---------- */
+  const DOC_DEFAULTS = {
+    doc_header: 'T.C.\nYÜKSEKÖĞRETİM KALİTE KURULU\n' + (BOOT.company || 'Destek Hizmetleri'),
+    doc_subject: 'Görev Tebliği',
+    doc_intro: '{tarih} tarihinden itibaren aşağıda belirtilen mekanlarda, belirtilen sıklık ve saatlerde yapılacak işler tarafınıza görev olarak verilmiştir.\n\nGörevlerinizi eksiksiz ve zamanında yerine getirmeniz, yaptığınız işleri İş Takip uygulaması üzerinden işaretlemeniz gerekmektedir.\n\nBilgilerinizi ve gereğini rica ederim.',
+    doc_signer_name: '',
+    doc_signer_title: 'Destek Hizmetleri Sorumlusu',
+    doc_staff_title: 'Destek Personeli',
+    doc_print_header: '1',
+  };
+  const trDate = (ymd) => (ymd ? ymd.slice(8, 10) + '.' + ymd.slice(5, 7) + '.' + ymd.slice(0, 4) : '');
+  const nl2br = (s) => h(s).replace(/\n/g, '<br>');
+
+  function docHtml(u, plans, f) {
+    const groups = new Map();
+    plans.forEach((p) => { if (!groups.has(p.location_name)) groups.set(p.location_name, []); groups.get(p.location_name).push(p); });
+    let n = 0;
+    const rows = [...groups].map(([loc, list]) => `<tr class="doc-loc"><td colspan="4">${h(loc)}</td></tr>` + list.map((p) => `<tr>
+      <td class="c">${++n}</td>
+      <td><b>${h(p.task_name)}</b>${f.desc && p.task_desc ? `<div class="doc-desc">${h(p.task_desc)}</div>` : ''}${f.desc && p.note ? `<div class="doc-desc">Not: ${h(p.note)}</div>` : ''}${p.user_id ? '' : '<div class="doc-desc">Ortak iş</div>'}</td>
+      <td>${h(p.freq)}${p.start_date > f.date ? `<div class="doc-desc">${h(trDate(p.start_date))} itibarıyla</div>` : ''}${p.end_date ? `<div class="doc-desc">${h(trDate(p.end_date))} tarihine kadar</div>` : ''}</td>
+      <td class="c">${h((p.times ? p.times.split(',').join(', ') : p.due_time) || '—')}</td></tr>`).join('')).join('');
+    const intro = h(f.intro).replace(/\{tarih\}/g, h(trDate(f.date))).replace(/\{ad\}/g, h(u.name)).replace(/\n/g, '<br>');
+    const sign = (t, name, title, extra) => `<div class="doc-sign"><b class="doc-sign-h">${t}</b>${extra || ''}
+      <div class="doc-line"><span>Adı Soyadı</span><b>${h(name || '')}</b></div>
+      <div class="doc-line"><span>Unvanı</span><b>${h(title || '')}</b></div>
+      <div class="doc-line"><span>Tarih</span><b>${'.... / .... / ' + f.date.slice(0, 4)}</b></div>
+      <div class="doc-line sig"><span>İmza</span><b></b></div></div>`;
+    return `<article class="doc-page${f.header ? '' : ' no-head'}">
+      ${f.header ? `<header class="doc-head"><div class="doc-logo">${App.LOGO}</div><div class="doc-org">${nl2br(f.headerText)}</div><div class="doc-logo ghost"></div></header>` : '<div class="doc-head-space"></div>'}
+      <div class="doc-meta"><div><span>Sayı</span>: ${h(f.no || '')}</div><div class="r">${h(trDate(f.date))}</div></div>
+      <div class="doc-meta"><div><span>Konu</span>: ${h(f.subject)}</div></div>
+      <p class="doc-to">Sayın ${h(u.name)}</p>
+      <div class="doc-body">${intro}</div>
+      ${plans.length ? `<table class="doc-table"><colgroup><col style="width:9mm"><col><col style="width:38mm"><col style="width:34mm"></colgroup><thead><tr><th class="c">No</th><th>Görev / İş</th><th>Sıklık</th><th class="c">Saat</th></tr></thead><tbody>${rows}</tbody></table>`
+        : '<p class="doc-body"><i>Bu personele atanmış aktif iş bulunmamaktadır.</i></p>'}
+      ${f.extra ? `<div class="doc-body">${nl2br(f.extra)}</div>` : ''}
+      <div class="doc-signs">
+        ${sign('TEBLİĞ EDEN', f.signerName, f.signerTitle, '<p class="doc-ack">&nbsp;</p>')}
+        ${sign('TEBELLÜĞ EDEN', u.name, f.staffTitle, '<p class="doc-ack">Yukarıda belirtilen görevleri tebellüğ ettim.</p>')}
+      </div></article>`;
+  }
+
+  function printDoc(html) {
+    document.getElementById('print-root')?.remove();
+    const root = App.el(`<div id="print-root">${html}</div>`);
+    document.body.appendChild(root);
+    document.body.classList.add('printing');
+    const done = () => { document.body.classList.remove('printing'); root.remove(); window.removeEventListener('afterprint', done); };
+    window.addEventListener('afterprint', done);
+    setTimeout(() => { try { window.print(); } catch (e) { App.toast('Tarayıcı yazdırmaya izin vermedi', 'bad'); } setTimeout(() => { if (!window.matchMedia('print').matches) done(); }, 1500); }, 50);
+  }
+
+  async function docModal(u) {
+    const [s, all] = await Promise.all([api('settings'), api('plans')]);
+    const val = (k) => (s[k] != null && s[k] !== '' ? s[k] : DOC_DEFAULTS[k]);
+    const cmp = (x, y) => String(x).localeCompare(String(y), 'tr');
+    const sortPlans = (list) => list.sort((a, b) => (+a.location_sort - +b.location_sort) || cmp(a.location_name, b.location_name)
+      || cmp(a.due_time || '99', b.due_time || '99') || cmp(a.task_name, b.task_name));
+    const m = App.modal({
+      title: u.name + ' · Görev tebliğ belgesi', wide: true,
+      body: `<div class="doc-editor"><form class="form doc-form" autocomplete="off">
+        <div class="grid2"><label class="field"><span>Belge tarihi</span><input type="date" name="date" value="${App.today()}"></label>
+          <label class="field"><span>Sayı</span><input name="no" placeholder="Örn. E-12345678-000-1234"></label></div>
+        <label class="field"><span>Konu</span><input name="subject" value="${h(val('doc_subject'))}"></label>
+        <label class="check"><input type="checkbox" name="header" ${val('doc_print_header') === '1' ? 'checked' : ''}><span></span>Antet ve logoyu yazdır (hazır antetli kağıda basarken kapatın)</label>
+        <label class="field" data-headtext><span>Antet satırları</span><textarea name="headerText" rows="3">${h(val('doc_header'))}</textarea></label>
+        <label class="field"><span>Metin <small>· {tarih} ve {ad} otomatik doldurulur</small></span><textarea name="intro" rows="6">${h(val('doc_intro'))}</textarea></label>
+        <label class="field"><span>Ek açıklama (isteğe bağlı, tablonun altına)</span><textarea name="extra" rows="2"></textarea></label>
+        <div class="grid2"><label class="field"><span>Tebliğ eden ad soyad</span><input name="signerName" value="${h(val('doc_signer_name') || me.name)}"></label>
+          <label class="field"><span>Tebliğ eden unvan</span><input name="signerTitle" value="${h(val('doc_signer_title'))}"></label></div>
+        <label class="field"><span>Personelin unvanı</span><input name="staffTitle" value="${h(val('doc_staff_title'))}"></label>
+        <label class="check"><input type="checkbox" name="desc" checked><span></span>İş açıklamalarını ve notları göster</label>
+        <label class="check"><input type="checkbox" name="shared"><span></span>Ortak (herkesin yapabileceği) işleri de ekle</label>
+        <label class="check"><input type="checkbox" name="remember"><span></span>Antet, metin ve imza bilgilerini sonraki belgeler için hatırla</label>
+      </form>
+      <div class="doc-preview-wrap"><div class="doc-preview-label muted small">Önizleme · A4</div><div class="doc-preview"><div class="doc-scale"></div></div></div></div>`,
+      actions: [{ label: 'Kapat', cls: 'ghost' }, { label: 'Yazdır', cls: 'primary', icon: 'printer', onClick: async (mm) => {
+        const f = read();
+        if (f.remember) {
+          await api('doc_settings_save', { doc_header: f.headerText, doc_intro: f.intro, doc_signer_name: f.signerName, doc_signer_title: f.signerTitle,
+            doc_staff_title: f.staffTitle, doc_subject: f.subject, doc_print_header: f.header ? '1' : '0' });
+        }
+        printDoc(docHtml(u, plansFor(f), f));
+        return false;
+      } }],
+    });
+    const form = $('form', m.body);
+    const read = () => {
+      const o = App.formData(form);
+      ['header', 'desc', 'shared', 'remember'].forEach((k) => { o[k] = form[k].checked; });
+      if (!o.date) o.date = App.today();
+      return o;
+    };
+    const plansFor = (f) => sortPlans(all.filter((p) => p.user_id == u.id || (f.shared && !p.user_id)).filter((p) => !p.end_date || p.end_date >= f.date));
+    const scale = $('.doc-scale', m.body);
+    const draw = () => {
+      if (!m.root.isConnected) { window.removeEventListener('resize', draw); return; }
+      const f = read();
+      $('[data-headtext]', m.body).style.display = f.header ? '' : 'none';
+      scale.innerHTML = docHtml(u, plansFor(f), f);
+      const box = $('.doc-preview', m.body);
+      const k = box.clientWidth / scale.firstElementChild.offsetWidth;
+      scale.style.transform = `scale(${k})`;
+      box.style.height = scale.firstElementChild.offsetHeight * k + 'px';
+    };
+    let t;
+    form.addEventListener('input', () => { clearTimeout(t); t = setTimeout(draw, 120); });
+    form.addEventListener('change', draw);
+    requestAnimationFrame(draw);
+    window.addEventListener('resize', draw, { passive: true });
+  }
+
   async function viewUsers(v) {
     v.innerHTML = head('Personel', 'Personel telefonundan bu sitenin adresini açıp kendi kullanıcı adıyla giriş yapar', `
       <button class="btn" data-link>${icon('phone')}<span>Giriş adresini kopyala</span></button>
@@ -764,11 +877,13 @@
       <div class="foot">
         <a class="btn sm ghost" href="#/atamalar" data-plans="${u.id}">${icon('list')}<span>İşleri</span></a>
         ${u.role !== 'admin' ? `<button class="btn sm ghost" data-leave="${u.id}">${icon('calendar')}<span>İzin</span></button>` : ''}
+        ${u.role !== 'admin' ? `<button class="btn sm ghost" data-doc="${u.id}" title="Görev tebliğ belgesi">${icon('doc')}<span>Tebliğ</span></button>` : ''}
         <button class="btn sm ghost" data-edit="${u.id}">${icon('edit')}<span>Düzenle</span></button>
         ${u.id !== me.id ? `<button class="btn sm ghost danger" data-del="${u.id}">${icon('trash')}</button>` : ''}</div></div>`).join('') + '</div>';
     $$('[data-plans]', box).forEach((a) => (a.onclick = () => { sessionStorage.setItem('istakip.pu', a.dataset.plans); sessionStorage.removeItem('istakip.pl'); }));
     $$('[data-edit]', box).forEach((b) => (b.onclick = () => edit(users.find((u) => u.id == b.dataset.edit))));
     $$('[data-leave]', box).forEach((b) => (b.onclick = () => leaveModal(users.find((u) => u.id == b.dataset.leave))));
+    $$('[data-doc]', box).forEach((b) => (b.onclick = () => docModal(users.find((u) => u.id == b.dataset.doc)).catch(App.err)));
     $$('[data-del]', box).forEach((b) => (b.onclick = async () => {
       const u = users.find((x) => x.id == b.dataset.del);
       if (u.plan_count) {

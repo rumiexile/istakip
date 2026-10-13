@@ -793,6 +793,59 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
 .toast.insp .tdot { background: linear-gradient(135deg, #fde047, #f59e0b); }
 .toast.insp .tdot svg { fill: #fff; stroke: none; }
 
+/* ---------- görev tebliğ belgesi ---------- */
+.pkg .foot { flex-wrap: wrap; }
+.doc-editor { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 18px; align-items: start; }
+@media (max-width: 760px) { .doc-editor { grid-template-columns: minmax(0, 1fr); } .doc-preview-wrap { position: static; } }
+.doc-form textarea { min-height: 0; }
+.doc-form .field small { font-weight: 500; color: var(--muted); }
+.doc-preview-wrap { position: sticky; top: 0; display: grid; gap: 6px; }
+.doc-preview { position: relative; overflow: hidden; border-radius: 10px; background: #fff;
+  box-shadow: 0 1px 2px rgba(15,23,42,.1), 0 18px 40px -18px rgba(15,23,42,.45); animation: pop .4s var(--spring); }
+.doc-scale { transform-origin: 0 0; width: 210mm; }
+
+.doc-page {
+  width: 210mm; min-height: 297mm; padding: 16mm 18mm 18mm; background: #fff; color: #111;
+  font-family: "Times New Roman", Times, "Liberation Serif", serif; font-size: 11.5pt; line-height: 1.45;
+}
+.doc-page * { color: #111; }
+.doc-head { display: grid; grid-template-columns: 26mm 1fr 26mm; align-items: center; gap: 6mm; padding-bottom: 5mm; margin-bottom: 7mm; border-bottom: 1.2pt solid #1A7EC1; }
+.doc-logo svg { width: 26mm; height: auto; display: block; }
+.doc-logo .l1 { fill: #6BBDEB; } .doc-logo .l2 { fill: #1A7EC1; } .doc-logo .l3 { fill: #27568F; }
+.doc-org { text-align: center; font-weight: 700; font-size: 12.5pt; line-height: 1.35; letter-spacing: .02em; }
+.doc-head-space { height: 32mm; }
+.doc-meta { display: flex; justify-content: space-between; gap: 8mm; margin-bottom: 1.5mm; }
+.doc-meta span { display: inline-block; min-width: 13mm; font-weight: 700; }
+.doc-meta .r { white-space: nowrap; }
+.doc-to { margin: 8mm 0 4mm; font-weight: 700; }
+.doc-body { text-align: justify; margin-bottom: 5mm; }
+.doc-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 10.5pt; margin: 2mm 0 6mm; }
+.doc-table th, .doc-table td { border: .6pt solid #555; padding: 1.6mm 2.2mm; vertical-align: top; text-align: left; }
+.doc-table th { background: #eef3f8; font-size: 10pt; text-transform: none; letter-spacing: 0; white-space: nowrap; }
+.doc-table .c { text-align: center; }
+.doc-table tr.doc-loc td { background: #f4f6f8; font-weight: 700; }
+.doc-table tbody tr:hover { background: none; }
+.doc-table tr { break-inside: avoid; }
+.doc-desc { font-size: 9.5pt; color: #444 !important; margin-top: .6mm; }
+.doc-signs { display: grid; grid-template-columns: 1fr 1fr; gap: 12mm; margin-top: 10mm; break-inside: avoid; }
+.doc-sign-h { display: block; text-align: center; letter-spacing: .08em; margin-bottom: 3mm; }
+.doc-ack { font-style: italic; font-size: 10.5pt; margin: 0 0 2mm; text-align: center; }
+.doc-line { display: grid; grid-template-columns: 22mm 1fr; align-items: end; gap: 2mm; min-height: 8mm; }
+.doc-line span::after { content: ":"; float: right; }
+.doc-line b { font-weight: 400; border-bottom: .5pt dotted #777; min-height: 6mm; padding-bottom: .5mm; }
+.doc-line.sig { min-height: 16mm; }
+
+#print-root { display: none; }
+@media print {
+  @page { size: A4; margin: 12mm 0 14mm; }
+  body.printing { background: #fff !important; }
+  body.printing > *:not(#print-root) { display: none !important; }
+  body.printing #print-root { display: block; }
+  #print-root .doc-page { width: auto; min-height: 0; padding: 4mm 18mm 0; box-shadow: none; }
+  #print-root .doc-head-space { height: 26mm; }
+  #print-root * { -webkit-print-color-adjust: exact; print-color-adjust: exact; animation: none !important; }
+}
+
 
 .demo-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 10px 16px 0; padding: 8px 10px 8px 14px; border-radius: 20px; font-size: 13px; position: relative; z-index: 50; }
 :root { --logo-1: #6BBDEB; --logo-2: #1A7EC1; --logo-3: #27568F; }
@@ -1737,6 +1790,12 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
       Object.assign(S.settings, { company_name: name, work_days: wd.join(','), holidays: [...new Set(hol)].sort().join('\n') });
       save(); return null;
     },
+    async doc_settings_save(b) {
+      needAdmin();
+      const lim = { doc_header: 600, doc_intro: 3000, doc_signer_name: 120, doc_signer_title: 160, doc_staff_title: 120, doc_subject: 200, doc_print_header: 1 };
+      Object.keys(lim).forEach((k) => { S.settings[k] = String(b[k] == null ? '' : b[k]).trim().slice(0, lim[k]); });
+      save(); return null;
+    },
     async password(b) { if (!b.new || b.new.length < 6) err('Yeni şifre en az 6 karakter olmalı.'); return null; },
     async me() { return me(); },
   };
@@ -1830,6 +1889,8 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
     refresh: '<path d="M20 11a8 8 0 0 0-14.9-3M4 4v4h4M4 13a8 8 0 0 0 14.9 3M20 20v-4h-4"/>',
     camera: '<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/>',
     chev: '<path d="M9 6l6 6-6 6"/>',
+    doc: '<path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5M9 13h7M9 17h5"/>',
+    printer: '<path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M7 14h10v7H7z"/>',
     star: '<path d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/>',
     download: '<path d="M12 4v11M7 10l5 5 5-5M4 20h16"/>',
     play: '<path d="M6 4l14 8-14 8z"/>',
@@ -3048,6 +3109,119 @@ window.__runAdmin = function () {
   /* =========================================================
      Personel
      ========================================================= */
+  /* ---------- görev tebliğ belgesi ---------- */
+  const DOC_DEFAULTS = {
+    doc_header: 'T.C.\nYÜKSEKÖĞRETİM KALİTE KURULU\n' + (BOOT.company || 'Destek Hizmetleri'),
+    doc_subject: 'Görev Tebliği',
+    doc_intro: '{tarih} tarihinden itibaren aşağıda belirtilen mekanlarda, belirtilen sıklık ve saatlerde yapılacak işler tarafınıza görev olarak verilmiştir.\n\nGörevlerinizi eksiksiz ve zamanında yerine getirmeniz, yaptığınız işleri İş Takip uygulaması üzerinden işaretlemeniz gerekmektedir.\n\nBilgilerinizi ve gereğini rica ederim.',
+    doc_signer_name: '',
+    doc_signer_title: 'Destek Hizmetleri Sorumlusu',
+    doc_staff_title: 'Destek Personeli',
+    doc_print_header: '1',
+  };
+  const trDate = (ymd) => (ymd ? ymd.slice(8, 10) + '.' + ymd.slice(5, 7) + '.' + ymd.slice(0, 4) : '');
+  const nl2br = (s) => h(s).replace(/\n/g, '<br>');
+
+  function docHtml(u, plans, f) {
+    const groups = new Map();
+    plans.forEach((p) => { if (!groups.has(p.location_name)) groups.set(p.location_name, []); groups.get(p.location_name).push(p); });
+    let n = 0;
+    const rows = [...groups].map(([loc, list]) => `<tr class="doc-loc"><td colspan="4">${h(loc)}</td></tr>` + list.map((p) => `<tr>
+      <td class="c">${++n}</td>
+      <td><b>${h(p.task_name)}</b>${f.desc && p.task_desc ? `<div class="doc-desc">${h(p.task_desc)}</div>` : ''}${f.desc && p.note ? `<div class="doc-desc">Not: ${h(p.note)}</div>` : ''}${p.user_id ? '' : '<div class="doc-desc">Ortak iş</div>'}</td>
+      <td>${h(p.freq)}${p.start_date > f.date ? `<div class="doc-desc">${h(trDate(p.start_date))} itibarıyla</div>` : ''}${p.end_date ? `<div class="doc-desc">${h(trDate(p.end_date))} tarihine kadar</div>` : ''}</td>
+      <td class="c">${h((p.times ? p.times.split(',').join(', ') : p.due_time) || '—')}</td></tr>`).join('')).join('');
+    const intro = h(f.intro).replace(/\{tarih\}/g, h(trDate(f.date))).replace(/\{ad\}/g, h(u.name)).replace(/\n/g, '<br>');
+    const sign = (t, name, title, extra) => `<div class="doc-sign"><b class="doc-sign-h">${t}</b>${extra || ''}
+      <div class="doc-line"><span>Adı Soyadı</span><b>${h(name || '')}</b></div>
+      <div class="doc-line"><span>Unvanı</span><b>${h(title || '')}</b></div>
+      <div class="doc-line"><span>Tarih</span><b>${'.... / .... / ' + f.date.slice(0, 4)}</b></div>
+      <div class="doc-line sig"><span>İmza</span><b></b></div></div>`;
+    return `<article class="doc-page${f.header ? '' : ' no-head'}">
+      ${f.header ? `<header class="doc-head"><div class="doc-logo">${App.LOGO}</div><div class="doc-org">${nl2br(f.headerText)}</div><div class="doc-logo ghost"></div></header>` : '<div class="doc-head-space"></div>'}
+      <div class="doc-meta"><div><span>Sayı</span>: ${h(f.no || '')}</div><div class="r">${h(trDate(f.date))}</div></div>
+      <div class="doc-meta"><div><span>Konu</span>: ${h(f.subject)}</div></div>
+      <p class="doc-to">Sayın ${h(u.name)}</p>
+      <div class="doc-body">${intro}</div>
+      ${plans.length ? `<table class="doc-table"><colgroup><col style="width:9mm"><col><col style="width:38mm"><col style="width:34mm"></colgroup><thead><tr><th class="c">No</th><th>Görev / İş</th><th>Sıklık</th><th class="c">Saat</th></tr></thead><tbody>${rows}</tbody></table>`
+        : '<p class="doc-body"><i>Bu personele atanmış aktif iş bulunmamaktadır.</i></p>'}
+      ${f.extra ? `<div class="doc-body">${nl2br(f.extra)}</div>` : ''}
+      <div class="doc-signs">
+        ${sign('TEBLİĞ EDEN', f.signerName, f.signerTitle, '<p class="doc-ack">&nbsp;</p>')}
+        ${sign('TEBELLÜĞ EDEN', u.name, f.staffTitle, '<p class="doc-ack">Yukarıda belirtilen görevleri tebellüğ ettim.</p>')}
+      </div></article>`;
+  }
+
+  function printDoc(html) {
+    document.getElementById('print-root')?.remove();
+    const root = App.el(`<div id="print-root">${html}</div>`);
+    document.body.appendChild(root);
+    document.body.classList.add('printing');
+    const done = () => { document.body.classList.remove('printing'); root.remove(); window.removeEventListener('afterprint', done); };
+    window.addEventListener('afterprint', done);
+    setTimeout(() => { try { window.print(); } catch (e) { App.toast('Tarayıcı yazdırmaya izin vermedi', 'bad'); } setTimeout(() => { if (!window.matchMedia('print').matches) done(); }, 1500); }, 50);
+  }
+
+  async function docModal(u) {
+    const [s, all] = await Promise.all([api('settings'), api('plans')]);
+    const val = (k) => (s[k] != null && s[k] !== '' ? s[k] : DOC_DEFAULTS[k]);
+    const cmp = (x, y) => String(x).localeCompare(String(y), 'tr');
+    const sortPlans = (list) => list.sort((a, b) => (+a.location_sort - +b.location_sort) || cmp(a.location_name, b.location_name)
+      || cmp(a.due_time || '99', b.due_time || '99') || cmp(a.task_name, b.task_name));
+    const m = App.modal({
+      title: u.name + ' · Görev tebliğ belgesi', wide: true,
+      body: `<div class="doc-editor"><form class="form doc-form" autocomplete="off">
+        <div class="grid2"><label class="field"><span>Belge tarihi</span><input type="date" name="date" value="${App.today()}"></label>
+          <label class="field"><span>Sayı</span><input name="no" placeholder="Örn. E-12345678-000-1234"></label></div>
+        <label class="field"><span>Konu</span><input name="subject" value="${h(val('doc_subject'))}"></label>
+        <label class="check"><input type="checkbox" name="header" ${val('doc_print_header') === '1' ? 'checked' : ''}><span></span>Antet ve logoyu yazdır (hazır antetli kağıda basarken kapatın)</label>
+        <label class="field" data-headtext><span>Antet satırları</span><textarea name="headerText" rows="3">${h(val('doc_header'))}</textarea></label>
+        <label class="field"><span>Metin <small>· {tarih} ve {ad} otomatik doldurulur</small></span><textarea name="intro" rows="6">${h(val('doc_intro'))}</textarea></label>
+        <label class="field"><span>Ek açıklama (isteğe bağlı, tablonun altına)</span><textarea name="extra" rows="2"></textarea></label>
+        <div class="grid2"><label class="field"><span>Tebliğ eden ad soyad</span><input name="signerName" value="${h(val('doc_signer_name') || me.name)}"></label>
+          <label class="field"><span>Tebliğ eden unvan</span><input name="signerTitle" value="${h(val('doc_signer_title'))}"></label></div>
+        <label class="field"><span>Personelin unvanı</span><input name="staffTitle" value="${h(val('doc_staff_title'))}"></label>
+        <label class="check"><input type="checkbox" name="desc" checked><span></span>İş açıklamalarını ve notları göster</label>
+        <label class="check"><input type="checkbox" name="shared"><span></span>Ortak (herkesin yapabileceği) işleri de ekle</label>
+        <label class="check"><input type="checkbox" name="remember"><span></span>Antet, metin ve imza bilgilerini sonraki belgeler için hatırla</label>
+      </form>
+      <div class="doc-preview-wrap"><div class="doc-preview-label muted small">Önizleme · A4</div><div class="doc-preview"><div class="doc-scale"></div></div></div></div>`,
+      actions: [{ label: 'Kapat', cls: 'ghost' }, { label: 'Yazdır', cls: 'primary', icon: 'printer', onClick: async (mm) => {
+        const f = read();
+        if (f.remember) {
+          await api('doc_settings_save', { doc_header: f.headerText, doc_intro: f.intro, doc_signer_name: f.signerName, doc_signer_title: f.signerTitle,
+            doc_staff_title: f.staffTitle, doc_subject: f.subject, doc_print_header: f.header ? '1' : '0' });
+        }
+        printDoc(docHtml(u, plansFor(f), f));
+        return false;
+      } }],
+    });
+    const form = $('form', m.body);
+    const read = () => {
+      const o = App.formData(form);
+      ['header', 'desc', 'shared', 'remember'].forEach((k) => { o[k] = form[k].checked; });
+      if (!o.date) o.date = App.today();
+      return o;
+    };
+    const plansFor = (f) => sortPlans(all.filter((p) => p.user_id == u.id || (f.shared && !p.user_id)).filter((p) => !p.end_date || p.end_date >= f.date));
+    const scale = $('.doc-scale', m.body);
+    const draw = () => {
+      if (!m.root.isConnected) { window.removeEventListener('resize', draw); return; }
+      const f = read();
+      $('[data-headtext]', m.body).style.display = f.header ? '' : 'none';
+      scale.innerHTML = docHtml(u, plansFor(f), f);
+      const box = $('.doc-preview', m.body);
+      const k = box.clientWidth / scale.firstElementChild.offsetWidth;
+      scale.style.transform = `scale(${k})`;
+      box.style.height = scale.firstElementChild.offsetHeight * k + 'px';
+    };
+    let t;
+    form.addEventListener('input', () => { clearTimeout(t); t = setTimeout(draw, 120); });
+    form.addEventListener('change', draw);
+    requestAnimationFrame(draw);
+    window.addEventListener('resize', draw, { passive: true });
+  }
+
   async function viewUsers(v) {
     v.innerHTML = head('Personel', 'Personel telefonundan bu sitenin adresini açıp kendi kullanıcı adıyla giriş yapar', `
       <button class="btn" data-link>${icon('phone')}<span>Giriş adresini kopyala</span></button>
@@ -3094,11 +3268,13 @@ window.__runAdmin = function () {
       <div class="foot">
         <a class="btn sm ghost" href="#/atamalar" data-plans="${u.id}">${icon('list')}<span>İşleri</span></a>
         ${u.role !== 'admin' ? `<button class="btn sm ghost" data-leave="${u.id}">${icon('calendar')}<span>İzin</span></button>` : ''}
+        ${u.role !== 'admin' ? `<button class="btn sm ghost" data-doc="${u.id}" title="Görev tebliğ belgesi">${icon('doc')}<span>Tebliğ</span></button>` : ''}
         <button class="btn sm ghost" data-edit="${u.id}">${icon('edit')}<span>Düzenle</span></button>
         ${u.id !== me.id ? `<button class="btn sm ghost danger" data-del="${u.id}">${icon('trash')}</button>` : ''}</div></div>`).join('') + '</div>';
     $$('[data-plans]', box).forEach((a) => (a.onclick = () => { sessionStorage.setItem('istakip.pu', a.dataset.plans); sessionStorage.removeItem('istakip.pl'); }));
     $$('[data-edit]', box).forEach((b) => (b.onclick = () => edit(users.find((u) => u.id == b.dataset.edit))));
     $$('[data-leave]', box).forEach((b) => (b.onclick = () => leaveModal(users.find((u) => u.id == b.dataset.leave))));
+    $$('[data-doc]', box).forEach((b) => (b.onclick = () => docModal(users.find((u) => u.id == b.dataset.doc)).catch(App.err)));
     $$('[data-del]', box).forEach((b) => (b.onclick = async () => {
       const u = users.find((x) => x.id == b.dataset.del);
       if (u.plan_count) {

@@ -904,6 +904,12 @@
       Object.assign(S.settings, { company_name: name, work_days: wd.join(','), holidays: [...new Set(hol)].sort().join('\n') });
       save(); return null;
     },
+    async doc_settings_save(b) {
+      needAdmin();
+      const lim = { doc_header: 600, doc_intro: 3000, doc_signer_name: 120, doc_signer_title: 160, doc_staff_title: 120, doc_subject: 200, doc_print_header: 1 };
+      Object.keys(lim).forEach((k) => { S.settings[k] = String(b[k] == null ? '' : b[k]).trim().slice(0, lim[k]); });
+      save(); return null;
+    },
     async password(b) { if (!b.new || b.new.length < 6) err('Yeni şifre en az 6 karakter olmalı.'); return null; },
     async me() { return me(); },
   };
