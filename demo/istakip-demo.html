@@ -807,7 +807,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v8';
+  const KEY = 'istakip-demo-v9';
   const store = {
     get() {
       try { const v = localStorage.getItem(KEY); if (v) return JSON.parse(v); } catch (e) { /* yoksay */ }
@@ -994,7 +994,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
       .forEach((n, i) => { L[n] = add('locations', { name: n, description: null, sort_order: i, active: 1, created_at: now }); });
     const P = [
       ['Sabah Açılış', '#f59e0b', 'Mesai başlangıcında yapılacak işler', [
-        ['Kapıların açılması', 'daily', 1, null, null, '07:45'], ['Kazanın fişinin devreye alınması', 'daily', 1, null, null, '07:45']]],
+        ['Kapıların açılması', 'daily', 1, null, null, '07:45'], ['Çay kazanının fişinin devreye alınması', 'daily', 1, null, null, '07:45']]],
       ['Tuvalet Temizliği', '#06b6d4', 'Her tuvalet için günlük temizlik ve sarf malzeme', [
         ['Tuvalet kontrolü', 'daily', 1, null, null, '09:00', '09:00,11:30,14:00,16:30'],
         ['Lavaboların temizliği', 'daily', 1, null, null, '10:00'], ['Ayna ve klozetlerin temizlenmesi', 'daily', 1, null, null, '10:00'],
@@ -1039,7 +1039,8 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
           start_date: start, end_date: null, note: null, active: 1, created_at: now });
       });
     };
-    apply('Sabah Açılış', 'Ana Giriş (Bahçe)', mahmut, ['Kapıların açılması', 'Kazanın fişinin devreye alınması']);
+    apply('Sabah Açılış', 'Ana Giriş (Bahçe)', mahmut, ['Kapıların açılması']);
+    apply('Sabah Açılış', 'Çay Ocağı', deniz, ['Çay kazanının fişinin devreye alınması']);
     apply('Destek Hizmetleri', 'Ana Giriş (Bahçe)', mahmut, ['Pil geri dönüşüm kutusu']);
     apply('Ofis Genel Temizlik', 'Ana Giriş (Bahçe)', yalcin, ['Zemin temizliği', 'Paspas']);
     apply('Destek Hizmetleri', 'Arşiv', mahmut, ['Arşivin düzenlenmesi', 'Yangın şaft dolaplarının kontrolü']);
@@ -1066,11 +1067,11 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
       'Makam Koridoru': ofis.concat(['Toplantı odasının hazırlanması (su, soda)', 'Günlük yemek götürme']),
       'Tuvalet Erkek': tuv,
       'Tuvalet Kadın': tuv,
-      'Ana Giriş (Bahçe)': ['Kapıların açılması', 'Kazanın fişinin devreye alınması', 'Zemin temizliği', 'Paspas', 'Camların silinmesi', 'Pil geri dönüşüm kutusu'],
+      'Ana Giriş (Bahçe)': ['Kapıların açılması', 'Zemin temizliği', 'Paspas', 'Camların silinmesi', 'Pil geri dönüşüm kutusu'],
       'YÖK Girişi (Asansör)': ['Asansör temizliği', 'Zemin temizliği', 'Paspas', 'Camların silinmesi'],
       'Fotokopi Alanı': ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Kağıt öğütücü haznesi', 'Çöplerin toplanması'],
       'Arşiv': ['Arşivin düzenlenmesi', 'Evrak taşıma', 'Yangın şaft dolaplarının kontrolü'],
-      'Çay Ocağı': ['Çay ocağı ve ortak alan çöplerinin toplanması', 'Su sebili', 'Zemin temizliği', 'Kağıt havlu'],
+      'Çay Ocağı': ['Çay kazanının fişinin devreye alınması', 'Çay ocağı ve ortak alan çöplerinin toplanması', 'Su sebili', 'Zemin temizliği', 'Kağıt havlu'],
     }).forEach(([loc, tasks]) => tasks.forEach((t) => {
       if (!S.links.some((x) => x.location_id === L[loc].id && x.task_id === T[t].id)) S.links.push({ location_id: L[loc].id, task_id: T[t].id });
     }));

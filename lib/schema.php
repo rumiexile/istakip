@@ -309,7 +309,7 @@ function schema_seed(PDO $pdo): void
     $packages = [
         ['Sabah Açılış', '#f59e0b', 'Mesai başlangıcında yapılacak işler', [
             ['Kapıların açılması', 'daily', 1, null, null, '07:45'],
-            ['Kazanın fişinin devreye alınması', 'daily', 1, null, null, '07:45'],
+            ['Çay kazanının fişinin devreye alınması', 'daily', 1, null, null, '07:45'],
         ]],
         ['Tuvalet Temizliği', '#06b6d4', 'Her tuvalet için günlük temizlik ve sarf malzeme', [
             ['Tuvalet kontrolü', 'daily', 1, null, null, '09:00', '09:00,11:30,14:00,16:30'],
@@ -378,11 +378,11 @@ function schema_seed(PDO $pdo): void
         'Makam Koridoru' => array_merge($ofis, ['Toplantı odasının hazırlanması (su, soda)', 'Günlük yemek götürme']),
         'Tuvalet Erkek' => $tuvalet,
         'Tuvalet Kadın' => $tuvalet,
-        'Ana Giriş (Bahçe)' => ['Kapıların açılması', 'Kazanın fişinin devreye alınması', 'Zemin temizliği', 'Paspas', 'Camların silinmesi', 'Pil geri dönüşüm kutusu'],
+        'Ana Giriş (Bahçe)' => ['Kapıların açılması', 'Zemin temizliği', 'Paspas', 'Camların silinmesi', 'Pil geri dönüşüm kutusu'],
         'YÖK Girişi (Asansör)' => ['Asansör temizliği', 'Zemin temizliği', 'Paspas', 'Camların silinmesi'],
         'Fotokopi Alanı' => ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Kağıt öğütücü haznesi', 'Çöplerin toplanması'],
         'Arşiv' => ['Arşivin düzenlenmesi', 'Evrak taşıma', 'Yangın şaft dolaplarının kontrolü'],
-        'Çay Ocağı' => ['Çay ocağı ve ortak alan çöplerinin toplanması', 'Su sebili', 'Zemin temizliği', 'Kağıt havlu'],
+        'Çay Ocağı' => ['Çay kazanının fişinin devreye alınması', 'Çay ocağı ve ortak alan çöplerinin toplanması', 'Su sebili', 'Zemin temizliği', 'Kağıt havlu'],
     ];
     $pairs = [];
     foreach ($map as $loc => $tasks) {
@@ -400,7 +400,8 @@ function schema_seed(PDO $pdo): void
  * demo/mock.js içindeki apply() çağrılarıyla aynıdır.
  */
 const DEMO_ASSIGNMENTS = [
-    ['Sabah Açılış', 'Ana Giriş (Bahçe)', 'mahmut.demirel', ['Kapıların açılması', 'Kazanın fişinin devreye alınması']],
+    ['Sabah Açılış', 'Ana Giriş (Bahçe)', 'mahmut.demirel', ['Kapıların açılması']],
+    ['Sabah Açılış', 'Çay Ocağı', 'deniz.karabulut', ['Çay kazanının fişinin devreye alınması']],
     ['Destek Hizmetleri', 'Ana Giriş (Bahçe)', 'mahmut.demirel', ['Pil geri dönüşüm kutusu']],
     ['Ofis Genel Temizlik', 'Ana Giriş (Bahçe)', 'yalcin.bicakci', ['Zemin temizliği', 'Paspas']],
     ['Destek Hizmetleri', 'Arşiv', 'mahmut.demirel', ['Arşivin düzenlenmesi', 'Yangın şaft dolaplarının kontrolü']],
