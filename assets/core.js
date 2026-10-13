@@ -180,6 +180,85 @@
     }
   };
 
+  /** Tam ekran havai fişek (canvas); süre sonunda kendini kaldırır */
+  App.fireworks = (ms) => {
+    if (reduce) return () => {};
+    const cv = document.createElement('canvas');
+    cv.className = 'fireworks';
+    document.body.appendChild(cv);
+    const ctx = cv.getContext('2d');
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const fit = () => { cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); };
+    fit();
+    const colors = ['#fde047', '#f59e0b', '#f472b6', '#818cf8', '#22d3ee', '#34d399', '#fb7185', '#ffffff'];
+    const rockets = [], sparks = [];
+    const end = performance.now() + (ms || 3200);
+    let last = 0, raf;
+    const launch = () => {
+      const x = innerWidth * (0.15 + Math.random() * 0.7);
+      rockets.push({ x, y: innerHeight + 10, px: x, py: innerHeight + 10, vx: (Math.random() - 0.5) * 1.5, vy: -(14 + Math.random() * 4),
+        top: innerHeight * (0.12 + Math.random() * 0.3), c: colors[(Math.random() * colors.length) | 0] });
+    };
+    const burst = (r) => {
+      const n = 48 + ((Math.random() * 30) | 0), c2 = colors[(Math.random() * colors.length) | 0];
+      for (let i = 0; i < n; i++) {
+        const a = (Math.PI * 2 * i) / n + Math.random() * 0.2, v = 2 + Math.random() * 4.2;
+        sparks.push({ x: r.x, y: r.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1, decay: 0.012 + Math.random() * 0.014, c: i % 3 ? r.c : c2, s: 1.4 + Math.random() * 1.8 });
+      }
+    };
+    const tick = (t) => {
+      raf = requestAnimationFrame(tick);
+      if (t < end && t - last > 330) { last = t; launch(); if (Math.random() < 0.45) launch(); }
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = 'rgba(0,0,0,.24)';
+      ctx.fillRect(0, 0, innerWidth, innerHeight);
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = rockets.length - 1; i >= 0; i--) {
+        const r = rockets[i];
+        r.px = r.x; r.py = r.y; r.x += r.vx; r.y += r.vy; r.vy += 0.16;
+        ctx.strokeStyle = r.c; ctx.lineWidth = 2.6; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(r.px, r.py); ctx.lineTo(r.x, r.y); ctx.stroke();
+        if (r.y <= r.top || r.vy >= -1) { burst(r); rockets.splice(i, 1); }
+      }
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const s = sparks[i];
+        s.x += s.vx; s.y += s.vy; s.vx *= 0.985; s.vy = s.vy * 0.985 + 0.06; s.life -= s.decay;
+        if (s.life <= 0) { sparks.splice(i, 1); continue; }
+        ctx.globalAlpha = s.life; ctx.fillStyle = s.c; ctx.beginPath(); ctx.arc(s.x, s.y, s.s, 0, 7); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      if (t > end && !rockets.length && !sparks.length) stop();
+    };
+    const stop = () => { cancelAnimationFrame(raf); removeEventListener('resize', fit); cv.classList.add('out'); setTimeout(() => cv.remove(), 500); };
+    addEventListener('resize', fit);
+    // Açılışta beklemeden birkaç patlama
+    [[0.25, 0.2], [0.75, 0.26], [0.5, 0.12], [0.18, 0.4], [0.82, 0.36]].forEach(([fx, fy], i) => setTimeout(() => {
+      burst({ x: innerWidth * fx, y: innerHeight * fy, c: colors[(Math.random() * colors.length) | 0] });
+    }, i * 220));
+    raf = requestAnimationFrame(tick);
+    return stop;
+  };
+
+  /** Havai fişekli, büyük yıldızlı kutlama penceresi */
+  App.celebrate = ({ title, text, html, button }) => {
+    const stop = App.fireworks(3600);
+    const star = '<svg viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></svg>';
+    const back = App.el(`<div class="celebrate-back" role="dialog" aria-modal="true" aria-label="${App.h(title)}">
+      <div class="celebrate glass">
+        <div class="celebrate-star"><span class="ring"></span><span class="ring r2"></span><span class="rays"></span>
+          <span class="core">${star}</span>${'<i class="sp"></i>'.repeat(8)}</div>
+        <h2>${App.h(title)}</h2>${text ? `<p>${App.h(text)}</p>` : ''}${html || ''}
+        <button class="btn primary block" type="button">${App.h(button || 'Teşekkürler')}</button></div></div>`);
+    const close = () => { if (back.classList.contains('closing')) return; back.classList.add('closing'); stop(); setTimeout(() => back.remove(), 320); };
+    back.querySelector('button').onclick = close;
+    back.addEventListener('pointerdown', (e) => { if (e.target === back) close(); });
+    const onKey = (e) => { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
+    document.addEventListener('keydown', onKey);
+    document.body.appendChild(back);
+    back.querySelectorAll('.sp').forEach((s, i) => { s.style.setProperty('--a', (i * 45) + 'deg'); s.style.animationDelay = (0.55 + (i % 4) * 0.12) + 's'; });
+    return close;
+  };
+
   App.countUp = (el, to, dur) => {
     if (!el) return;
     const from = parseInt(el.dataset.v || '0', 10) || 0;

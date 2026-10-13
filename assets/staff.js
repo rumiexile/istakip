@@ -267,20 +267,23 @@
     area.innerHTML = html;
   }
 
-  /** Yöneticinin kontrol ettiği işler için bir kez gösterilen bildirim */
+  /** Yöneticinin kontrol ettiği işler için bir kez gösterilen kutlama */
+  const shownInspections = new Set();
   function notifyInspections(list) {
-    if (!list.length) return;
+    list = list.filter((x) => !shownInspections.has(x.id));
+    if (!list.length || document.querySelector('.celebrate-back')) return;
+    list.forEach((x) => shownInspections.add(x.id));
     const one = list[0];
-    const msg = list.length === 1
-      ? `“${one.task}” işiniz yönetici tarafından kontrol edildi.`
-      : `${list.length} işiniz yönetici tarafından kontrol edildi.`;
-    App.toast(msg, 'insp', { duration: 6000, action: list.length > 1 ? 'Gör' : null, onAction: () => App.modal({
-      title: 'Yönetici kontrol etti',
-      body: '<div class="list">' + list.map((x) => `<div class="row"><span class="star big">${icon('star')}</span>
-        <div><div class="title">${h(x.task)}</div><div class="sub"><span>${h(x.location)}</span><span>${h(App.fmtDate(String(x.occ_date).slice(0, 10)))}</span></div></div>
-        <span class="small muted nowrap">${h(x.inspected_name || '')}<br>${h(App.relDay(x.inspected_at))} ${h(App.fmtTime(x.inspected_at))}</span></div>`).join('') + '</div>',
-      actions: [{ label: 'Tamam', cls: 'primary' }],
-    }) });
+    const rows = list.slice(0, 3).map((x) => `<div class="cel-row"><span class="star">${icon('star')}</span>
+      <div><b>${h(x.task)}</b><small>${h(x.location)} · ${h(App.fmtDate(String(x.occ_date).slice(0, 10)))}</small></div></div>`).join('')
+      + (list.length > 3 ? `<p class="muted small cel-more">ve ${list.length - 3} iş daha</p>` : '');
+    const by = one.inspected_name ? one.inspected_name + ' kontrol etti' : 'Yönetici kontrol etti';
+    App.celebrate({
+      title: list.length === 1 ? 'Harika iş!' : `Harika iş! ${list.length} işiniz kontrol edildi`,
+      text: list.length === 1 ? `İşiniz yönetici tarafından kontrol edildi.` : 'Yaptığınız işler yönetici tarafından kontrol edildi.',
+      html: `<div class="cel-list">${rows}</div><p class="cel-by">${h(by)} · ${h(App.relDay(one.inspected_at))} ${h(App.fmtTime(one.inspected_at))}</p>`,
+      button: 'Teşekkürler',
+    });
     App.api('inspections_seen', {}).catch(() => {});
   }
 
