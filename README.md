@@ -5,7 +5,7 @@ Yönetici işleri ve iş paketlerini (şablonları) tanımlar, bunları mekanlar
 siteyi açıp işleri işaretler. Yönetici de geciken ve yapılmayan işleri anlık olarak görür.
 
 - **Saf PHP + MySQL**, framework veya derleme adımı yok. cPanel'li her paylaşımlı hostingde (WordPress sitenizin yanında) çalışır.
-- PHP 7.4+ (8.x önerilir), MySQL 5.7+ / MariaDB 10.3+ (veya küçük kurulumlar için SQLite).
+- PHP 8.0+ (8.1 veya üzeri önerilir), MySQL 5.7+ / MariaDB 10.3+ (veya küçük kurulumlar için SQLite).
 - Mobil uyumlu, “Ana ekrana ekle” ile uygulama gibi açılır.
 
 ## Özellikler
