@@ -54,6 +54,10 @@ hâlâ yapılmamışsa o tekrar **yapılmadı** olarak kaydedilir ve raporlara d
    Mahmut Demirel, Mumin Tekin, Yalçın Bıçakcı. Kullanıcı adları `ad.soyad` biçimindedir (örn. `aysel.akman`).
    Geçici şifreler kurulum bitince **bir kez** gösterilir. Not alıp personele iletin.
    Uygulama daha önce kurulduysa aynı kişileri yönetici panelinde **Personel → Ön tanımlı personeli ekle** butonuyla ekleyebilirsiniz.
+   “Demodaki iş dağılımını da yükle” seçeneği (personel ve örnek veri seçiliyken) demodaki atamaların aynısını
+   kurulum gününden başlayarak oluşturur: tuvaletler Aysel Akman ve Gülnaz Yalçın'a, ofisler Deniz Karabulut ve Mumin Tekin'e,
+   sabah açılışı ve arşiv Mahmut Demirel'e, çay ocağı Yalçın Bıçakcı'ya; toplantı odası işleri ortaktır.
+   Dağılım sonradan **İş Atamaları** ekranından değiştirilebilir.
 4. **Güvenlik:** Kurulumdan sonra `install.php` dosyasını silin. Sitede **SSL (https)** açık olsun
    (cPanel → *SSL/TLS Status* → AutoSSL).
 5. **Personeli ekleyin:** Yönetici paneli → *Personel*. “Giriş adresini kopyala” butonuyla adresi personele gönderin.

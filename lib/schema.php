@@ -391,3 +391,65 @@ function schema_seed(PDO $pdo): void
     }
     link_pairs($pdo, $pairs);
 }
+
+/**
+ * Demodaki iş dağılımı: [paket, mekan, personel kullanıcı adı (null = ortak), [işler] (null = paketin tamamı)].
+ * demo/mock.js içindeki apply() çağrılarıyla aynıdır.
+ */
+const DEMO_ASSIGNMENTS = [
+    ['Sabah Açılış', 'Ana Giriş', 'mahmut.demirel', ['Kapıların açılması']],
+    ['Sabah Açılış', 'Kazan Dairesi', 'mahmut.demirel', ['Kazanın fişinin devreye alınması']],
+    ['Tuvalet Temizliği', 'Kat 1 - Tuvaletler', 'aysel.akman', null],
+    ['Tuvalet Temizliği', 'Kat 2 - Tuvaletler', 'gulnaz.yalcin', null],
+    ['Ofis Genel Temizlik', 'Kat 1 - Ofisler', 'deniz.karabulut', ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi']],
+    ['Ofis Genel Temizlik', 'Kat 1 - Ofisler', 'aysel.akman', ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Kağıt öğütücü haznesi']],
+    ['Ofis Genel Temizlik', 'Kat 2 - Ofisler', 'mumin.tekin', ['Çöplerin toplanması', 'Süpürme', 'Halıların gezilmesi ve fırçalanması']],
+    ['Çay Ocağı ve Ortak Alan', 'Çay Ocağı', 'yalcin.bicakci', null],
+    ['Destek Hizmetleri', 'Toplantı Odası', null, ['Toplantı odasının hazırlanması (su, soda)', 'Günlük yemek götürme', 'Evrak taşıma']],
+    ['Destek Hizmetleri', 'Arşiv', 'mahmut.demirel', ['Arşivin düzenlenmesi', 'Yangın şaft dolaplarının kontrolü']],
+    ['Destek Hizmetleri', 'Ana Giriş', 'mahmut.demirel', ['Pil geri dönüşüm kutusu']],
+    ['Ofis Genel Temizlik', 'Fotokopi Alanı', 'deniz.karabulut', ['Kağıt öğütücü haznesi']],
+    ['Tuvalet Temizliği', 'Çay Ocağı', 'yalcin.bicakci', ['Kağıt havlu']],
+    ['Destek Hizmetleri', 'Asansör', 'mumin.tekin', ['Asansör temizliği']],
+];
+
+/**
+ * Örnek verilerin üzerine demodaki iş atamalarını kurar (paketteki sıklık ve saatlerle, bugünden başlayarak).
+ * Personel ya da örnek veri eksikse ilgili satırlar atlanır.
+ * @return int oluşturulan atama sayısı
+ */
+function schema_seed_assignments(PDO $pdo): int
+{
+    $now = date('Y-m-d H:i:s');
+    $today = date('Y-m-d');
+    $pkg = array_column($pdo->query('SELECT id, name FROM packages')->fetchAll(), 'id', 'name');
+    $loc = array_column($pdo->query('SELECT id, name FROM locations WHERE active = 1')->fetchAll(), 'id', 'name');
+    $usr = array_column($pdo->query('SELECT id, username FROM users WHERE active = 1')->fetchAll(), 'id', 'username');
+    $items = $pdo->prepare('SELECT pi.*, t.name AS task_name FROM package_items pi JOIN tasks t ON t.id = pi.task_id WHERE pi.package_id = ? ORDER BY pi.sort_order');
+    $dup = $pdo->prepare('SELECT 1 FROM plans WHERE active = 1 AND task_id = ? AND location_id = ?');
+    $ins = $pdo->prepare('INSERT INTO plans (task_id, location_id, user_id, package_id, freq_type, freq_interval, weekdays, month_day, due_time, times, start_date, active, created_at)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)');
+    $created = 0;
+    $pairs = [];
+    foreach (DEMO_ASSIGNMENTS as [$pname, $lname, $username, $only]) {
+        if (!isset($pkg[$pname], $loc[$lname]) || ($username !== null && !isset($usr[$username]))) {
+            continue;
+        }
+        $items->execute([$pkg[$pname]]);
+        foreach ($items->fetchAll() as $it) {
+            if ($only !== null && !in_array($it['task_name'], $only, true)) {
+                continue;
+            }
+            $dup->execute([$it['task_id'], $loc[$lname]]);
+            if ($dup->fetchColumn()) {
+                continue;
+            }
+            $ins->execute([$it['task_id'], $loc[$lname], $username === null ? null : $usr[$username], $pkg[$pname],
+                $it['freq_type'], $it['freq_interval'], $it['weekdays'], $it['month_day'], $it['due_time'], $it['times'], $today, $now]);
+            $pairs[] = [$loc[$lname], (int)$it['task_id']];
+            $created++;
+        }
+    }
+    link_pairs($pdo, $pairs);
+    return $created;
+}

@@ -10,6 +10,7 @@ $installed = is_file(APP_ROOT . '/config.php');
 $error = null;
 $done = false;
 $staffCreated = [];
+$assigned = 0;
 $v = fn(string $k, string $def = '') => e((string)($_POST[$k] ?? $def));
 
 if (!$installed && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
@@ -69,6 +70,9 @@ if (!$installed && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         }
         if (!empty($_POST['seed'])) {
             schema_seed($pdo);
+            if (!empty($_POST['assign']) && !empty($_POST['staff'])) {
+                $assigned = schema_seed_assignments($pdo);
+            }
         }
 
         $config = [
@@ -110,6 +114,9 @@ $driver = $_POST['driver'] ?? 'mysql';
 <?php elseif ($done): ?>
     <h1>Kurulum tamamlandı 🎉</h1>
     <p class="muted">Yönetici hesabınızla giriş yapabilirsiniz. Güvenlik için <code>install.php</code> dosyasını sunucudan silmeniz önerilir.</p>
+    <?php if ($assigned): ?>
+    <div class="alert info"><b><?= (int)$assigned ?> iş ataması</b> demodaki dağılımla oluşturuldu. Değiştirmek için yönetici panelinde <b>İş Atamaları</b> ekranını kullanın.</div>
+    <?php endif; ?>
     <?php if ($staffCreated): ?>
     <div class="alert info"><b>Personel giriş bilgileri.</b> Bu şifreler yalnızca şimdi gösterilir; not alıp personele iletin.
       Unutulan şifreyi yönetici panelinde <b>Personel → Düzenle</b> ekranından yenileyebilirsiniz.</div>
@@ -150,6 +157,7 @@ $driver = $_POST['driver'] ?? 'mysql';
         </div>
         <label class="check"><input type="checkbox" name="staff" value="1" <?= ($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST' || !empty($_POST['staff']) ? 'checked' : '' ?>><span></span>Ön tanımlı personeli ekle: <?= e(implode(', ', array_column(DEFAULT_STAFF, 0))) ?></label>
         <label class="check"><input type="checkbox" name="seed" value="1" <?= ($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST' || !empty($_POST['seed']) ? 'checked' : '' ?>><span></span>Örnek mekanları, işleri ve iş paketi şablonlarını yükle</label>
+        <label class="check" data-assign><input type="checkbox" name="assign" value="1" <?= ($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST' || !empty($_POST['assign']) ? 'checked' : '' ?>><span></span>Demodaki iş dağılımını da yükle (işler yukarıdaki personele atanır)</label>
       </fieldset>
       <button class="btn primary block" type="submit">Kurulumu başlat</button>
     </form>
@@ -163,6 +171,10 @@ $driver = $_POST['driver'] ?? 'mysql';
       var sqlite = f.querySelector('input[name=driver]:checked').value === 'sqlite';
       f.querySelector('.mysql-only').style.display = sqlite ? 'none' : '';
       f.querySelector('.sqlite-only').style.display = sqlite ? '' : 'none';
+      // İş dağılımı, hem personel hem örnek veri yüklenirken anlamlıdır.
+      var ok = f.staff.checked && f.seed.checked, a = f.assign;
+      a.disabled = !ok; if (!ok) a.checked = false;
+      f.querySelector('[data-assign]').style.opacity = ok ? '' : '.5';
     }
     f.addEventListener('change', sync); sync();
   })();
