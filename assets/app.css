@@ -783,10 +783,9 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
   font-family: "Times New Roman", Times, "Liberation Serif", serif; font-size: 11.5pt; line-height: 1.45;
 }
 .doc-page * { color: #111; }
-.doc-head { display: grid; grid-template-columns: 26mm 1fr 26mm; align-items: center; gap: 6mm; padding-bottom: 5mm; margin-bottom: 7mm; border-bottom: 1.2pt solid #1A7EC1; }
-.doc-logo svg { width: 26mm; height: auto; display: block; }
-.doc-logo .l1 { fill: #6BBDEB; } .doc-logo .l2 { fill: #1A7EC1; } .doc-logo .l3 { fill: #27568F; }
-.doc-org { text-align: center; font-weight: 700; font-size: 12.5pt; line-height: 1.35; letter-spacing: .02em; }
+.doc-head { display: flex; align-items: center; justify-content: space-between; gap: 8mm; padding-bottom: 4mm; margin-bottom: 7mm; border-bottom: 1.2pt solid #27568F; }
+.doc-logo { display: block; width: 62mm; height: auto; flex: none; }
+.doc-org { text-align: right; font-weight: 700; font-size: 11pt; line-height: 1.4; letter-spacing: .02em; color: #27568F !important; }
 .doc-head-space { height: 32mm; }
 .doc-meta { display: flex; justify-content: space-between; gap: 8mm; margin-bottom: 1.5mm; }
 .doc-meta span { display: inline-block; min-width: 13mm; font-weight: 700; }

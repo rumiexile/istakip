@@ -41,6 +41,9 @@ demo_css = """
 def wrap(js, name):
     return f'window.{name} = function () {{\n{js}\n}};'
 
+import base64
+antet = 'data:image/png;base64,' + base64.b64encode((root / 'assets/yokak-antet.png').read_bytes()).decode()
+
 html = f"""<title>İş Takip Demo</title>
 <meta name="description" content="Destek personeli günlük iş takip uygulamasının etkileşimli demosu">
 <style>
@@ -73,6 +76,7 @@ html = f"""<title>İş Takip Demo</title>
 (function () {{
   App.api = DEMO.api;
   App.photoUrl = DEMO.photo;
+  App.ANTET = '{antet}';
   App.download = function () {{ App.toast('Demoda dosya indirilemez. Gerçek kurulumda rapor Excel’de açılan bir CSV olarak iner.', 'info', {{ duration: 5000 }}); }};
   App.logout = function () {{ App.toast('Demoda çıkış yok. Görünümü üstteki çubuktan değiştirebilirsiniz.', 'info'); }};
   document.addEventListener('click', function (e) {{

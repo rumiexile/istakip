@@ -105,6 +105,8 @@
 
   App.initials = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toLocaleUpperCase('tr');
   const PAL = [['#6366f1', '#ec4899'], ['#06b6d4', '#6366f1'], ['#10b981', '#06b6d4'], ['#f59e0b', '#ef4444'], ['#8b5cf6', '#06b6d4'], ['#ec4899', '#f59e0b']];
+  /** Antetli belgelerde kullanılan YÖKAK logosu (logo + yazı) */
+  App.ANTET = 'assets/yokak-antet.png';
   App.LOGO = '<svg class="logo" viewBox="185 312 683 400" aria-hidden="true"><path class="l1" d="M191 550H300Q324 550 337 571L357 602L289 706Z"/><path class="l2" d="M314 706L483 444Q503 412 545 411H638L480 657Q450 704 390 706Z"/><path class="l3" d="M449 706Q485 702 503 672L706 352Q727 318 768 317H862L636 672Q614 705 576 706Z"/></svg>';
 
   App.avatar = (name, size) => {

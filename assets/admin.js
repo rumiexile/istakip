@@ -747,7 +747,7 @@
       <div class="doc-line"><span>Tarih</span><b>${'.... / .... / ' + f.date.slice(0, 4)}</b></div>
       <div class="doc-line sig"><span>İmza</span><b></b></div></div>`;
     return `<article class="doc-page${f.header ? '' : ' no-head'}">
-      ${f.header ? `<header class="doc-head"><div class="doc-logo">${App.LOGO}</div><div class="doc-org">${nl2br(f.headerText)}</div><div class="doc-logo ghost"></div></header>` : '<div class="doc-head-space"></div>'}
+      ${f.header ? `<header class="doc-head"><img class="doc-logo" src="${h(App.ANTET)}" alt="Yükseköğretim Kalite Kurulu"><div class="doc-org">${nl2br(f.headerText)}</div></header>` : '<div class="doc-head-space"></div>'}
       <div class="doc-meta"><div><span>Sayı</span>: ${h(f.no || '')}</div><div class="r">${h(trDate(f.date))}</div></div>
       <div class="doc-meta"><div><span>Konu</span>: ${h(f.subject)}</div></div>
       <p class="doc-to">Sayın ${h(u.name)}</p>
