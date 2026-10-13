@@ -351,6 +351,9 @@ function schema_seed(PDO $pdo): void
             ['Bahçe ilaçlaması', 'monthly', 1, null, 5, '10:00'],
             ['Depo düzenlemesi', 'weekly', 1, '5', null, '14:00'],
         ]],
+        ['Fotokopi Alanı Paketi', '#7c3aed', 'Fotokopi alanı ve makine çevresinin düzenli temizliği', [
+            ['Fotokopi makinesinin çevre temizliği', 'weekly', 1, '1,4', null, '15:00'],
+        ]],
     ];
 
     $taskIds = [];
@@ -387,6 +390,7 @@ function schema_seed(PDO $pdo): void
         'Makam Koridoru' => ['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Tuvalet kağıdı ve havlu kağıt kontrolü', 'Sabunluk kontrolü', 'Saatlik lavaboların yapılması', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği', 'Misafir alanı temizliği'],
         'Çay Ocağı' => ['Çay hazırlama', 'Bulaşık Yıkama', 'Çay malzeme eksiklerinin tedarik edilmesi', 'Su/Damacana kontrolü', 'Çaydanlıkların detaylı temizliği', 'Kahve makinesi temizliği', 'Çay Ocağı Zemin Temizliği', 'Yemek görevi', 'Detaylı Çay Ocağı Temizliği', 'Makam ikram tabağı kontrolü', 'Çay ocağı rulosunun değiştirilmesi', 'Toplantıların ikramlarının hazırlanması ve sunumu'],
         'Bahçe ve Otopark' => ['Girişin temizliği, halı temizliği', 'Bahçe çöplerinin toplanması', 'Çiçeklerin bakımı, budama', 'Sulama', 'Yaprak temizliği', 'Ofis ve koridor saksı çiçeklerinin bakımı', 'Kar küreme ve tuzlama işlemleri', 'Bahçe ilaçlaması', 'Depo düzenlemesi'],
+        'Fotokopi Alanı' => ['Fotokopi makinesinin çevre temizliği'],
     ];
     $pairs = [];
     foreach ($map as $loc => $tasks) {
@@ -404,6 +408,7 @@ function schema_seed(PDO $pdo): void
  * demo/mock.js içindeki apply() çağrılarıyla aynıdır.
  */
 const DEMO_ASSIGNMENTS = [
+    ['Fotokopi Alanı Paketi', 'Fotokopi Alanı', 'deniz.karabulut', null],
     ['Bahçe Sorumluluk Paketi', 'Bahçe ve Otopark', 'mahmut.demirel', ['Girişin temizliği, halı temizliği', 'Bahçe çöplerinin toplanması', 'Çiçeklerin bakımı, budama', 'Sulama', 'Yaprak temizliği', 'Ofis ve koridor saksı çiçeklerinin bakımı', 'Bahçe ilaçlaması', 'Depo düzenlemesi']],
     ['Bahçe Sorumluluk Paketi', 'Bahçe ve Otopark', 'mahmut.demirel', ['Kar küreme ve tuzlama işlemleri'], 'winter'],
     ['Koridor İş Paketi', 'Uzman Yardımcıları Koridoru', 'deniz.karabulut', null],

@@ -809,7 +809,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v15';
+  const KEY = 'istakip-demo-v16';
   const store = {
     get() {
       try { const v = localStorage.getItem(KEY); if (v) return JSON.parse(v); } catch (e) { /* yoksay */ }
@@ -1044,6 +1044,8 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
         ['Kar küreme ve tuzlama işlemleri', 'daily', 1, null, null, '07:30'],
         ['Bahçe ilaçlaması', 'monthly', 1, null, 5, '10:00'],
         ['Depo düzenlemesi', 'weekly', 1, '5', null, '14:00']]],
+      ['Fotokopi Alanı Paketi', '#7c3aed', 'Fotokopi alanı ve makine çevresinin düzenli temizliği', [
+        ['Fotokopi makinesinin çevre temizliği', 'weekly', 1, '1,4', null, '15:00']]],
     ];
     const T = {};
     const pk = {};
@@ -1079,6 +1081,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
     };
     apply('Bahçe Sorumluluk Paketi', 'Bahçe ve Otopark', mahmut, ['Girişin temizliği, halı temizliği', 'Bahçe çöplerinin toplanması', 'Çiçeklerin bakımı, budama', 'Sulama', 'Yaprak temizliği', 'Ofis ve koridor saksı çiçeklerinin bakımı', 'Bahçe ilaçlaması', 'Depo düzenlemesi']);
     apply('Bahçe Sorumluluk Paketi', 'Bahçe ve Otopark', mahmut, ['Kar küreme ve tuzlama işlemleri'], 'winter');
+    apply('Fotokopi Alanı Paketi', 'Fotokopi Alanı', deniz);
     apply('Koridor İş Paketi', 'Uzman Yardımcıları Koridoru', deniz);
     apply('Koridor İş Paketi', 'Makam Koridoru', gulnaz);
     apply('Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', aysel);
@@ -1089,6 +1092,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
       'Makam Koridoru': ['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Tuvalet kağıdı ve havlu kağıt kontrolü', 'Sabunluk kontrolü', 'Saatlik lavaboların yapılması', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği', 'Misafir alanı temizliği'],
       'Çay Ocağı': ['Çay hazırlama', 'Bulaşık Yıkama', 'Çay malzeme eksiklerinin tedarik edilmesi', 'Su/Damacana kontrolü', 'Çaydanlıkların detaylı temizliği', 'Kahve makinesi temizliği', 'Çay Ocağı Zemin Temizliği', 'Yemek görevi', 'Detaylı Çay Ocağı Temizliği', 'Makam ikram tabağı kontrolü', 'Çay ocağı rulosunun değiştirilmesi', 'Toplantıların ikramlarının hazırlanması ve sunumu'],
       'Bahçe ve Otopark': ['Girişin temizliği, halı temizliği', 'Bahçe çöplerinin toplanması', 'Çiçeklerin bakımı, budama', 'Sulama', 'Yaprak temizliği', 'Ofis ve koridor saksı çiçeklerinin bakımı', 'Kar küreme ve tuzlama işlemleri', 'Bahçe ilaçlaması', 'Depo düzenlemesi'],
+      'Fotokopi Alanı': ['Fotokopi makinesinin çevre temizliği'],
     }).forEach(([loc, tasks]) => tasks.forEach((t) => {
       if (!S.links.some((x) => x.location_id === L[loc].id && x.task_id === T[t].id)) S.links.push({ location_id: L[loc].id, task_id: T[t].id });
     }));
