@@ -297,6 +297,7 @@ function schema_seed(PDO $pdo): void
         'Fotokopi Alanı',
         'Arşiv',
         'Çay Ocağı',
+        'Bahçe ve Otopark',
     ];
     $st = $pdo->prepare('INSERT INTO locations (name, sort_order, active, created_at) VALUES (?, ?, 1, ?)');
     $locIds = [];
@@ -338,6 +339,17 @@ function schema_seed(PDO $pdo): void
             ['Toplantı odalarında temizlik ve düzen oluşturulması', 'daily', 1, null, null, '08:30'],
             ['Detaylı oda temizliği', 'weekly', 1, '3', null, '14:00'],
         ]],
+        ['Bahçe Sorumluluk Paketi', '#15803d', 'Bahçe, otopark ve giriş çevresi; çiçek bakımı, sulama ve depo işleri', [
+            ['Girişin temizliği, halı temizliği', 'daily', 1, null, null, '08:00'],
+            ['Bahçe çöplerinin toplanması', 'every_n_days', 2, null, null, '10:00'],
+            ['Çiçeklerin bakımı, budama', 'weekly', 1, '3', null, '10:00'],
+            ['Sulama', 'daily', 1, null, null, '08:30'],
+            ['Yaprak temizliği', 'daily', 1, null, null, '11:00'],
+            ['Ofis ve koridor saksı çiçeklerinin bakımı', 'weekly', 1, '1', null, '14:00'],
+            ['Kar küreme ve tuzlama işlemleri', 'daily', 1, null, null, '07:30'],
+            ['Bahçe ilaçlaması', 'monthly', 1, null, 5, '10:00'],
+            ['Depo düzenlemesi', 'weekly', 1, '5', null, '14:00'],
+        ]],
     ];
 
     $taskIds = [];
@@ -364,11 +376,16 @@ function schema_seed(PDO $pdo): void
         $desc->execute(['Makam odası dahil.', $taskIds['Odalarda masa üstü, pencere önü temizliği ve düzeni']]);
     }
 
+    if (isset($taskIds['Kar küreme ve tuzlama işlemleri'])) {
+        $desc->execute(['Kış döneminde (1 Aralık – 15 Mart) her sabah: kar veya buzlanma varsa giriş, yürüyüş yolları ve otopark kürenir ve tuzlanır; yoksa kontrol edilip işaretlenir.', $taskIds['Kar küreme ve tuzlama işlemleri']]);
+    }
+
     // Hangi mekanda hangi işler yapılır
     $map = [
         'Uzman Yardımcıları Koridoru' => ['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Tuvalet kağıdı ve havlu kağıt kontrolü', 'Sabunluk kontrolü', 'Saatlik lavaboların yapılması', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği'],
         'Makam Koridoru' => ['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Tuvalet kağıdı ve havlu kağıt kontrolü', 'Sabunluk kontrolü', 'Saatlik lavaboların yapılması', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği'],
         'Çay Ocağı' => ['Çay hazırlama', 'Bulaşık Yıkama', 'Çay malzeme eksiklerinin tedarik edilmesi', 'Su/Damacana kontrolü', 'Çaydanlıkların detaylı temizliği', 'Kahve makinesi temizliği', 'Çay Ocağı Zemin Temizliği', 'Yemek görevi', 'Detaylı Çay Ocağı Temizliği', 'Makam ikram tabağı kontrolü', 'Çay ocağı rulosunun değiştirilmesi', 'Toplantıların ikramlarının hazırlanması ve sunumu'],
+        'Bahçe ve Otopark' => ['Girişin temizliği, halı temizliği', 'Bahçe çöplerinin toplanması', 'Çiçeklerin bakımı, budama', 'Sulama', 'Yaprak temizliği', 'Ofis ve koridor saksı çiçeklerinin bakımı', 'Kar küreme ve tuzlama işlemleri', 'Bahçe ilaçlaması', 'Depo düzenlemesi'],
     ];
     $pairs = [];
     foreach ($map as $loc => $tasks) {
@@ -386,10 +403,26 @@ function schema_seed(PDO $pdo): void
  * demo/mock.js içindeki apply() çağrılarıyla aynıdır.
  */
 const DEMO_ASSIGNMENTS = [
+    ['Bahçe Sorumluluk Paketi', 'Bahçe ve Otopark', 'mahmut.demirel', ['Girişin temizliği, halı temizliği', 'Bahçe çöplerinin toplanması', 'Çiçeklerin bakımı, budama', 'Sulama', 'Yaprak temizliği', 'Ofis ve koridor saksı çiçeklerinin bakımı', 'Bahçe ilaçlaması', 'Depo düzenlemesi']],
+    ['Bahçe Sorumluluk Paketi', 'Bahçe ve Otopark', 'mahmut.demirel', ['Kar küreme ve tuzlama işlemleri'], 'winter'],
     ['Koridor İş Paketi', 'Uzman Yardımcıları Koridoru', 'deniz.karabulut', null],
     ['Koridor İş Paketi', 'Makam Koridoru', 'gulnaz.yalcin', null],
     ['Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', 'aysel.akman', null],
 ];
+
+/** Kış dönemi: 1 Aralık – 15 Mart. Dönem içindeysek bugünden, değilsek ilk 1 Aralık'tan başlar. */
+function winter_window(string $today): array
+{
+    $y = (int)substr($today, 0, 4);
+    $md = substr($today, 5);
+    if ($md >= '12-01') {
+        return [$today, ($y + 1) . '-03-15'];
+    }
+    if ($md <= '03-15') {
+        return [$today, $y . '-03-15'];
+    }
+    return [$y . '-12-01', ($y + 1) . '-03-15'];
+}
 
 /**
  * Örnek verilerin üzerine demodaki iş atamalarını kurar (paketteki sıklık ve saatlerle, bugünden başlayarak).
@@ -405,11 +438,13 @@ function schema_seed_assignments(PDO $pdo): int
     $usr = array_column($pdo->query('SELECT id, username FROM users WHERE active = 1')->fetchAll(), 'id', 'username');
     $items = $pdo->prepare('SELECT pi.*, t.name AS task_name FROM package_items pi JOIN tasks t ON t.id = pi.task_id WHERE pi.package_id = ? ORDER BY pi.sort_order');
     $dup = $pdo->prepare('SELECT 1 FROM plans WHERE active = 1 AND task_id = ? AND location_id = ?');
-    $ins = $pdo->prepare('INSERT INTO plans (task_id, location_id, user_id, package_id, freq_type, freq_interval, weekdays, month_day, due_time, times, start_date, active, created_at)
-                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)');
+    $ins = $pdo->prepare('INSERT INTO plans (task_id, location_id, user_id, package_id, freq_type, freq_interval, weekdays, month_day, due_time, times, start_date, end_date, active, created_at)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)');
     $created = 0;
     $pairs = [];
-    foreach (DEMO_ASSIGNMENTS as [$pname, $lname, $username, $only]) {
+    foreach (DEMO_ASSIGNMENTS as $row) {
+        [$pname, $lname, $username, $only] = $row;
+        [$start, $end] = ($row[4] ?? null) === 'winter' ? winter_window($today) : [$today, null];
         if (!isset($pkg[$pname], $loc[$lname]) || ($username !== null && !isset($usr[$username]))) {
             continue;
         }
@@ -423,7 +458,7 @@ function schema_seed_assignments(PDO $pdo): int
                 continue;
             }
             $ins->execute([$it['task_id'], $loc[$lname], $username === null ? null : $usr[$username], $pkg[$pname],
-                $it['freq_type'], $it['freq_interval'], $it['weekdays'], $it['month_day'], $it['due_time'], $it['times'], $today, $now]);
+                $it['freq_type'], $it['freq_interval'], $it['weekdays'], $it['month_day'], $it['due_time'], $it['times'], $start, $end, $now]);
             $pairs[] = [$loc[$lname], (int)$it['task_id']];
             $created++;
         }

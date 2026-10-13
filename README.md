@@ -49,14 +49,15 @@ hâlâ yapılmamışsa o tekrar **yapılmadı** olarak kaydedilir ve raporlara d
    - Alternatif olarak bir alt alan adı (örn. `istakip.siteniz.com`) açıp kök klasörünü bu klasör olarak gösterebilirsiniz.
 3. **Kurulum sihirbazı:** Tarayıcıda `https://siteniz.com/istakip/install.php` adresini açın.
    Veritabanı bilgilerini, kurum adını ve yönetici hesabını girin. “Örnek verileri yükle” seçeneği,
-   9 mekanı ve iki iş paketini getirir: **Çay Ocağı Ana Sorumluluk Paketi** (12 iş) ve **Koridor İş Paketi** (15 iş).
+   10 mekanı ve üç iş paketini getirir: **Çay Ocağı Ana Sorumluluk Paketi** (12 iş), **Koridor İş Paketi** (15 iş) ve **Bahçe Sorumluluk Paketi** (9 iş).
    “Ön tanımlı personeli ekle” seçeneği şu kişileri ekler: Aysel Akman, Deniz Karabulut, Gülnaz Yalçın,
    Mahmut Demirel, Mumin Tekin, Yalçın Bıçakcı. Kullanıcı adları `ad.soyad` biçimindedir (örn. `aysel.akman`).
    Geçici şifreler kurulum bitince **bir kez** gösterilir. Not alıp personele iletin.
    Uygulama daha önce kurulduysa aynı kişileri yönetici panelinde **Personel → Ön tanımlı personeli ekle** butonuyla ekleyebilirsiniz.
    “Demodaki iş dağılımını da yükle” seçeneği (personel ve örnek veri seçiliyken) demodaki atamaların aynısını
    kurulum gününden başlayarak oluşturur: Koridor İş Paketi Uzman Yardımcıları Koridoru'nda Deniz Karabulut'a,
-   Makam Koridoru'nda Gülnaz Yalçın'a; Çay Ocağı Ana Sorumluluk Paketi Çay Ocağı'nda Aysel Akman'a atanır.
+   Makam Koridoru'nda Gülnaz Yalçın'a; Çay Ocağı Ana Sorumluluk Paketi Çay Ocağı'nda Aysel Akman'a; Bahçe Sorumluluk Paketi
+   Bahçe ve Otopark'ta Mahmut Demirel'e atanır (kar küreme yalnızca kış döneminde, 1 Aralık – 15 Mart).
    Dağılım sonradan **İş Atamaları** ekranından değiştirilebilir.
 4. **Güvenlik:** Kurulumdan sonra `install.php` dosyasını silin. Sitede **SSL (https)** açık olsun
    (cPanel → *SSL/TLS Status* → AutoSSL).

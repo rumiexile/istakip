@@ -3,7 +3,7 @@
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v13';
+  const KEY = 'istakip-demo-v14';
   const store = {
     get() {
       try { const v = localStorage.getItem(KEY); if (v) return JSON.parse(v); } catch (e) { /* yoksay */ }
@@ -186,7 +186,7 @@
     const mumin = st('Mumin Tekin', 'mumin.tekin');
     const yalcin = st('Yalçın Bıçakcı', 'yalcin.bicakci');
     const L = {};
-    ['Uzman Yardımcıları Koridoru', 'Makam Koridoru', 'Tuvalet Erkek', 'Tuvalet Kadın', 'Ana Giriş (Bahçe)', 'YÖK Girişi (Asansör)', 'Fotokopi Alanı', 'Arşiv', 'Çay Ocağı']
+    ['Uzman Yardımcıları Koridoru', 'Makam Koridoru', 'Tuvalet Erkek', 'Tuvalet Kadın', 'Ana Giriş (Bahçe)', 'YÖK Girişi (Asansör)', 'Fotokopi Alanı', 'Arşiv', 'Çay Ocağı', 'Bahçe ve Otopark']
       .forEach((n, i) => { L[n] = add('locations', { name: n, description: null, sort_order: i, active: 1, created_at: now }); });
     const P = [
       ['Çay Ocağı Ana Sorumluluk Paketi', '#b45309', 'Çay ocağı ana sorumlusunun günlük ve haftalık işleri', [
@@ -218,6 +218,16 @@
         ['Başkanlık yemek getirme', 'daily', 1, null, null, '12:00'],
         ['Toplantı odalarında temizlik ve düzen oluşturulması', 'daily', 1, null, null, '08:30'],
         ['Detaylı oda temizliği', 'weekly', 1, '3', null, '14:00']]],
+      ['Bahçe Sorumluluk Paketi', '#15803d', 'Bahçe, otopark ve giriş çevresi; çiçek bakımı, sulama ve depo işleri', [
+        ['Girişin temizliği, halı temizliği', 'daily', 1, null, null, '08:00'],
+        ['Bahçe çöplerinin toplanması', 'every_n_days', 2, null, null, '10:00'],
+        ['Çiçeklerin bakımı, budama', 'weekly', 1, '3', null, '10:00'],
+        ['Sulama', 'daily', 1, null, null, '08:30'],
+        ['Yaprak temizliği', 'daily', 1, null, null, '11:00'],
+        ['Ofis ve koridor saksı çiçeklerinin bakımı', 'weekly', 1, '1', null, '14:00'],
+        ['Kar küreme ve tuzlama işlemleri', 'daily', 1, null, null, '07:30'],
+        ['Bahçe ilaçlaması', 'monthly', 1, null, 5, '10:00'],
+        ['Depo düzenlemesi', 'weekly', 1, '5', null, '14:00']]],
     ];
     const T = {};
     const pk = {};
@@ -231,17 +241,28 @@
         add('package_items', { package_id: p.id, task_id: T[tn].id, freq_type: ft, freq_interval: iv, weekdays: wd, month_day: md, due_time: dt, times, sort_order: i });
       });
     });
+    T['Kar küreme ve tuzlama işlemleri'].description = 'Kış döneminde (1 Aralık – 15 Mart) her sabah: kar veya buzlanma varsa giriş, yürüyüş yolları ve otopark kürenir ve tuzlanır; yoksa kontrol edilip işaretlenir.';
     T['Odalarda masa üstü, pencere önü temizliği ve düzeni'].description = 'Makam odası dahil.';
     const start = ymd(dn(localToday()) - 28);
-    const apply = (pkgName, locName, user, only) => {
+    // Kış dönemi: 1 Aralık – 15 Mart (lib/schema.php winter_window ile aynı)
+    const winter = () => {
+      const t = localToday(), y = +t.slice(0, 4), md = t.slice(5);
+      if (md >= '12-01') return [t, (y + 1) + '-03-15'];
+      if (md <= '03-15') return [t, y + '-03-15'];
+      return [y + '-12-01', (y + 1) + '-03-15'];
+    };
+    const apply = (pkgName, locName, user, only, season) => {
+      const [s0, e0] = season === 'winter' ? winter() : [start, null];
       S.package_items.filter((i) => i.package_id === pk[pkgName].id).forEach((it) => {
         const tname = S.tasks.find((t) => t.id === it.task_id).name;
         if (only && !only.includes(tname)) return;
         add('plans', { task_id: it.task_id, location_id: L[locName].id, user_id: user ? user.id : null, package_id: pk[pkgName].id,
           freq_type: it.freq_type, freq_interval: it.freq_interval, weekdays: it.weekdays, month_day: it.month_day, due_time: it.due_time, times: it.times,
-          start_date: start, end_date: null, note: null, active: 1, created_at: now });
+          start_date: s0, end_date: e0, note: null, active: 1, created_at: now });
       });
     };
+    apply('Bahçe Sorumluluk Paketi', 'Bahçe ve Otopark', mahmut, ['Girişin temizliği, halı temizliği', 'Bahçe çöplerinin toplanması', 'Çiçeklerin bakımı, budama', 'Sulama', 'Yaprak temizliği', 'Ofis ve koridor saksı çiçeklerinin bakımı', 'Bahçe ilaçlaması', 'Depo düzenlemesi']);
+    apply('Bahçe Sorumluluk Paketi', 'Bahçe ve Otopark', mahmut, ['Kar küreme ve tuzlama işlemleri'], 'winter');
     apply('Koridor İş Paketi', 'Uzman Yardımcıları Koridoru', deniz);
     apply('Koridor İş Paketi', 'Makam Koridoru', gulnaz);
     apply('Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', aysel);
@@ -251,6 +272,7 @@
       'Uzman Yardımcıları Koridoru': ['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Tuvalet kağıdı ve havlu kağıt kontrolü', 'Sabunluk kontrolü', 'Saatlik lavaboların yapılması', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği'],
       'Makam Koridoru': ['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Tuvalet kağıdı ve havlu kağıt kontrolü', 'Sabunluk kontrolü', 'Saatlik lavaboların yapılması', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği'],
       'Çay Ocağı': ['Çay hazırlama', 'Bulaşık Yıkama', 'Çay malzeme eksiklerinin tedarik edilmesi', 'Su/Damacana kontrolü', 'Çaydanlıkların detaylı temizliği', 'Kahve makinesi temizliği', 'Çay Ocağı Zemin Temizliği', 'Yemek görevi', 'Detaylı Çay Ocağı Temizliği', 'Makam ikram tabağı kontrolü', 'Çay ocağı rulosunun değiştirilmesi', 'Toplantıların ikramlarının hazırlanması ve sunumu'],
+      'Bahçe ve Otopark': ['Girişin temizliği, halı temizliği', 'Bahçe çöplerinin toplanması', 'Çiçeklerin bakımı, budama', 'Sulama', 'Yaprak temizliği', 'Ofis ve koridor saksı çiçeklerinin bakımı', 'Kar küreme ve tuzlama işlemleri', 'Bahçe ilaçlaması', 'Depo düzenlemesi'],
     }).forEach(([loc, tasks]) => tasks.forEach((t) => {
       if (!S.links.some((x) => x.location_id === L[loc].id && x.task_id === T[t].id)) S.links.push({ location_id: L[loc].id, task_id: T[t].id });
     }));
