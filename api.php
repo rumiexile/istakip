@@ -147,12 +147,29 @@ function freq_from(array $src): array
     if ($t !== '' && !preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $t)) {
         fail('Saat SS:DD biçiminde olmalı.');
     }
+    // Günde birden çok kez: "09:00,11:30,14:00,16:30"
+    $raw = $src['times'] ?? '';
+    $list = is_array($raw) ? $raw : explode(',', (string)$raw);
+    foreach ($list as $x) {
+        $x = trim((string)$x);
+        if ($x !== '' && !preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $x)) {
+            fail('Saat SS:DD biçiminde olmalı: ' . $x);
+        }
+    }
+    $times = Sched::timesOf(['times' => implode(',', array_map('strval', $list))]);
+    if (count($times) > 12) {
+        fail('Günde en fazla 12 kez seçilebilir.');
+    }
+    if (count($times) > 1) {
+        $t = $times[0];
+    }
     return [
         'freq_type' => $type,
         'freq_interval' => $n,
         'weekdays' => $wd,
         'month_day' => $md,
         'due_time' => $t !== '' ? $t : null,
+        'times' => count($times) > 1 ? implode(',', $times) : null,
     ];
 }
 
@@ -219,14 +236,29 @@ function plans_query(string $where = '1=1', array $params = []): array
               ORDER BY l.sort_order, l.name, p.due_time, t.name", $params)->fetchAll();
 }
 
+/** Hazırlanmış planın istenen kontrolünü (günde birden çok kez yapılan işlerde) döndürür. */
+function slot_plan(Sched $S, array $pp, int $slot): array
+{
+    $slots = $S->slots($pp);
+    if (!isset($slots[$slot])) {
+        fail('Bu iş için böyle bir kontrol yok.');
+    }
+    return $slots[$slot];
+}
+
+function ckey(int $planId, string $ymd, int $slot = 0): string
+{
+    return $planId . '|' . $ymd . '|' . $slot;
+}
+
 function completions_map(string $from, string $to): array
 {
     $map = [];
-    $rows = q('SELECT c.id, c.plan_id, c.occ_date, c.user_id, c.status, c.note, c.photo, c.created_at, u.name AS by_name
+    $rows = q('SELECT c.id, c.plan_id, c.occ_date, c.slot, c.user_id, c.status, c.note, c.photo, c.created_at, u.name AS by_name
                FROM completions c LEFT JOIN users u ON u.id = c.user_id
                WHERE c.occ_date BETWEEN ? AND ?', [$from, $to])->fetchAll();
     foreach ($rows as $r) {
-        $map[$r['plan_id'] . '|' . substr((string)$r['occ_date'], 0, 10)] = $r;
+        $map[ckey((int)$r['plan_id'], substr((string)$r['occ_date'], 0, 10), (int)($r['slot'] ?? 0))] = $r;
     }
     return $map;
 }
@@ -271,6 +303,9 @@ function item_out(array $p, int $occ, ?array $c, string $status): array
         'color' => $p['package_color'] ?: null,
         'due_time' => $p['due_time'],
         'freq' => Sched::label($p),
+        'slot' => (int)($p['_slot'] ?? 0),
+        'slot_count' => (int)($p['_slots'] ?? 1),
+        'opens_at' => $p['_prev_slot_time'] ?? null,
         'kind' => $p['task_kind'] ?? 'normal',
         'note' => $p['note'],
         'status' => $status,
@@ -309,18 +344,20 @@ function day_items(Sched $S, array $plans, int $day): array
         if ($occ === null) {
             continue;
         }
-        $c = $cmap[$p['id'] . '|' . Sched::ymd($occ)] ?? null;
-        if ($occ < $day) {
-            // Önceki tekrardan devreden iş: yalnızca o gün hâlâ açıksa göster.
-            if ($c && substr((string)$c['created_at'], 0, 10) < Sched::ymd($day)) {
+        foreach ($S->slots($p) as $ps) {
+            $c = $cmap[ckey((int)$p['id'], Sched::ymd($occ), $ps['_slot'])] ?? null;
+            if ($occ < $day) {
+                // Önceki tekrardan devreden iş: yalnızca o gün hâlâ açıksa göster.
+                if ($c && substr((string)$c['created_at'], 0, 10) < Sched::ymd($day)) {
+                    continue;
+                }
+            }
+            $st = occ_status($S, $ps, $occ, $c, $today, $nowHm, $leaves);
+            if (($st === 'missed' || $st === 'leave') && $occ < $day) {
                 continue;
             }
+            $items[] = item_out($ps, $occ, $c, $st);
         }
-        $st = occ_status($S, $p, $occ, $c, $today, $nowHm, $leaves);
-        if (($st === 'missed' || $st === 'leave') && $occ < $day) {
-            continue;
-        }
-        $items[] = item_out($p, $occ, $c, $st);
     }
     return $items;
 }
@@ -505,8 +542,10 @@ try {
             foreach ($plans as $p) {
                 $p = $S->prep($p);
                 foreach ($S->occurrences($p, $from, $today) as $o) {
-                    $c = $cmap[$p['id'] . '|' . Sched::ymd($o)] ?? null;
-                    $days[$o]['items'][] = ['status' => occ_status($S, $p, $o, $c, $today, $nowHm, $leaves)];
+                    foreach ($S->slots($p) as $ps) {
+                        $c = $cmap[ckey((int)$p['id'], Sched::ymd($o), $ps['_slot'])] ?? null;
+                        $days[$o]['items'][] = ['status' => occ_status($S, $ps, $o, $c, $today, $nowHm, $leaves)];
+                    }
                 }
             }
             out(array_values(array_map(function ($d) {
@@ -584,25 +623,29 @@ try {
                 fail('Bu iş size atanmamış.', 403);
             }
             $S = Sched::fromSettings();
-            $pp = $S->prep($p);
+            $slot = i_in('slot', 0);
+            $pp = slot_plan($S, $S->prep($p), $slot);
             [$today, $nowHm] = today_ctx();
             $o = Sched::dn($occ);
             if (!$S->isDue($pp, $o) || $o > $today) {
                 fail('Bu tarih için böyle bir iş yok.');
             }
+            if ($u['role'] !== 'admin' && $S->status($pp, $o, null, $today, $nowHm) === 'upcoming') {
+                fail('Bu kontrolün zamanı henüz gelmedi; ' . $pp['_prev_slot_time'] . ' sonrasında işaretlenebilir.');
+            }
             if ($u['role'] !== 'admin' && $S->status($pp, $o, null, $today, $nowHm) === 'missed') {
-                fail('Bu işin süresi geçti; artık işaretlenemez.');
+                fail($pp['_slots'] > 1 ? 'Bu kontrolün süresi geçti (sonraki kontrolün saati geldi); artık işaretlenemez.' : 'Bu işin süresi geçti; artık işaretlenemez.');
             }
             if ($status === 'issue' && !$note) {
                 fail('Sorun bildirirken kısa bir açıklama yazın.');
             }
-            if (q('SELECT 1 FROM completions WHERE plan_id = ? AND occ_date = ?', [$planId, $occ])->fetchColumn()) {
+            if (q('SELECT 1 FROM completions WHERE plan_id = ? AND occ_date = ? AND slot = ?', [$planId, $occ, $slot])->fetchColumn()) {
                 fail('Bu iş zaten işaretlenmiş.', 409);
             }
             $photo = handle_upload();
-            q('INSERT INTO completions (plan_id, occ_date, user_id, status, note, photo, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                [$planId, $occ, $u['id'], $status, $note, $photo, now_str()]);
-            $c = completions_map($occ, $occ)[$planId . '|' . $occ];
+            q('INSERT INTO completions (plan_id, occ_date, slot, user_id, status, note, photo, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                [$planId, $occ, $slot, $u['id'], $status, $note, $photo, now_str()]);
+            $c = completions_map($occ, $occ)[ckey($planId, $occ, $slot)];
             out(item_out($pp, $o, $c, $S->status($pp, $o, $c, $today, $nowHm)));
         }
 
@@ -612,7 +655,8 @@ try {
             $u = need_user();
             $planId = i_in('plan_id', 0);
             $occ = d_in('occ_date', true);
-            $c = q('SELECT * FROM completions WHERE plan_id = ? AND occ_date = ?', [$planId, $occ])->fetch();
+            $slot = i_in('slot', 0);
+            $c = q('SELECT * FROM completions WHERE plan_id = ? AND occ_date = ? AND slot = ?', [$planId, $occ, $slot])->fetch();
             $p = plans_query('p.id = ?', [$planId])[0] ?? null;
             if (!$c || !$p) {
                 fail('Kayıt bulunamadı.', 404);
@@ -634,9 +678,9 @@ try {
             }
             q('UPDATE completions SET status = ? WHERE id = ?', [$revert ? 'done' : 'replaced', $c['id']]);
             $S = Sched::fromSettings();
-            $pp = $S->prep($p);
+            $pp = slot_plan($S, $S->prep($p), $slot);
             [$today, $nowHm] = today_ctx();
-            $cc = completions_map($occ, $occ)[$planId . '|' . $occ];
+            $cc = completions_map($occ, $occ)[ckey($planId, $occ, $slot)];
             out(item_out($pp, Sched::dn($occ), $cc, $S->status($pp, Sched::dn($occ), $cc, $today, $nowHm)));
         }
 
@@ -645,7 +689,7 @@ try {
             $u = need_user();
             $planId = i_in('plan_id', 0);
             $occ = d_in('occ_date', true);
-            $c = q('SELECT * FROM completions WHERE plan_id = ? AND occ_date = ?', [$planId, $occ])->fetch();
+            $c = q('SELECT * FROM completions WHERE plan_id = ? AND occ_date = ? AND slot = ?', [$planId, $occ, i_in('slot', 0)])->fetch();
             if (!$c) {
                 fail('Kayıt bulunamadı.', 404);
             }
@@ -683,9 +727,11 @@ try {
             foreach (plans_query('p.start_date <= ?', [Sched::ymd($day)]) as $p) {
                 $p = $S->prep($p);
                 foreach ($S->occurrences($p, $from, $day - 1) as $o) {
-                    $c = $cmap[$p['id'] . '|' . Sched::ymd($o)] ?? null;
-                    if (!$c && occ_status($S, $p, $o, null, $today, $nowHm, $leaves) === 'missed') {
-                        $missed[] = item_out($p, $o, null, 'missed');
+                    foreach ($S->slots($p) as $ps) {
+                        $c = $cmap[ckey((int)$p['id'], Sched::ymd($o), $ps['_slot'])] ?? null;
+                        if (!$c && occ_status($S, $ps, $o, null, $today, $nowHm, $leaves) === 'missed') {
+                            $missed[] = item_out($ps, $o, null, 'missed');
+                        }
                     }
                 }
             }
@@ -734,8 +780,10 @@ try {
                 }
                 $p = $S->prep($p);
                 foreach ($S->occurrences($p, $from, $to) as $o) {
-                    $c = $cmap[$p['id'] . '|' . Sched::ymd($o)] ?? null;
-                    $items[] = item_out($p, $o, $c, occ_status($S, $p, $o, $c, $today, $nowHm, $leaves));
+                    foreach ($S->slots($p) as $ps) {
+                        $c = $cmap[ckey((int)$p['id'], Sched::ymd($o), $ps['_slot'])] ?? null;
+                        $items[] = item_out($ps, $o, $c, occ_status($S, $ps, $o, $c, $today, $nowHm, $leaves));
+                    }
                 }
             }
             usort($items, fn($a, $b) => strcmp($a['occ_date'], $b['occ_date']) ?: strcmp($a['location'], $b['location']));
@@ -880,12 +928,12 @@ try {
             $desc = s_in('description', 2000);
             $f = freq_from($in);
             $kind = ($in['kind'] ?? '') === 'consumable' ? 'consumable' : 'normal';
-            $fv = [$f['freq_type'], $f['freq_interval'], $f['weekdays'], $f['month_day'], $f['due_time'], $kind];
+            $fv = [$f['freq_type'], $f['freq_interval'], $f['weekdays'], $f['month_day'], $f['due_time'], $f['times'], $kind];
             if ($id) {
-                q('UPDATE tasks SET name = ?, description = ?, freq_type = ?, freq_interval = ?, weekdays = ?, month_day = ?, due_time = ?, kind = ? WHERE id = ?',
+                q('UPDATE tasks SET name = ?, description = ?, freq_type = ?, freq_interval = ?, weekdays = ?, month_day = ?, due_time = ?, times = ?, kind = ? WHERE id = ?',
                     array_merge([$name, $desc], $fv, [$id]));
             } else {
-                q('INSERT INTO tasks (name, description, freq_type, freq_interval, weekdays, month_day, due_time, kind, active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)',
+                q('INSERT INTO tasks (name, description, freq_type, freq_interval, weekdays, month_day, due_time, times, kind, active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)',
                     array_merge([$name, $desc], $fv, [now_str()]));
                 $id = (int)db()->lastInsertId();
             }
@@ -938,9 +986,9 @@ try {
                     $skipped++;
                     continue;
                 }
-                q('INSERT INTO plans (task_id, location_id, user_id, freq_type, freq_interval, weekdays, month_day, due_time, start_date, active, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)',
-                    [$tid, $lid, $userId, $t['freq_type'], $t['freq_interval'], $t['weekdays'], $t['month_day'], $t['due_time'], $start, now_str()]);
+                q('INSERT INTO plans (task_id, location_id, user_id, freq_type, freq_interval, weekdays, month_day, due_time, times, start_date, active, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)',
+                    [$tid, $lid, $userId, $t['freq_type'], $t['freq_interval'], $t['weekdays'], $t['month_day'], $t['due_time'], $t['times'] ?? null, $start, now_str()]);
                 link_task($lid, $tid);
                 $created++;
             }
@@ -1005,8 +1053,8 @@ try {
             foreach (array_values($items) as $i => $it) {
                 $tid = resolve_task($it);
                 $f = freq_from($it);
-                q('INSERT INTO package_items (package_id, task_id, freq_type, freq_interval, weekdays, month_day, due_time, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                    [$id, $tid, $f['freq_type'], $f['freq_interval'], $f['weekdays'], $f['month_day'], $f['due_time'], $i]);
+                q('INSERT INTO package_items (package_id, task_id, freq_type, freq_interval, weekdays, month_day, due_time, times, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                    [$id, $tid, $f['freq_type'], $f['freq_interval'], $f['weekdays'], $f['month_day'], $f['due_time'], $f['times'], $i]);
             }
             db()->commit();
             out(['id' => $id]);
@@ -1048,9 +1096,9 @@ try {
                         $skipped++;
                         continue;
                     }
-                    q('INSERT INTO plans (task_id, location_id, user_id, package_id, freq_type, freq_interval, weekdays, month_day, due_time, start_date, active, created_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)',
-                        [$it['task_id'], $lid, $userId, $pid, $it['freq_type'], $it['freq_interval'], $it['weekdays'], $it['month_day'], $it['due_time'], $start, now_str()]);
+                    q('INSERT INTO plans (task_id, location_id, user_id, package_id, freq_type, freq_interval, weekdays, month_day, due_time, times, start_date, active, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)',
+                        [$it['task_id'], $lid, $userId, $pid, $it['freq_type'], $it['freq_interval'], $it['weekdays'], $it['month_day'], $it['due_time'], $it['times'] ?? null, $start, now_str()]);
                     link_task((int)$lid, (int)$it['task_id']);
                     $created++;
                 }
@@ -1088,7 +1136,7 @@ try {
             db()->beginTransaction();
             $tid = resolve_task($in);
             $f = freq_from($in);
-            $vals = [$tid, $lid, $userId, $f['freq_type'], $f['freq_interval'], $f['weekdays'], $f['month_day'], $f['due_time']];
+            $vals = [$tid, $lid, $userId, $f['freq_type'], $f['freq_interval'], $f['weekdays'], $f['month_day'], $f['due_time'], $f['times']];
             link_task($lid, $tid);
             if ($id) {
                 $old = q('SELECT * FROM plans WHERE id = ? AND active = 1', [$id])->fetch();
@@ -1096,26 +1144,26 @@ try {
                     fail('Atama bulunamadı.', 404);
                 }
                 $oldVals = [(int)$old['task_id'], (int)$old['location_id'], $old['user_id'] !== null ? (int)$old['user_id'] : null,
-                    $old['freq_type'], (int)$old['freq_interval'], $old['weekdays'], $old['month_day'] !== null ? (int)$old['month_day'] : null, $old['due_time']];
+                    $old['freq_type'], (int)$old['freq_interval'], $old['weekdays'], $old['month_day'] !== null ? (int)$old['month_day'] : null, $old['due_time'], $old['times'] ?? null];
                 $today = date('Y-m-d');
                 $oldStart = substr((string)$old['start_date'], 0, 10);
                 if ($vals != $oldVals && $oldStart < $today) {
                     // Geçmiş kayıtlar bozulmasın diye eski atamayı dün itibarıyla kapatıp yenisini başlat.
                     $yesterday = date('Y-m-d', strtotime('-1 day'));
                     q('UPDATE plans SET active = 0, end_date = ? WHERE id = ?', [$yesterday, $id]);
-                    q('INSERT INTO plans (task_id, location_id, user_id, package_id, freq_type, freq_interval, weekdays, month_day, due_time, start_date, end_date, note, active, created_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)',
+                    q('INSERT INTO plans (task_id, location_id, user_id, package_id, freq_type, freq_interval, weekdays, month_day, due_time, times, start_date, end_date, note, active, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)',
                         array_merge(array_slice($vals, 0, 3), [$old['package_id']], array_slice($vals, 3), [max($start, $today), $end, $note, now_str()]));
                     $newId = (int)db()->lastInsertId();
                     q('UPDATE completions SET plan_id = ? WHERE plan_id = ? AND occ_date >= ?', [$newId, $id, $today]);
                     $id = $newId;
                 } else {
-                    q('UPDATE plans SET task_id = ?, location_id = ?, user_id = ?, freq_type = ?, freq_interval = ?, weekdays = ?, month_day = ?, due_time = ?, start_date = ?, end_date = ?, note = ? WHERE id = ?',
+                    q('UPDATE plans SET task_id = ?, location_id = ?, user_id = ?, freq_type = ?, freq_interval = ?, weekdays = ?, month_day = ?, due_time = ?, times = ?, start_date = ?, end_date = ?, note = ? WHERE id = ?',
                         array_merge($vals, [$vals != $oldVals ? $start : $oldStart, $end, $note, $id]));
                 }
             } else {
-                q('INSERT INTO plans (task_id, location_id, user_id, freq_type, freq_interval, weekdays, month_day, due_time, start_date, end_date, note, active, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)', array_merge($vals, [$start, $end, $note, now_str()]));
+                q('INSERT INTO plans (task_id, location_id, user_id, freq_type, freq_interval, weekdays, month_day, due_time, times, start_date, end_date, note, active, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)', array_merge($vals, [$start, $end, $note, now_str()]));
                 $id = (int)db()->lastInsertId();
             }
             db()->commit();

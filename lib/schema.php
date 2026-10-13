@@ -34,6 +34,7 @@ function schema_statements(string $driver): array
             weekdays VARCHAR(20) NULL,
             month_day INT NULL,
             due_time VARCHAR(5) NULL,
+            times VARCHAR(120) NULL,
             kind VARCHAR(12) NOT NULL DEFAULT 'normal',
             active INT NOT NULL DEFAULT 1,
             created_at DATETIME NOT NULL
@@ -54,6 +55,7 @@ function schema_statements(string $driver): array
             weekdays VARCHAR(20) NULL,
             month_day INT NULL,
             due_time VARCHAR(5) NULL,
+            times VARCHAR(120) NULL,
             sort_order INT NOT NULL DEFAULT 0
         )",
         "CREATE TABLE IF NOT EXISTS plans (
@@ -67,6 +69,7 @@ function schema_statements(string $driver): array
             weekdays VARCHAR(20) NULL,
             month_day INT NULL,
             due_time VARCHAR(5) NULL,
+            times VARCHAR(120) NULL,
             start_date DATE NOT NULL,
             end_date DATE NULL,
             note TEXT NULL,
@@ -77,12 +80,13 @@ function schema_statements(string $driver): array
             id $pk,
             plan_id INT NOT NULL,
             occ_date DATE NOT NULL,
+            slot INT NOT NULL DEFAULT 0,
             user_id INT NOT NULL,
             status VARCHAR(10) NOT NULL DEFAULT 'done',
             note TEXT NULL,
             photo VARCHAR(255) NULL,
             created_at DATETIME NOT NULL,
-            UNIQUE (plan_id, occ_date)
+            UNIQUE (plan_id, occ_date, slot)
         )",
         "CREATE TABLE IF NOT EXISTS leaves (
             id $pk,
@@ -112,7 +116,7 @@ function schema_statements(string $driver): array
     return $out;
 }
 
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 
 function schema_install(PDO $pdo, string $driver): void
 {
@@ -169,6 +173,46 @@ function schema_upgrade(PDO $pdo, string $driver, int $from): void
         foreach ($pdo->query('SELECT id, name FROM tasks')->fetchAll() as $t) {
             if (looks_consumable((string)$t['name'])) {
                 $upd->execute([$t['id']]);
+            }
+        }
+    }
+    if ($from < 5) {
+        // Günde birden çok kontrol: saat listesi ve kontrol sırası.
+        foreach (['tasks', 'package_items', 'plans'] as $tbl) {
+            try {
+                $pdo->exec("ALTER TABLE $tbl ADD COLUMN times VARCHAR(120) NULL");
+            } catch (PDOException $e) {
+                // Sütun zaten var.
+            }
+        }
+        $cols = $driver === 'sqlite'
+            ? array_column($pdo->query('PRAGMA table_info(completions)')->fetchAll(), 'name')
+            : array_column($pdo->query('SHOW COLUMNS FROM completions')->fetchAll(), 'Field');
+        if (!in_array('slot', $cols, true)) {
+            if ($driver === 'sqlite') {
+                // SQLite'ta UNIQUE kısıtı değiştirilemediği için tablo yeniden kurulur.
+                $pdo->beginTransaction();
+                $pdo->exec('ALTER TABLE completions RENAME TO completions_old');
+                foreach (schema_statements('sqlite') as $sql) {
+                    if (str_contains($sql, 'TABLE IF NOT EXISTS completions ')) {
+                        $pdo->exec($sql);
+                    }
+                }
+                $pdo->exec('INSERT INTO completions (id, plan_id, occ_date, slot, user_id, status, note, photo, created_at)
+                            SELECT id, plan_id, occ_date, 0, user_id, status, note, photo, created_at FROM completions_old');
+                $pdo->exec('DROP TABLE completions_old');
+                $pdo->commit();
+                $pdo->exec('CREATE INDEX IF NOT EXISTS idx_compl_date ON completions (occ_date)');
+            } else {
+                $pdo->exec('ALTER TABLE completions ADD COLUMN slot INT NOT NULL DEFAULT 0 AFTER occ_date');
+                foreach ($pdo->query("SHOW INDEX FROM completions WHERE Non_unique = 0 AND Key_name <> 'PRIMARY'")->fetchAll() as $ix) {
+                    try {
+                        $pdo->exec('ALTER TABLE completions DROP INDEX `' . $ix['Key_name'] . '`');
+                    } catch (PDOException $e) {
+                        // Aynı indeksin ikinci sütun satırı.
+                    }
+                }
+                $pdo->exec('ALTER TABLE completions ADD UNIQUE KEY uq_compl_slot (plan_id, occ_date, slot)');
             }
         }
     }
@@ -262,6 +306,7 @@ function schema_seed(PDO $pdo): void
             ['Kazanın fişinin devreye alınması', 'daily', 1, null, null, '07:45'],
         ]],
         ['Tuvalet Temizliği', '#06b6d4', 'Her tuvalet için günlük temizlik ve sarf malzeme', [
+            ['Tuvalet kontrolü', 'daily', 1, null, null, '09:00', '09:00,11:30,14:00,16:30'],
             ['Lavaboların temizliği', 'daily', 1, null, null, '10:00'],
             ['Ayna ve klozetlerin temizlenmesi', 'daily', 1, null, null, '10:00'],
             ['Klozet temizliği', 'daily', 1, null, null, '15:00'],
@@ -300,23 +345,25 @@ function schema_seed(PDO $pdo): void
     ];
 
     $taskIds = [];
-    $insTask = $pdo->prepare('INSERT INTO tasks (name, freq_type, freq_interval, weekdays, month_day, due_time, kind, active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)');
+    $insTask = $pdo->prepare('INSERT INTO tasks (name, freq_type, freq_interval, weekdays, month_day, due_time, times, kind, active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)');
     $insPkg = $pdo->prepare('INSERT INTO packages (name, description, color, created_at) VALUES (?, ?, ?, ?)');
-    $insItem = $pdo->prepare('INSERT INTO package_items (package_id, task_id, freq_type, freq_interval, weekdays, month_day, due_time, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+    $insItem = $pdo->prepare('INSERT INTO package_items (package_id, task_id, freq_type, freq_interval, weekdays, month_day, due_time, times, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
     foreach ($packages as [$pname, $color, $desc, $items]) {
         $insPkg->execute([$pname, $desc, $color, $now]);
         $pid = (int)$pdo->lastInsertId();
-        foreach ($items as $i => [$tname, $ft, $iv, $wd, $md, $dt]) {
+        foreach ($items as $i => $row) {
+            [$tname, $ft, $iv, $wd, $md, $dt] = $row;
+            $times = $row[6] ?? null;
             if (!isset($taskIds[$tname])) {
-                $insTask->execute([$tname, $ft, $iv, $wd, $md, $dt, looks_consumable($tname) ? 'consumable' : 'normal', $now]);
+                $insTask->execute([$tname, $ft, $iv, $wd, $md, $dt, $times, looks_consumable($tname) ? 'consumable' : 'normal', $now]);
                 $taskIds[$tname] = (int)$pdo->lastInsertId();
             }
-            $insItem->execute([$pid, $taskIds[$tname], $ft, $iv, $wd, $md, $dt, $i]);
+            $insItem->execute([$pid, $taskIds[$tname], $ft, $iv, $wd, $md, $dt, $times, $i]);
         }
     }
 
     // Hangi mekanda hangi işler yapılır
-    $tuvalet = ['Lavaboların temizliği', 'Ayna ve klozetlerin temizlenmesi', 'Klozet temizliği', 'Tuvalet çöplerinin alınması',
+    $tuvalet = ['Tuvalet kontrolü', 'Lavaboların temizliği', 'Ayna ve klozetlerin temizlenmesi', 'Klozet temizliği', 'Tuvalet çöplerinin alınması',
         'Tuvalet kağıdı', 'Kağıt havlu', 'Sıvı sabun', 'Zemin giderlerine çamaşır suyu doldurulması'];
     $ofis = ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Zemin temizliği', 'Halıların gezilmesi ve fırçalanması',
         'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi'];

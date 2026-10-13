@@ -228,6 +228,44 @@ final class Sched
     /**
      * done | issue | pending | overdue | missed | upcoming
      */
+    /** "09:00,11:30" → ['09:00', '11:30'] (sıralı, tekrarsız) */
+    public static function timesOf(array $p): array
+    {
+        $out = [];
+        foreach (explode(',', (string)($p['times'] ?? '')) as $t) {
+            $t = trim($t);
+            if (preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $t)) {
+                $out[$t] = true;
+            }
+        }
+        $out = array_keys($out);
+        sort($out);
+        return $out;
+    }
+
+    /**
+     * Günde birden çok kez yapılan işler için her saat ayrı bir "kontrol"dür.
+     * Hazırlanmış (prep) planın her kontrol için bir kopyasını döndürür.
+     */
+    public function slots(array $p): array
+    {
+        $times = self::timesOf($p);
+        if (count($times) < 2) {
+            return [$p + ['_slot' => 0, '_slots' => 1, '_next_slot_time' => null, '_prev_slot_time' => null]];
+        }
+        $out = [];
+        foreach ($times as $i => $t) {
+            $q = $p;
+            $q['due_time'] = $t;
+            $q['_slot'] = $i;
+            $q['_slots'] = count($times);
+            $q['_next_slot_time'] = $times[$i + 1] ?? null;
+            $q['_prev_slot_time'] = $times[$i - 1] ?? null;
+            $out[] = $q;
+        }
+        return $out;
+    }
+
     public function status(array $p, int $occ, ?array $completion, int $today, string $nowHm): string
     {
         if ($completion) {
@@ -235,6 +273,14 @@ final class Sched
         }
         if ($occ > $today) {
             return 'upcoming';
+        }
+        // Gün içindeki kontrol, bir önceki kontrolün saatinde açılır…
+        if ($occ === $today && !empty($p['_prev_slot_time']) && $nowHm < $p['_prev_slot_time']) {
+            return 'upcoming';
+        }
+        // …ve bir sonraki kontrolün saati geldiğinde hâlâ yapılmamışsa kaçırılmış sayılır.
+        if (!empty($p['_next_slot_time']) && ($occ < $today || $nowHm >= $p['_next_slot_time'])) {
+            return 'missed';
         }
         $next = $this->next($p, $occ + 1);
         if ($next !== null && $next <= $today) {
@@ -253,6 +299,12 @@ final class Sched
     }
 
     public static function label(array $p): string
+    {
+        $k = count(self::timesOf($p));
+        return self::baseLabel($p) . ($k > 1 ? " · günde $k kez" : '');
+    }
+
+    private static function baseLabel(array $p): string
     {
         $n = max(1, (int)($p['freq_interval'] ?? 1));
         switch ($p['freq_type']) {

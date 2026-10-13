@@ -3,7 +3,7 @@
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v5';
+  const KEY = 'istakip-demo-v6';
   const store = {
     get() {
       try { const v = localStorage.getItem(KEY); if (v) return JSON.parse(v); } catch (e) { /* yoksay */ }
@@ -119,9 +119,19 @@
       for (let d = from; d <= to; d++) if (this.isDue(p, d)) out.push(d);
       return out;
     }
+    static timesOf(p) {
+      return [...new Set(String(p.times || '').split(',').map((t) => t.trim()).filter((t) => /^([01]\d|2[0-3]):[0-5]\d$/.test(t)))].sort();
+    }
+    slots(p) {
+      const ts = Sched.timesOf(p);
+      if (ts.length < 2) return [Object.assign({}, p, { _slot: 0, _slots: 1, _next: null, _prev: null })];
+      return ts.map((t, i) => Object.assign({}, p, { due_time: t, _slot: i, _slots: ts.length, _next: ts[i + 1] || null, _prev: ts[i - 1] || null }));
+    }
     status(p, occ, c, today, hm) {
       if (c) return c.status === 'issue' ? 'issue' : 'done';
       if (occ > today) return 'upcoming';
+      if (occ === today && p._prev && hm < p._prev) return 'upcoming';
+      if (p._next && (occ < today || hm >= p._next)) return 'missed';
       const nx = this.next(p, occ + 1);
       if (nx !== null && nx <= today) return 'missed';
       if (nx === null && p._end !== null && today > p._end) return 'missed';
@@ -130,6 +140,10 @@
       return 'pending';
     }
     static label(p) {
+      const k = Sched.timesOf(p).length;
+      return Sched.baseLabel(p) + (k > 1 ? ` · günde ${k} kez` : '');
+    }
+    static baseLabel(p) {
       const n = Math.max(1, +p.freq_interval || 1);
       switch (p.freq_type) {
         case 'every_n_days': return n === 1 ? 'Her gün' : n + ' günde 1';
@@ -178,6 +192,7 @@
       ['Sabah Açılış', '#f59e0b', 'Mesai başlangıcında yapılacak işler', [
         ['Kapıların açılması', 'daily', 1, null, null, '07:45'], ['Kazanın fişinin devreye alınması', 'daily', 1, null, null, '07:45']]],
       ['Tuvalet Temizliği', '#06b6d4', 'Her tuvalet için günlük temizlik ve sarf malzeme', [
+        ['Tuvalet kontrolü', 'daily', 1, null, null, '09:00', '09:00,11:30,14:00,16:30'],
         ['Lavaboların temizliği', 'daily', 1, null, null, '10:00'], ['Ayna ve klozetlerin temizlenmesi', 'daily', 1, null, null, '10:00'],
         ['Klozet temizliği', 'daily', 1, null, null, '15:00'], ['Tuvalet çöplerinin alınması', 'daily', 1, null, null, '16:00'],
         ['Tuvalet kağıdı', 'daily', 1, null, null, '09:30'], ['Kağıt havlu', 'daily', 1, null, null, '09:30'], ['Sıvı sabun', 'daily', 1, null, null, '09:30'],
@@ -201,10 +216,11 @@
     P.forEach(([name, color, desc, items]) => {
       const p = add('packages', { name, description: desc, color, created_at: now });
       pk[name] = p;
-      items.forEach(([tn, ft, iv, wd, md, dt], i) => {
-        if (!T[tn]) T[tn] = add('tasks', { name: tn, description: null, freq_type: ft, freq_interval: iv, weekdays: wd, month_day: md, due_time: dt,
+      items.forEach(([tn, ft, iv, wd, md, dt, times], i) => {
+        times = times || null;
+        if (!T[tn]) T[tn] = add('tasks', { name: tn, description: null, freq_type: ft, freq_interval: iv, weekdays: wd, month_day: md, due_time: dt, times,
           kind: looksConsumable(tn) ? 'consumable' : 'normal', active: 1, created_at: now });
-        add('package_items', { package_id: p.id, task_id: T[tn].id, freq_type: ft, freq_interval: iv, weekdays: wd, month_day: md, due_time: dt, sort_order: i });
+        add('package_items', { package_id: p.id, task_id: T[tn].id, freq_type: ft, freq_interval: iv, weekdays: wd, month_day: md, due_time: dt, times, sort_order: i });
       });
     });
     T['Sıvı sabun'].description = 'Haznede sabun var mı bakın; azsa doldurun ve “Değiştirildi” olarak işaretleyin.';
@@ -215,7 +231,7 @@
         const tname = S.tasks.find((t) => t.id === it.task_id).name;
         if (only && !only.includes(tname)) return;
         add('plans', { task_id: it.task_id, location_id: L[locName].id, user_id: user ? user.id : null, package_id: pk[pkgName].id,
-          freq_type: it.freq_type, freq_interval: it.freq_interval, weekdays: it.weekdays, month_day: it.month_day, due_time: it.due_time,
+          freq_type: it.freq_type, freq_interval: it.freq_interval, weekdays: it.weekdays, month_day: it.month_day, due_time: it.due_time, times: it.times,
           start_date: start, end_date: null, note: null, active: 1, created_at: now });
       });
     };
@@ -236,7 +252,7 @@
     S.plans.find((p) => p.task_id === T['Kapıların açılması'].id).note = 'Anahtarlar güvenlik kulübesinde.';
 
     // Hangi mekanda hangi işler yapılır (lib/schema.php ile aynı)
-    const tuv = ['Lavaboların temizliği', 'Ayna ve klozetlerin temizlenmesi', 'Klozet temizliği', 'Tuvalet çöplerinin alınması',
+    const tuv = ['Tuvalet kontrolü', 'Lavaboların temizliği', 'Ayna ve klozetlerin temizlenmesi', 'Klozet temizliği', 'Tuvalet çöplerinin alınması',
       'Tuvalet kağıdı', 'Kağıt havlu', 'Sıvı sabun', 'Zemin giderlerine çamaşır suyu doldurulması'];
     const ofis = ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Zemin temizliği', 'Halıların gezilmesi ve fırçalanması',
       'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi'];
@@ -272,10 +288,10 @@
     const staff = [aysel, deniz, gulnaz, mahmut, mumin, yalcin];
     S.plans.forEach((p0) => {
       const p = sch.prep(p0);
-      sch.occurrences(p, p._start, today).forEach((o) => {
+      sch.occurrences(p, p._start, today).forEach((o) => sch.slots(p).forEach((ps) => {
         const isToday = o === today;
         if (p0.user_id && onLeave.has(p0.user_id + '|' + ymd(o))) return;
-        const due = p.due_time || '16:00';
+        const due = ps.due_time || '16:00';
         if (isToday && due > hm) return;
         const x = r();
         // Ahmet bugün biraz geride, böylece listede gecikenler görünür.
@@ -289,9 +305,9 @@
         const issue = x > rate;
         const kind = S.tasks.find((t) => t.id === p0.task_id).kind;
         const st = issue ? 'issue' : kind === 'consumable' && r() < 0.35 ? 'replaced' : 'done';
-        add('completions', { plan_id: p0.id, occ_date: ymd(o), user_id: who, status: st,
+        add('completions', { plan_id: p0.id, occ_date: ymd(o), slot: ps._slot, user_id: who, status: st,
           note: issue ? issues[Math.floor(r() * issues.length)] : null, photo: null, created_at: at });
-      });
+      }));
     });
     return S;
   }
@@ -320,7 +336,7 @@
     S.completions.forEach((c) => {
       if (c.occ_date >= from && c.occ_date <= to) {
         const u = byId('users', c.user_id);
-        m[c.plan_id + '|' + c.occ_date] = Object.assign({}, c, { by_name: u ? u.name : null });
+        m[ck(c.plan_id, c.occ_date, c.slot || 0)] = Object.assign({}, c, { by_name: u ? u.name : null });
       }
     });
     return m;
@@ -334,12 +350,13 @@
     if (!c && p.user_id && lv[p.user_id + '|' + ymd(occ)]) return 'leave';
     return sc.status(p, occ, c, today, hm);
   }
+  const ck = (pid, d, slot) => pid + '|' + d + '|' + (slot || 0);
   function itemOut(p, occ, c, status) {
     const o = ymd(occ);
     let late = false;
     if (c) late = c.created_at.slice(0, 10) > o || c.created_at > o + ' ' + (p.due_time || '23:59') + ':59';
     return {
-      plan_id: p.id, occ_date: o, task: p.task_name, task_desc: p.task_desc, location: p.location_name, location_id: p.location_id,
+      plan_id: p.id, occ_date: o, slot: p._slot || 0, slot_count: p._slots || 1, opens_at: p._prev || null, task: p.task_name, task_desc: p.task_desc, location: p.location_name, location_id: p.location_id,
       user: p.user_name, user_id: p.user_id, package: p.package_name, color: p.package_color, due_time: p.due_time,
       freq: Sched.label(p), kind: p.task_kind || 'normal', note: p.note, status,
       completion: c ? { id: c.id, by: c.by_name, by_id: c.user_id, at: c.created_at, status: c.status, note: c.note, photo: !!c.photo, late } : null,
@@ -355,11 +372,13 @@
     pp.forEach((p) => {
       const occ = sc.latest(p, day);
       if (occ === null) return;
-      const c = cm[p.id + '|' + ymd(occ)] || null;
-      if (occ < day && c && c.created_at.slice(0, 10) < ymd(day)) return;
-      const st = occStatus(sc, p, occ, c, today, hm, lv);
-      if ((st === 'missed' || st === 'leave') && occ < day) return;
-      items.push(itemOut(p, occ, c, st));
+      sc.slots(p).forEach((ps) => {
+        const c = cm[ck(p.id, ymd(occ), ps._slot)] || null;
+        if (occ < day && c && c.created_at.slice(0, 10) < ymd(day)) return;
+        const st = occStatus(sc, ps, occ, c, today, hm, lv);
+        if ((st === 'missed' || st === 'leave') && occ < day) return;
+        items.push(itemOut(ps, occ, c, st));
+      });
     });
     return items;
   }
@@ -389,7 +408,9 @@
     if (type === 'daily') n = 1;
     const t = String(src.due_time || '').trim();
     if (t && !/^([01]\d|2[0-3]):[0-5]\d$/.test(t)) err('Saat SS:DD biçiminde olmalı.');
-    return { freq_type: type, freq_interval: n, weekdays: wd, month_day: md, due_time: t || null };
+    const times = Sched.timesOf({ times: String(src.times || '') });
+    if (times.length > 12) err('Günde en fazla 12 kez seçilebilir.');
+    return { freq_type: type, freq_interval: n, weekdays: wd, month_day: md, due_time: times.length > 1 ? times[0] : t || null, times: times.length > 1 ? times.join(',') : null };
   }
   function linkTask(lid, tid) {
     lid = +lid; tid = +tid;
@@ -458,7 +479,7 @@
       plansQuery((p) => p.start_date <= ymd(today) && (!p.end_date || p.end_date >= ymd(from)) && (p.user_id === u.id || p.user_id === null)).forEach((p0) => {
         const p = sc.prep(p0);
         sc.occurrences(p, from, today).forEach((o) => {
-          days[o].items.push({ status: occStatus(sc, p, o, cm[p.id + '|' + ymd(o)] || null, today, hm, lv) });
+          sc.slots(p).forEach((ps) => days[o].items.push({ status: occStatus(sc, ps, o, cm[ck(p.id, ymd(o), ps._slot)] || null, today, hm, lv) }));
         });
       });
       return Object.values(days).map((d) => { const t = tally(d.items); delete d.items; return Object.assign(d, { tally: t }); });
@@ -482,21 +503,26 @@
       if (!p) err('İş bulunamadı.');
       if (status === 'replaced' && p.task_kind !== 'consumable') status = 'done';
       if (u.role !== 'admin' && p.user_id !== null && p.user_id !== u.id) err('Bu iş size atanmamış.');
-      const sc = sched(), pp = sc.prep(p), [today, hm] = todayCtx(), o = dn(occ);
+      const slot = +b.slot || 0;
+      const sc = sched(), all = sc.slots(sc.prep(p)), [today, hm] = todayCtx(), o = dn(occ);
+      if (!all[slot]) err('Bu iş için böyle bir kontrol yok.');
+      const pp = all[slot];
+      if (u.role !== 'admin' && sc.isDue(pp, o) && sc.status(pp, o, null, today, hm) === 'upcoming' && o === today) err(`Bu kontrolün zamanı henüz gelmedi; ${pp._prev} sonrasında işaretlenebilir.`);
       if (!sc.isDue(pp, o) || o > today) err('Bu tarih için böyle bir iş yok.');
       if (u.role !== 'admin' && sc.status(pp, o, null, today, hm) === 'missed') err('Bu işin süresi geçti; artık işaretlenemez.');
       if (status === 'issue' && !note) err('Sorun bildirirken kısa bir açıklama yazın.');
-      if (S.completions.some((c) => c.plan_id === planId && c.occ_date === occ)) err('Bu iş zaten işaretlenmiş.');
-      const c = { id: nid(), plan_id: planId, occ_date: occ, user_id: u.id, status, note, photo: null, created_at: nowStr() };
+      if (S.completions.some((c) => c.plan_id === planId && c.occ_date === occ && (c.slot || 0) === slot)) err('Bu iş zaten işaretlenmiş.');
+      const c = { id: nid(), plan_id: planId, occ_date: occ, slot, user_id: u.id, status, note, photo: null, created_at: nowStr() };
       if (b.photo && b.photo.size) { const url = await fileToDataUrl(b.photo); if (url) { c.photo = 'demo'; S.photos[c.id] = url; } }
       S.completions.push(c);
       save();
-      const cc = cmap(occ, occ)[planId + '|' + occ];
+      const cc = cmap(occ, occ)[ck(planId, occ, slot)];
       return itemOut(pp, o, cc, sc.status(pp, o, cc, today, hm));
     },
     async mark_replaced(b) {
       const u = me();
-      const c = S.completions.find((x) => x.plan_id === +b.plan_id && x.occ_date === b.occ_date);
+      const slot = +b.slot || 0;
+      const c = S.completions.find((x) => x.plan_id === +b.plan_id && x.occ_date === b.occ_date && (x.slot || 0) === slot);
       const p = plansQuery((x) => x.id === +b.plan_id)[0];
       if (!c || !p) err('Kayıt bulunamadı.');
       if (p.task_kind !== 'consumable') err('Bu iş bir sarf malzemesi değil.');
@@ -507,13 +533,13 @@
       if (c.status === 'issue') err('Sorun bildirilen kayıt değiştirilemez; önce işareti geri alın.');
       c.status = +b.revert ? 'done' : 'replaced';
       save();
-      const sc = sched(), pp = sc.prep(p), [today, hm] = todayCtx(), o = dn(b.occ_date);
-      const cc = cmap(b.occ_date, b.occ_date)[p.id + '|' + b.occ_date];
+      const sc = sched(), pp = sc.slots(sc.prep(p))[slot], [today, hm] = todayCtx(), o = dn(b.occ_date);
+      const cc = cmap(b.occ_date, b.occ_date)[ck(p.id, b.occ_date, slot)];
       return itemOut(pp, o, cc, sc.status(pp, o, cc, today, hm));
     },
     async uncomplete(b) {
       const u = me();
-      const i = S.completions.findIndex((c) => c.plan_id === +b.plan_id && c.occ_date === b.occ_date);
+      const i = S.completions.findIndex((c) => c.plan_id === +b.plan_id && c.occ_date === b.occ_date && (c.slot || 0) === (+b.slot || 0));
       if (i < 0) err('Kayıt bulunamadı.');
       const c = S.completions[i];
       if (u.role !== 'admin') {
@@ -535,7 +561,7 @@
       plansQuery((p) => p.start_date <= ymd(day)).forEach((p0) => {
         const p = sc.prep(p0);
         sc.occurrences(p, from, day - 1).forEach((o) => {
-          if (!cm[p.id + '|' + ymd(o)] && occStatus(sc, p, o, null, today, hm, lv) === 'missed') missed.push(itemOut(p, o, null, 'missed'));
+          sc.slots(p).forEach((ps) => { if (!cm[ck(p.id, ymd(o), ps._slot)] && occStatus(sc, ps, o, null, today, hm, lv) === 'missed') missed.push(itemOut(ps, o, null, 'missed')); });
         });
       });
       missed.sort((a, b2) => cmpTr(b2.occ_date, a.occ_date));
@@ -560,8 +586,10 @@
         if (q.location_id && p0.location_id !== +q.location_id) return;
         const p = sc.prep(p0);
         sc.occurrences(p, from, to).forEach((o) => {
-          const c = cm[p.id + '|' + ymd(o)] || null;
-          items.push(itemOut(p, o, c, occStatus(sc, p, o, c, today, hm, lv)));
+          sc.slots(p).forEach((ps) => {
+            const c = cm[ck(p.id, ymd(o), ps._slot)] || null;
+            items.push(itemOut(ps, o, c, occStatus(sc, ps, o, c, today, hm, lv)));
+          });
         });
       });
       items.sort((a, b2) => cmpTr(a.occ_date, b2.occ_date) || cmpTr(a.location, b2.location));
@@ -624,7 +652,7 @@
         if (!t || !t.active) return;
         if (S.plans.some((p) => p.active && p.task_id === tid && p.location_id === lid)) { skipped++; return; }
         S.plans.push({ id: nid(), task_id: tid, location_id: lid, user_id: uid, package_id: null, freq_type: t.freq_type, freq_interval: t.freq_interval,
-          weekdays: t.weekdays, month_day: t.month_day, due_time: t.due_time, start_date: start, end_date: null, note: null, active: 1, created_at: nowStr() });
+          weekdays: t.weekdays, month_day: t.month_day, due_time: t.due_time, times: t.times || null, start_date: start, end_date: null, note: null, active: 1, created_at: nowStr() });
         linkTask(lid, tid);
         created++;
       });
@@ -705,7 +733,7 @@
       locs.forEach((lid) => items.forEach((it) => {
         if (S.plans.some((p) => p.active && p.task_id === it.task_id && p.location_id === lid && p.user_id === uid)) { skipped++; return; }
         S.plans.push({ id: nid(), task_id: it.task_id, location_id: lid, user_id: uid, package_id: +b.package_id, freq_type: it.freq_type,
-          freq_interval: it.freq_interval, weekdays: it.weekdays, month_day: it.month_day, due_time: it.due_time, start_date: start,
+          freq_interval: it.freq_interval, weekdays: it.weekdays, month_day: it.month_day, due_time: it.due_time, times: it.times || null, start_date: start,
           end_date: null, note: null, active: 1, created_at: nowStr() });
         linkTask(lid, it.task_id);
         created++;

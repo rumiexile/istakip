@@ -30,6 +30,9 @@ siteyi açıp işleri işaretler. Yönetici de geciken ve yapılmayan işleri an
 - **Haftalık / X haftada 1**: belirli günler, örn. 2 haftada bir Çarşamba asansör temizliği
 - **Aylık / X ayda 1**: ayın belirli günü, örn. ayda 1 cam silme. Gün tatile denk gelirse bir sonraki iş gününe kayar.
 - İsteğe bağlı **hedef saat**: saat geçince iş “gecikti” olarak görünür.
+- **Günde birden çok kez**: sıklık editöründe “Saat ekle” ile birden fazla saat girilir (ör. tuvalet kontrolü 09:00, 11:30, 14:00, 16:30).
+  Personel her saat için ayrı bir kontrol işaretler (1/4, 2/4…). Her kontrol bir önceki kontrolün saatinde açılır; bir sonraki
+  kontrolün saati geldiğinde hâlâ yapılmamışsa “yapılmadı” sayılır. Böylece kontroller sonradan topluca işaretlenemez.
 
 **Gecikme kuralı:** Bir işin her tekrarı, bir sonraki tekrarına kadar açık kalır. Örneğin “3 günde 1” bir iş
 zamanında yapılmazsa personelin listesinde “kalan iş” olarak durmaya devam eder. Bir sonraki tekrar geldiğinde

@@ -162,8 +162,8 @@
         html += '<div class="table-wrap"><table><thead><tr><th>İş</th><th>Sorumlu</th><th>Saat</th><th>Durum</th><th>Kim / ne zaman</th></tr></thead><tbody>';
         for (const [loc, list] of groups) {
           html += `<tr class="group"><td colspan="5">${icon('pin')} ${h(loc)} <span class="muted">· ${list.length}</span></td></tr>`;
-          html += list.map((it) => `<tr data-key="${it.plan_id}|${it.occ_date}" style="cursor:pointer">
-            <td><b>${h(it.task)}</b><div class="muted small">${h(it.freq)}${it.occ_date !== data.date ? ' · ' + h(App.fmtDate(it.occ_date)) + ' tarihli' : ''}</div></td>
+          html += list.map((it) => `<tr data-key="${App.itemKey(it)}" style="cursor:pointer">
+            <td><b>${h(it.task)}</b>${it.slot_count > 1 ? ` <span class="slot-pill">${h(App.slotLabel(it))}</span>` : ''}<div class="muted small">${h(it.freq)}${it.occ_date !== data.date ? ' · ' + h(App.fmtDate(it.occ_date)) + ' tarihli' : ''}</div></td>
             <td class="nowrap">${it.user ? h(it.user) : '<span class="muted">Ortak</span>'}</td>
             <td class="nowrap">${h(it.due_time || '—')}</td>
             <td>${App.itemBadge(it)}${it.completion && it.completion.late ? ' <span class="badge overdue plain">geç</span>' : ''}</td>
@@ -176,7 +176,7 @@
       const qi = $('[data-q]', box);
       qi.oninput = () => { q = qi.value; const pos = qi.selectionStart; renderList(); const n = $('[data-q]', box); n.focus(); n.setSelectionRange(pos, pos); };
       $$('tr[data-key]', box).forEach((tr) => (tr.onclick = () => {
-        const it = data.items.find((i) => i.plan_id + '|' + i.occ_date === tr.dataset.key);
+        const it = data.items.find((i) => App.itemKey(i) === tr.dataset.key);
         App.taskSheet(it, load);
       }));
     }
@@ -207,7 +207,7 @@
         <div class="glass card" data-missed><div class="card-head"><h3>Son 7 günde yapılmayanlar</h3><span class="badge missed">${data.missed_count}</span></div>
           ${data.missed.length ? '<div class="list">' + data.missed.slice(0, 30).map((m) => `<div class="row">
             <span class="dot" style="background:var(--bad)"></span>
-            <div><div class="title">${h(m.task)}</div><div class="sub"><span>${h(m.location)}</span><span>${h(m.user || 'Ortak')}</span></div></div>
+            <div><div class="title">${h(m.task)}${m.slot_count > 1 ? ` <span class="slot-pill">${h(App.slotLabel(m))}</span>` : ''} ${m.due_time ? '<span class="muted small">' + h(m.due_time) + '</span>' : ''}</div><div class="sub"><span>${h(m.location)}</span><span>${h(m.user || 'Ortak')}</span></div></div>
             <span class="small muted nowrap">${h(App.relDay(m.occ_date))}</span></div>`).join('') + '</div>' +
             (data.missed.length > 30 ? `<a class="btn sm block" href="#/raporlar" style="margin-top:10px">Tümünü raporda gör</a>` : '')
             : '<p class="muted small">Harika! Yapılmayan iş yok. ✨</p>'}</div>`;
@@ -263,7 +263,7 @@
           html += ps.map((p) => `<tr>
             <td><label class="check"><input type="checkbox" data-sel="${p.id}" ${sel.has(p.id) ? 'checked' : ''}><span></span></label></td>
             <td><b>${h(p.task_name)}</b>${p.package_name ? `<div class="small" style="color:${h(p.package_color)}">● ${h(p.package_name)}</div>` : ''}${p.note ? `<div class="muted small">${h(p.note)}</div>` : ''}</td>
-            <td class="nowrap">${h(p.freq)}</td><td>${h(p.due_time || '—')}</td>
+            <td class="nowrap">${h(p.freq)}</td><td class="small">${h(p.times ? p.times.split(',').join(' · ') : p.due_time || '—')}</td>
             <td class="nowrap">${p.user_name ? App.avatar(p.user_name, 24) + ' ' + h(p.user_name) : '<span class="muted">Ortak</span>'}</td>
             <td class="nowrap small">${h(App.fmtDate(p.start_date))}${p.end_date ? ' → ' + h(App.fmtDate(p.end_date)) : ''}</td>
             <td class="nowrap"><button class="btn icon sm ghost" data-edit="${p.id}" title="Düzenle">${icon('edit')}</button>
@@ -907,7 +907,7 @@
         <div class="grid cols-2">${table(r.by_task.slice(0, 15), 'En çok aksayan işler', 'İş')}
           <div class="glass card"><div class="card-head"><h3>Aksayan kayıtlar</h3><span class="badge missed">${r.problem_count}</span></div>
           ${r.problems.length ? '<div class="list" style="max-height:520px;overflow:auto">' + r.problems.map((p) => `<div class="row">
-            ${App.badge(p.status)}<div><div class="title">${h(p.task)}</div><div class="sub"><span>${h(p.location)}</span><span>${h(p.user || 'Ortak')}</span>
+            ${App.badge(p.status)}<div><div class="title">${h(p.task)}${p.slot_count > 1 ? ` <span class="slot-pill">${h(App.slotLabel(p))}</span>` : ''}</div><div class="sub"><span>${h(p.location)}</span><span>${h(p.user || 'Ortak')}</span>
             ${p.completion && p.completion.note ? `<span>💬 ${h(p.completion.note)}</span>` : ''}</div></div>
             <span class="small muted nowrap">${h(App.fmtDate(p.occ_date))}</span></div>`).join('') + '</div>' : '<p class="muted small">Bu dönemde aksayan iş yok. 👏</p>'}</div></div>`;
       $$('[data-n]', out).forEach((n) => App.countUp(n, +n.dataset.n));

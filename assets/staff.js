@@ -64,7 +64,7 @@
     day = !d || d === (data && data.today) ? null : d;
     celebrated = true; // geçmişe bakarken konfeti patlamasın
     skeleton();
-    load().then(() => { if (!day) celebrated = data.tally.pending + data.tally.overdue === 0; });
+    load().then(() => { if (!day) celebrated = data.tally.pending + data.tally.overdue + data.tally.upcoming === 0; });
   }
 
   /* ---------- izin ---------- */
@@ -199,8 +199,8 @@
 
   function visible(it) {
     const f = activeFilter();
-    if (f === 'todo') return it.status === 'pending' || it.status === 'overdue' || (data.on_leave && it.status === 'leave')
-      || (recentChecked.has(it.plan_id + '|' + it.occ_date) && it.completion && it.completion.status === 'done');
+    if (f === 'todo') return it.status === 'pending' || it.status === 'overdue' || it.status === 'upcoming' || (data.on_leave && it.status === 'leave')
+      || (recentChecked.has(App.itemKey(it)) && it.completion && it.completion.status === 'done');
     if (f === 'done') return it.status === 'done' || it.status === 'issue';
     if (f === 'open') return ['pending', 'overdue', 'missed'].includes(it.status);
     return true;
@@ -213,6 +213,7 @@
     if (it.due_time) sub += `<span>${icon('clock')} ${h(it.due_time)}</span>`;
     sub += `<span>${h(it.freq)}</span>`;
     if (it.status === 'missed') sub += '<span class="miss">Yapılmadı</span>';
+    else if (it.status === 'upcoming' && it.opens_at) sub += `<span class="soon">Açılış: ${h(it.opens_at)}</span>`;
     else if (it.status === 'leave') sub += '<span class="lv">İzinli</span>';
     else if (carried && !done) sub += `<span class="late">${App.relDay(it.occ_date) === 'Dün' ? 'Dünden kalan' : 'Kalan iş · ' + h(App.fmtDate(it.occ_date))}</span>`;
     else if (it.status === 'overdue') sub += `<span class="late">${isPast() ? 'Hâlâ yapılabilir' : 'Saati geçti'}</span>`;
@@ -224,10 +225,10 @@
     if (done && it.completion) sub += `<span>${h(it.completion.by || '')} · ${h(App.fmtTime(it.completion.at))}${it.completion.late ? ' · geç' : ''}</span>`;
     if (!it.user_id) sub += '<span>Ortak</span>';
     const tickCls = cs === 'replaced' ? 'replaced' : it.status === 'done' ? 'on' : it.status === 'issue' ? 'issue' : it.status === 'overdue' ? 'overdue' : it.status === 'missed' ? 'missed' : '';
-    return `<div class="task glass is-${it.status}${cons && cs === 'done' && App.canUndo(it) ? ' is-cons-checked' : ''}" data-key="${it.plan_id}|${it.occ_date}" style="${it.color ? '--c:' + h(it.color) : ''}">
+    return `<div class="task glass is-${it.status}${cons && cs === 'done' && App.canUndo(it) ? ' is-cons-checked' : ''}" data-key="${App.itemKey(it)}" style="${it.color ? '--c:' + h(it.color) : ''}">
       <span class="stripe"></span>
       <button class="tick ${tickCls}" aria-label="${done ? 'Tamamlandı' : 'Tamamla'}"><svg viewBox="0 0 24 24">${cs === 'replaced' ? SWAP_PATH : it.status === 'issue' ? '<path d="M12 6v7M12 17.5v.5"/>' : it.status === 'missed' ? '<path d="M7 7l10 10M17 7L7 17"/>' : '<path d="M5 12.5l4.5 4.5L19 7.5"/>'}</svg><span class="burst"></span></button>
-      <div class="t-body"><div class="t-title">${h(it.task)}</div><div class="t-sub">${sub}</div></div>
+      <div class="t-body"><div class="t-title">${h(it.task)}${it.slot_count > 1 ? ` <span class="slot-pill">${h(App.slotLabel(it))}</span>` : ''}</div><div class="t-sub">${sub}</div></div>
       <span class="chev">${icon('chev')}</span></div>`;
   }
 
@@ -267,13 +268,13 @@
   function render() {
     renderHero(); renderStrip(); renderChips(); renderList();
     const t = data.tally;
-    if (!isPast() && !data.on_leave && t.total && t.pending + t.overdue === 0 && !celebrated) {
+    if (!isPast() && !data.on_leave && t.total && t.pending + t.overdue + t.upcoming === 0 && !celebrated) {
       celebrated = true;
       setTimeout(() => App.confetti(innerWidth / 2, innerHeight / 3, 60), 300);
     }
   }
 
-  function findItem(key) { return data.items.find((i) => i.plan_id + '|' + i.occ_date === key); }
+  function findItem(key) { return data.items.find((i) => App.itemKey(i) === key); }
 
   function recalc() {
     const t = { total: 0, done: 0, issue: 0, pending: 0, overdue: 0, missed: 0, upcoming: 0, leave: 0 };
@@ -286,7 +287,8 @@
   async function quickToggle(card, it) {
     const tick = card.querySelector('.tick');
     if (it.status === 'missed') { App.taskSheet(it, load); return; }
-    const key = it.plan_id + '|' + it.occ_date;
+    if (it.status === 'upcoming') { App.toast(it.opens_at ? `Bu kontrol ${it.opens_at} sonrasında işaretlenebilir` : 'Bu işin zamanı henüz gelmedi', 'info'); return; }
+    const key = App.itemKey(it);
     if (it.completion && it.kind === 'consumable' && it.completion.status === 'done' && App.canUndo(it)) {
       // Sarf malzemesi, ikinci dokunuş: "Değiştirildi"
       tick.classList.add('replaced');
@@ -327,7 +329,7 @@
       if (cons) recentChecked.add(key);
       recalc();
       renderHero(); renderChips();
-      setTimeout(() => { renderList(); if (data.tally.pending + data.tally.overdue === 0) render(); }, activeFilter() === 'todo' && !cons ? 550 : 0);
+      setTimeout(() => { renderList(); if (data.tally.pending + data.tally.overdue + data.tally.upcoming === 0) render(); }, activeFilter() === 'todo' && !cons ? 550 : 0);
       App.api('my_history').then((hh) => { history = hh; renderStrip(); }).catch(() => {});
       App.toast(cons ? 'Kontrol edildi: ' + it.task + ' · değiştirdiyseniz tekrar dokunun' : 'Tamamlandı: ' + it.task, '', {
         action: 'Geri al',

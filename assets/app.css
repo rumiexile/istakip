@@ -610,6 +610,15 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
 .task .t-sub .miss { color: var(--bad); font-weight: 700; }
 .task .t-sub .lv { color: var(--leave); font-weight: 700; }
 .task .t-sub .cons { color: var(--accent-2); font-weight: 700; }
+.task .t-sub .soon { color: var(--info); font-weight: 700; }
+.task.is-upcoming { opacity: .62; }
+.task.is-upcoming .tick { border-style: dashed; }
+.slot-pill { display: inline-block; margin-left: 4px; padding: 1px 8px; border-radius: 99px; font-size: 11px; font-weight: 800; vertical-align: 2px;
+  color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); }
+.times-field { display: grid; gap: 4px; }
+.time-list { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.time-chip { display: inline-flex; align-items: center; gap: 2px; animation: pop .3s var(--spring); }
+.time-chip .btn.icon.sm { width: 28px; min-height: 28px; }
 .task.is-cons-checked { opacity: 1; }
 .task.is-cons-checked .t-title { text-decoration: none; }
 .task .t-sub .cons-ok { color: var(--ok); font-weight: 700; }

@@ -306,13 +306,47 @@
       </div>
       <div class="inline" data-show="monthly"><input type="number" min="1" max="12" name="${prefix}_n_months" value="${t === 'monthly' ? v.freq_interval || 1 : 1}"> ayda bir, ayın
         <input type="number" min="1" max="31" name="${prefix}_md" value="${v.month_day || 1}">. günü</div>
-      <div class="inline">Hedef saat <input type="time" name="${prefix}_time" value="${App.h(v.due_time || '')}"><small class="muted">boş bırakılırsa gün sonuna kadar</small></div>
+      ${App.timesField(v, prefix)}
     </div>`;
   };
+  /** Hedef saat(ler): günde birden çok kez yapılan işler için saat eklenebilir. */
+  App.timesField = (v, prefix) => {
+    const list = String(v.times || '').split(',').map((x) => x.trim()).filter(Boolean);
+    const times = list.length > 1 ? list : [v.due_time || ''];
+    const row = (t, i) => `<span class="time-chip"><input type="time" name="${prefix}_time" value="${App.h(t)}" aria-label="${i + 1}. saat">${i ? '<button type="button" class="btn icon sm ghost" data-trm title="Saati kaldır">' + App.icon('x') + '</button>' : ''}</span>`;
+    return `<div class="times-field" data-times>
+      <div class="inline"><span data-tlabel>${times.length > 1 ? 'Kontrol saatleri' : 'Hedef saat'}</span><span class="time-list">${times.map(row).join('')}</span>
+        <button type="button" class="btn sm ghost" data-tadd>${App.icon('plus')}<span>Saat ekle</span></button></div>
+      <small class="muted" data-thint>${times.length > 1 ? `Günde ${times.length} kez: personel her saat için ayrı bir kontrol işaretler. Bir kontrol, sonraki kontrolün saati geldiğinde hâlâ yapılmamışsa “yapılmadı” sayılır.` : 'Boş bırakılırsa gün sonuna kadar. Günde birden çok kez yapılacaksa (ör. tuvalet kontrolü günde 4 kez) “Saat ekle”ye basın.'}</small></div>`;
+  };
+
   App.bindFreq = (root) => {
     App.$$('[data-freq]', root).forEach((f) => {
       if (f.dataset.bound) return; f.dataset.bound = 1;
       const p = f.dataset.freq;
+      const tf = f.querySelector('[data-times]');
+      const relabel = () => {
+        const n = App.$$('input[type=time]', tf).length;
+        tf.querySelector('[data-tlabel]').textContent = n > 1 ? 'Kontrol saatleri' : 'Hedef saat';
+        tf.querySelector('[data-thint]').textContent = n > 1
+          ? `Günde ${n} kez: personel her saat için ayrı bir kontrol işaretler. Bir kontrol, sonraki kontrolün saati geldiğinde hâlâ yapılmamışsa “yapılmadı” sayılır.`
+          : 'Boş bırakılırsa gün sonuna kadar. Günde birden çok kez yapılacaksa (ör. tuvalet kontrolü günde 4 kez) “Saat ekle”ye basın.';
+      };
+      tf.addEventListener('click', (e) => {
+        if (e.target.closest('[data-tadd]')) {
+          const inputs = App.$$('input[type=time]', tf);
+          if (inputs.length >= 12) { App.toast('Günde en fazla 12 kez seçilebilir', 'bad'); return; }
+          // Yeni saati son saatin 2,5 saat sonrasına öner.
+          const last = inputs[inputs.length - 1].value || '09:00';
+          const [hh, mm] = last.split(':').map(Number);
+          const m = Math.min(23 * 60 + 30, hh * 60 + mm + 150);
+          const chip = App.el(`<span class="time-chip"><input type="time" name="${p}_time" value="${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}"><button type="button" class="btn icon sm ghost" data-trm title="Saati kaldır">${App.icon('x')}</button></span>`);
+          tf.querySelector('.time-list').appendChild(chip);
+          relabel();
+        }
+        const rm = e.target.closest('[data-trm]');
+        if (rm) { rm.closest('.time-chip').remove(); relabel(); }
+      });
       const sync = () => {
         const t = (f.querySelector(`input[name=${p}_type]:checked`) || {}).value;
         App.$$(':scope > [data-show]', f).forEach((s) => { s.hidden = s.dataset.show !== t; });
@@ -324,7 +358,8 @@
     const p = f.dataset.freq;
     const val = (n) => (f.querySelector(`[name=${p}_${n}]`) || {}).value;
     const t = f.querySelector(`input[name=${p}_type]:checked`).value;
-    const o = { freq_type: t, freq_interval: 1, weekdays: null, month_day: null, due_time: val('time') || null };
+    const times = [...new Set(App.$$(`input[name=${p}_time]`, f).map((i) => i.value).filter(Boolean))].sort();
+    const o = { freq_type: t, freq_interval: 1, weekdays: null, month_day: null, due_time: times[0] || null, times: times.length > 1 ? times.join(',') : null };
     if (t === 'every_n_days') o.freq_interval = +val('n_days') || 2;
     if (t === 'weekly') { o.freq_interval = +val('n_weeks') || 1; o.weekdays = App.$$(`input[name=${p}_wd]:checked`, f).map((i) => i.value).join(','); }
     if (t === 'monthly') { o.freq_interval = +val('n_months') || 1; o.month_day = +val('md') || 1; }
@@ -408,13 +443,18 @@
     const fd = new FormData();
     fd.append('plan_id', it.plan_id);
     fd.append('occ_date', it.occ_date);
+    fd.append('slot', it.slot || 0);
     fd.append('status', status || 'done');
     if (note) fd.append('note', note);
     if (photo) fd.append('photo', photo, photo.name || 'foto.jpg');
     return App.api('complete', fd);
   };
-  App.uncompleteItem = (it) => App.api('uncomplete', { plan_id: it.plan_id, occ_date: it.occ_date });
-  App.replaceItem = (it, revert) => App.api('mark_replaced', { plan_id: it.plan_id, occ_date: it.occ_date, revert: revert ? 1 : 0 });
+  App.uncompleteItem = (it) => App.api('uncomplete', { plan_id: it.plan_id, occ_date: it.occ_date, slot: it.slot || 0 });
+  App.replaceItem = (it, revert) => App.api('mark_replaced', { plan_id: it.plan_id, occ_date: it.occ_date, slot: it.slot || 0, revert: revert ? 1 : 0 });
+  /** Bir kaydın benzersiz anahtarı: plan|tarih|kontrol */
+  App.itemKey = (it) => it.plan_id + '|' + it.occ_date + '|' + (it.slot || 0);
+  /** "2/4" gibi kontrol etiketi (günde tek seferlik işlerde boş) */
+  App.slotLabel = (it) => (it.slot_count > 1 ? `${(it.slot || 0) + 1}/${it.slot_count}` : '');
 
   App.taskSheet = (it, onChange) => {
     const c = it.completion;
@@ -424,7 +464,7 @@
     let body = `<div class="sheet-task">
       <div class="meta">${App.itemBadge(it)}${it.kind === 'consumable' ? '<span class="badge plain cons">Sarf malzemesi</span>' : ''}<span class="tag">${icon('pin')}${h(it.location)}</span>
         <span class="tag">${icon('refresh')}${h(it.freq)}</span>
-        ${it.due_time ? `<span class="tag">${icon('clock')}${h(it.due_time)}</span>` : ''}
+        ${it.due_time ? `<span class="tag">${icon('clock')}${it.slot_count > 1 ? h(App.slotLabel(it)) + '. kontrol · ' : ''}${h(it.due_time)}</span>` : ''}
         ${carried ? `<span class="tag">${icon('calendar')}${h(App.fmtDate(it.occ_date, true))}</span>` : ''}
         ${it.user ? `<span class="tag">${icon('user')}${h(it.user)}</span>` : '<span class="tag">' + icon('users') + 'Ortak iş</span>'}</div>
       ${it.task_desc ? `<p class="muted">${h(it.task_desc)}</p>` : ''}
