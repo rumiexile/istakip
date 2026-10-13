@@ -17,7 +17,18 @@ css = css.replace('@media (prefers-color-scheme: dark) { .alert.bad { color: #fc
 
 demo_css = """
 .demo-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 10px 16px 0; padding: 8px 10px 8px 14px; border-radius: 20px; font-size: 13px; position: relative; z-index: 50; }
-.demo-bar .tag-demo { font-weight: 800; letter-spacing: .08em; text-transform: uppercase; font-size: 11px; color: var(--accent); }
+:root { --logo-1: #6BBDEB; --logo-2: #1A7EC1; --logo-3: #27568F; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --logo-3: #4F82C8; } }
+:root[data-theme="dark"] { --logo-3: #4F82C8; }
+.demo-bar .lg { font-style: normal; }
+.demo-bar .seg span { white-space: nowrap; }
+.demo-logo { display: inline-flex; align-items: center; flex: none; }
+.demo-logo svg { height: 26px; width: auto; display: block; transition: transform .45s var(--spring); }
+.demo-logo:hover svg { transform: translateY(-2px) rotate(-4deg) scale(1.06); }
+.demo-logo .l1 { fill: var(--logo-1); } .demo-logo .l2 { fill: var(--logo-2); } .demo-logo .l3 { fill: var(--logo-3); }
+.demo-logo .l1, .demo-logo .l2, .demo-logo .l3 { animation: logoIn .7s var(--spring) both; }
+.demo-logo .l2 { animation-delay: .08s; } .demo-logo .l3 { animation-delay: .16s; }
+@keyframes logoIn { from { opacity: 0; transform: translateY(14px); } }
 .demo-bar .desc { color: var(--muted); flex: 1; min-width: 180px; }
 .demo-bar .seg span { padding: 6px 12px; }
 .role-admin .side { height: auto; max-height: 100dvh; }
@@ -37,11 +48,13 @@ html = f"""<title>İş Takip Demo</title>
 </style>
 <div class="bg-scene" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
 <div class="demo-bar glass" role="region" aria-label="Demo görünümü">
-  <span class="tag-demo">Demo</span>
+  <span class="demo-logo" role="img" aria-label="Demo" title="Demo"><svg viewBox="185 312 683 400" aria-hidden="true">
+    <path class="l1" d="M191 550H300Q324 550 337 571L357 602L289 706Z"/><path class="l2" d="M314 706L483 444Q503 412 545 411H638L480 657Q450 704 390 706Z"/>
+    <path class="l3" d="M449 706Q485 702 503 672L706 352Q727 318 768 317H862L636 672Q614 705 576 706Z"/></svg></span>
   <span class="desc">Örnek verilerle çalışır; yaptığınız değişiklikler yalnızca bu tarayıcıda saklanır.</span>
   <div class="seg" role="radiogroup" aria-label="Görünüm">
-    <label><input type="radio" name="demo-mode" id="demo-admin" value="admin"><span>Yönetici<span class="lg"> paneli</span></span></label>
-    <label><input type="radio" name="demo-mode" id="demo-staff" value="staff"><span>Personel<span class="lg"> telefonu</span></span></label>
+    <label><input type="radio" name="demo-mode" id="demo-admin" value="admin"><span>Yönetici<i class="lg"> paneli</i></span></label>
+    <label><input type="radio" name="demo-mode" id="demo-staff" value="staff"><span>Personel<i class="lg"> telefonu</i></span></label>
   </div>
   <button class="btn sm ghost" id="demo-reset" type="button" title="Örnek verileri baştan yükle">Sıfırla</button>
 </div>
