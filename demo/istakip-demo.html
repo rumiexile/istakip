@@ -807,7 +807,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v11';
+  const KEY = 'istakip-demo-v12';
   const store = {
     get() {
       try { const v = localStorage.getItem(KEY); if (v) return JSON.parse(v); } catch (e) { /* yoksay */ }
@@ -961,7 +961,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
     }
   }
 
-  const DEFAULT_STAFF = [['Aysel Akman', 'aysel.akman'], ['Deniz Kara', 'deniz.kara'], ['Gülnaz Çetin', 'gulnaz.cetin'],
+  const DEFAULT_STAFF = [['Aysel Akman', 'aysel.akman'], ['Deniz Karabulut', 'deniz.karabulut'], ['Gülnaz Yalçın', 'gulnaz.yalcin'],
     ['Mahmut Demirel', 'mahmut.demirel'], ['Mumin Tekin', 'mumin.tekin'], ['Yalçın Bıçakcı', 'yalcin.bicakci']];
 
   function looksConsumable(name) {
@@ -984,8 +984,8 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
     const admin = add('users', { name: 'Bina Yöneticisi', username: 'yonetici', role: 'admin', phone: null, active: 1, created_at: now });
     const st = (name, username) => add('users', { name, username, role: 'staff', phone: null, active: 1, created_at: now });
     const aysel = st('Aysel Akman', 'aysel.akman');
-    const deniz = st('Deniz Kara', 'deniz.kara');
-    const gulnaz = st('Gülnaz Çetin', 'gulnaz.cetin');
+    const deniz = st('Deniz Karabulut', 'deniz.karabulut');
+    const gulnaz = st('Gülnaz Yalçın', 'gulnaz.yalcin');
     const mahmut = st('Mahmut Demirel', 'mahmut.demirel');
     const mumin = st('Mumin Tekin', 'mumin.tekin');
     const yalcin = st('Yalçın Bıçakcı', 'yalcin.bicakci');

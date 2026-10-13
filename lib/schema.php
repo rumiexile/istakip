@@ -243,8 +243,8 @@ function link_pairs(PDO $pdo, array $pairs): void
 /** Kurulumda eklenen ön tanımlı personel: [ad soyad, kullanıcı adı]. */
 const DEFAULT_STAFF = [
     ['Aysel Akman', 'aysel.akman'],
-    ['Deniz Kara', 'deniz.kara'],
-    ['Gülnaz Çetin', 'gulnaz.cetin'],
+    ['Deniz Karabulut', 'deniz.karabulut'],
+    ['Gülnaz Yalçın', 'gulnaz.yalcin'],
     ['Mahmut Demirel', 'mahmut.demirel'],
     ['Mumin Tekin', 'mumin.tekin'],
     ['Yalçın Bıçakcı', 'yalcin.bicakci'],
@@ -434,8 +434,8 @@ function schema_seed(PDO $pdo): void
  * demo/mock.js içindeki apply() çağrılarıyla aynıdır.
  */
 const DEMO_ASSIGNMENTS = [
-    ['Koridor İş Paketi', 'Uzman Yardımcıları Koridoru', 'deniz.kara', null],
-    ['Koridor İş Paketi', 'Makam Koridoru', 'gulnaz.cetin', null],
+    ['Koridor İş Paketi', 'Uzman Yardımcıları Koridoru', 'deniz.karabulut', null],
+    ['Koridor İş Paketi', 'Makam Koridoru', 'gulnaz.yalcin', null],
     ['Sabah Açılış', 'Ana Giriş (Bahçe)', 'mahmut.demirel', ['Kapıların açılması']],
     ['Sabah Açılış', 'Çay Ocağı', 'aysel.akman', ['Çay kazanının fişinin devreye alınması']],
     ['Destek Hizmetleri', 'Ana Giriş (Bahçe)', 'mahmut.demirel', ['Pil geri dönüşüm kutusu']],
@@ -443,8 +443,8 @@ const DEMO_ASSIGNMENTS = [
     ['Destek Hizmetleri', 'Arşiv', 'mahmut.demirel', ['Arşivin düzenlenmesi', 'Yangın şaft dolaplarının kontrolü']],
     ['Destek Hizmetleri', 'Arşiv', null, ['Evrak taşıma']],
     ['Tuvalet Temizliği', 'Tuvalet Erkek', 'aysel.akman', null],
-    ['Tuvalet Temizliği', 'Tuvalet Kadın', 'gulnaz.cetin', null],
-    ['Ofis Genel Temizlik', 'Uzman Yardımcıları Koridoru', 'deniz.kara', ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi']],
+    ['Tuvalet Temizliği', 'Tuvalet Kadın', 'gulnaz.yalcin', null],
+    ['Ofis Genel Temizlik', 'Uzman Yardımcıları Koridoru', 'deniz.karabulut', ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi']],
     ['Çay Ocağı ve Ortak Alan', 'Çay Ocağı', 'aysel.akman', ['Çay ocağı ve ortak alan çöplerinin toplanması']],
     ['Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', 'aysel.akman', null],
     ['Ofis Genel Temizlik', 'Makam Koridoru', 'mumin.tekin', ['Çöplerin toplanması', 'Süpürme', 'Halıların gezilmesi ve fırçalanması']],
