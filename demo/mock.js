@@ -3,7 +3,7 @@
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v12';
+  const KEY = 'istakip-demo-v13';
   const store = {
     get() {
       try { const v = localStorage.getItem(KEY); if (v) return JSON.parse(v); } catch (e) { /* yoksay */ }
@@ -189,25 +189,6 @@
     ['Uzman Yardımcıları Koridoru', 'Makam Koridoru', 'Tuvalet Erkek', 'Tuvalet Kadın', 'Ana Giriş (Bahçe)', 'YÖK Girişi (Asansör)', 'Fotokopi Alanı', 'Arşiv', 'Çay Ocağı']
       .forEach((n, i) => { L[n] = add('locations', { name: n, description: null, sort_order: i, active: 1, created_at: now }); });
     const P = [
-      ['Sabah Açılış', '#f59e0b', 'Mesai başlangıcında yapılacak işler', [
-        ['Kapıların açılması', 'daily', 1, null, null, '07:45'], ['Çay kazanının fişinin devreye alınması', 'daily', 1, null, null, '07:45']]],
-      ['Tuvalet Temizliği', '#06b6d4', 'Her tuvalet için günlük temizlik ve sarf malzeme', [
-        ['Tuvalet kontrolü', 'daily', 1, null, null, '09:00', '09:00,11:30,14:00,16:30'],
-        ['Lavaboların temizliği', 'daily', 1, null, null, '10:00'], ['Ayna ve klozetlerin temizlenmesi', 'daily', 1, null, null, '10:00'],
-        ['Klozet temizliği', 'daily', 1, null, null, '15:00'], ['Tuvalet çöplerinin alınması', 'daily', 1, null, null, '16:00'],
-        ['Tuvalet kağıdı', 'daily', 1, null, null, '09:30'], ['Kağıt havlu', 'daily', 1, null, null, '09:30'], ['Sıvı sabun', 'daily', 1, null, null, '09:30'],
-        ['Zemin giderlerine çamaşır suyu doldurulması', 'daily', 1, null, null, '17:00']]],
-      ['Ofis Genel Temizlik', '#6366f1', 'Ofis katları için rutin temizlik', [
-        ['Çöplerin toplanması', 'daily', 1, null, null, '09:00'], ['Süpürme', 'daily', 1, null, null, '11:00'], ['Paspas', 'daily', 1, null, null, '11:30'],
-        ['Zemin temizliği', 'daily', 1, null, null, '14:00'], ['Halıların gezilmesi ve fırçalanması', 'daily', 1, null, null, '14:00'],
-        ['Halı kenarlarına paspas atılması', 'every_n_days', 2, null, null, '15:00'], ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'daily', 1, null, null, '16:00'], ['Kağıt öğütücü haznesi', 'daily', 1, null, null, '16:00'],
-        ['Çöp atılması (genel)', 'every_n_days', 3, null, null, '17:00'], ['Camların silinmesi', 'monthly', 1, null, 15, null]]],
-      ['Çay Ocağı ve Ortak Alan', '#10b981', 'Çay ocağı, ortak alanlar ve su sebili', [
-        ['Çay ocağı ve ortak alan çöplerinin toplanması', 'daily', 1, null, null, '12:30'], ['Zemin temizliği', 'daily', 1, null, null, '13:00']]],
-      ['Destek Hizmetleri', '#ec4899', 'Taşıma, arşiv, toplantı ve güvenlik kontrolleri', [
-        ['Evrak taşıma', 'daily', 1, null, null, null], ['Arşivin düzenlenmesi', 'weekly', 1, '5', null, null],
-        ['Yangın şaft dolaplarının kontrolü', 'weekly', 1, '1', null, null], ['Asansör temizliği', 'weekly', 2, '3', null, null],
-        ['Pil geri dönüşüm kutusu', 'weekly', 1, '5', null, null]]],
       ['Çay Ocağı Ana Sorumluluk Paketi', '#b45309', 'Çay ocağı ana sorumlusunun günlük ve haftalık işleri', [
         ['Çay hazırlama', 'daily', 1, null, null, '08:30', '08:30,13:30'],
         ['Bulaşık Yıkama', 'daily', 1, null, null, '16:30'],
@@ -251,8 +232,6 @@
       });
     });
     T['Odalarda masa üstü, pencere önü temizliği ve düzeni'].description = 'Makam odası dahil.';
-    T['Sıvı sabun'].description = 'Haznede sabun var mı bakın; azsa doldurun ve “Değiştirildi” olarak işaretleyin.';
-    T['Yangın şaft dolaplarının kontrolü'].description = 'Hortum, vana ve yangın tüpü basınç göstergesini kontrol edin.';
     const start = ymd(dn(localToday()) - 28);
     const apply = (pkgName, locName, user, only) => {
       S.package_items.filter((i) => i.package_id === pk[pkgName].id).forEach((it) => {
@@ -265,38 +244,13 @@
     };
     apply('Koridor İş Paketi', 'Uzman Yardımcıları Koridoru', deniz);
     apply('Koridor İş Paketi', 'Makam Koridoru', gulnaz);
-    apply('Sabah Açılış', 'Ana Giriş (Bahçe)', mahmut, ['Kapıların açılması']);
-    apply('Sabah Açılış', 'Çay Ocağı', aysel, ['Çay kazanının fişinin devreye alınması']);
-    apply('Destek Hizmetleri', 'Ana Giriş (Bahçe)', mahmut, ['Pil geri dönüşüm kutusu']);
-    apply('Ofis Genel Temizlik', 'Ana Giriş (Bahçe)', yalcin, ['Zemin temizliği', 'Paspas']);
-    apply('Destek Hizmetleri', 'Arşiv', mahmut, ['Arşivin düzenlenmesi', 'Yangın şaft dolaplarının kontrolü']);
-    apply('Destek Hizmetleri', 'Arşiv', null, ['Evrak taşıma']);
-    apply('Tuvalet Temizliği', 'Tuvalet Erkek', aysel);
-    apply('Tuvalet Temizliği', 'Tuvalet Kadın', gulnaz);
-    apply('Ofis Genel Temizlik', 'Uzman Yardımcıları Koridoru', deniz, ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi']);
-    apply('Çay Ocağı ve Ortak Alan', 'Çay Ocağı', aysel, ['Çay ocağı ve ortak alan çöplerinin toplanması']);
     apply('Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', aysel);
-    apply('Ofis Genel Temizlik', 'Makam Koridoru', mumin, ['Çöplerin toplanması', 'Süpürme', 'Halıların gezilmesi ve fırçalanması']);
-    apply('Destek Hizmetleri', 'YÖK Girişi (Asansör)', mumin, ['Asansör temizliği']);
-    apply('Ofis Genel Temizlik', 'YÖK Girişi (Asansör)', yalcin, ['Zemin temizliği', 'Paspas']);
-    apply('Ofis Genel Temizlik', 'Fotokopi Alanı', yalcin, ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Kağıt öğütücü haznesi', 'Çöplerin toplanması']);
-    S.plans.find((p) => p.task_id === T['Kapıların açılması'].id).note = 'Anahtarlar güvenlik kulübesinde.';
 
     // Hangi mekanda hangi işler yapılır (lib/schema.php ile aynı)
-    const tuv = ['Tuvalet kontrolü', 'Lavaboların temizliği', 'Ayna ve klozetlerin temizlenmesi', 'Klozet temizliği', 'Tuvalet çöplerinin alınması',
-      'Tuvalet kağıdı', 'Kağıt havlu', 'Sıvı sabun', 'Zemin giderlerine çamaşır suyu doldurulması'];
-    const ofis = ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Zemin temizliği', 'Halıların gezilmesi ve fırçalanması',
-      'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi'];
     Object.entries({
-      'Uzman Yardımcıları Koridoru': ofis.concat(['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Tuvalet kağıdı ve havlu kağıt kontrolü', 'Sabunluk kontrolü', 'Saatlik lavaboların yapılması', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği']),
-      'Makam Koridoru': ofis.concat(['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Tuvalet kağıdı ve havlu kağıt kontrolü', 'Sabunluk kontrolü', 'Saatlik lavaboların yapılması', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği']),
-      'Tuvalet Erkek': tuv,
-      'Tuvalet Kadın': tuv,
-      'Ana Giriş (Bahçe)': ['Kapıların açılması', 'Zemin temizliği', 'Paspas', 'Camların silinmesi', 'Pil geri dönüşüm kutusu'],
-      'YÖK Girişi (Asansör)': ['Asansör temizliği', 'Zemin temizliği', 'Paspas', 'Camların silinmesi'],
-      'Fotokopi Alanı': ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Kağıt öğütücü haznesi', 'Çöplerin toplanması'],
-      'Arşiv': ['Arşivin düzenlenmesi', 'Evrak taşıma', 'Yangın şaft dolaplarının kontrolü'],
-      'Çay Ocağı': ['Çay hazırlama', 'Bulaşık Yıkama', 'Çay malzeme eksiklerinin tedarik edilmesi', 'Su/Damacana kontrolü', 'Çaydanlıkların detaylı temizliği', 'Kahve makinesi temizliği', 'Çay Ocağı Zemin Temizliği', 'Yemek görevi', 'Detaylı Çay Ocağı Temizliği', 'Makam ikram tabağı kontrolü', 'Çay ocağı rulosunun değiştirilmesi', 'Toplantıların ikramlarının hazırlanması ve sunumu'].concat(['Çay kazanının fişinin devreye alınması', 'Çay ocağı ve ortak alan çöplerinin toplanması']),
+      'Uzman Yardımcıları Koridoru': ['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Tuvalet kağıdı ve havlu kağıt kontrolü', 'Sabunluk kontrolü', 'Saatlik lavaboların yapılması', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği'],
+      'Makam Koridoru': ['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Tuvalet kağıdı ve havlu kağıt kontrolü', 'Sabunluk kontrolü', 'Saatlik lavaboların yapılması', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği'],
+      'Çay Ocağı': ['Çay hazırlama', 'Bulaşık Yıkama', 'Çay malzeme eksiklerinin tedarik edilmesi', 'Su/Damacana kontrolü', 'Çaydanlıkların detaylı temizliği', 'Kahve makinesi temizliği', 'Çay Ocağı Zemin Temizliği', 'Yemek görevi', 'Detaylı Çay Ocağı Temizliği', 'Makam ikram tabağı kontrolü', 'Çay ocağı rulosunun değiştirilmesi', 'Toplantıların ikramlarının hazırlanması ve sunumu'],
     }).forEach(([loc, tasks]) => tasks.forEach((t) => {
       if (!S.links.some((x) => x.location_id === L[loc].id && x.task_id === T[t].id)) S.links.push({ location_id: L[loc].id, task_id: T[t].id });
     }));

@@ -17,7 +17,7 @@ siteyi açıp işleri işaretler. Yönetici de geciken ve yapılmayan işleri an
 | **İş Paketleri** | Şablonlar: “Tuvalet Temizliği” gibi bir paketi bir kerede birden çok mekana ve kişiye atama, paket kopyalama. |
 | **Mekanlar ↔ İşler** | Her mekanda hangi işlerin yapılacağı tanımlanır: iş tanımlarken mekanları, mekan tanımlarken işleri seçin ya da **Mekan × İş tablosundan** hücreye tıklayarak eşleştirin. Her işin varsayılan sıklığı vardır; mekan listesindeki **İşleri ata** ile bir mekanın tüm işleri tek seferde bir personele atanır. |
 | **Personel** | Personel silinirken üzerindeki işler başkasına devredilir. |
-| **Sarf malzemeleri** | Tuvalet kağıdı, kağıt havlu, sıvı sabun, su sebili, kağıt öğütücü haznesi, pil geri dönüşüm kutusu gibi işler “Sarf malzemesi” türündedir: personel bir kez dokununca **Kontrol edildi**, ikinci dokunuşta **Değiştirildi** kaydedilir. Raporlarda malzeme başına kontrol ve değişim sayıları ile en çok değişen mekanlar görünür. Tür, iş formundan değiştirilebilir. |
+| **Sarf malzemeleri** | Su/damacana, tuvalet kağıdı ve havlu kağıt, sabunluk, makam ikram tabağı, çay ocağı rulosu gibi işler “Sarf malzemesi” türündedir: personel bir kez dokununca **Kontrol edildi**, ikinci dokunuşta **Değiştirildi** kaydedilir. Raporlarda malzeme başına kontrol ve değişim sayıları ile en çok değişen mekanlar görünür. Tür, iş formundan değiştirilebilir. |
 | **Raporlar** | Tarih aralığı, personel ve mekan filtresi. Günlük grafik, en çok aksayan işler, Excel'de açılan CSV dışa aktarma. |
 | **Ayarlar** | Kurum adı, çalışma günleri, resmi tatiller. |
 | **Personel ekranı (mobil)** | Bugünün işleri mekana göre gruplu. Tek dokunuşla tamamlama ve geri alma, “Sorun var” bildirimi, not ve fotoğraf ekleme. Son 14 günün şeridiyle geçmiş günlere bakma, “Bugün izinliyim” ve ileri tarihli izin bildirme. |
@@ -30,7 +30,7 @@ siteyi açıp işleri işaretler. Yönetici de geciken ve yapılmayan işleri an
 - **Haftalık / X haftada 1**: belirli günler, örn. 2 haftada bir Çarşamba asansör temizliği
 - **Aylık / X ayda 1**: ayın belirli günü, örn. ayda 1 cam silme. Gün tatile denk gelirse bir sonraki iş gününe kayar.
 - İsteğe bağlı **hedef saat**: saat geçince iş “gecikti” olarak görünür.
-- **Günde birden çok kez**: sıklık editöründe “Saat ekle” ile birden fazla saat girilir (ör. tuvalet kontrolü 09:00, 11:30, 14:00, 16:30).
+- **Günde birden çok kez**: sıklık editöründe “Saat ekle” ile birden fazla saat girilir (ör. saatlik lavabo kontrolü 09:00–17:00, çay demleme 08:15 ve 13:00).
   Personel her saat için ayrı bir kontrol işaretler (1/4, 2/4…). Her kontrol bir önceki kontrolün saatinde açılır; bir sonraki
   kontrolün saati geldiğinde hâlâ yapılmamışsa “yapılmadı” sayılır. Böylece kontroller sonradan topluca işaretlenemez.
 
@@ -49,16 +49,14 @@ hâlâ yapılmamışsa o tekrar **yapılmadı** olarak kaydedilir ve raporlara d
    - Alternatif olarak bir alt alan adı (örn. `istakip.siteniz.com`) açıp kök klasörünü bu klasör olarak gösterebilirsiniz.
 3. **Kurulum sihirbazı:** Tarayıcıda `https://siteniz.com/istakip/install.php` adresini açın.
    Veritabanı bilgilerini, kurum adını ve yönetici hesabını girin. “Örnek verileri yükle” seçeneği,
-   sizin listenizdeki işleri 5 hazır paket halinde getirir.
+   9 mekanı ve iki iş paketini getirir: **Çay Ocağı Ana Sorumluluk Paketi** (12 iş) ve **Koridor İş Paketi** (15 iş).
    “Ön tanımlı personeli ekle” seçeneği şu kişileri ekler: Aysel Akman, Deniz Karabulut, Gülnaz Yalçın,
    Mahmut Demirel, Mumin Tekin, Yalçın Bıçakcı. Kullanıcı adları `ad.soyad` biçimindedir (örn. `aysel.akman`).
    Geçici şifreler kurulum bitince **bir kez** gösterilir. Not alıp personele iletin.
    Uygulama daha önce kurulduysa aynı kişileri yönetici panelinde **Personel → Ön tanımlı personeli ekle** butonuyla ekleyebilirsiniz.
    “Demodaki iş dağılımını da yükle” seçeneği (personel ve örnek veri seçiliyken) demodaki atamaların aynısını
-   kurulum gününden başlayarak oluşturur: Uzman Yardımcıları Koridoru (Koridor İş Paketi) Deniz Karabulut'a,
-   Makam Koridoru (Koridor İş Paketi) Gülnaz Yalçın'a, Çay Ocağı (Çay Ocağı Ana Sorumluluk Paketi) ve Tuvalet Erkek
-   Aysel Akman'a, Tuvalet Kadın Gülnaz Yalçın'a, YÖK Girişi (Asansör) temizliği ve Makam Koridoru çöp/süpürme/halı Mumin Tekin'e,
-   Ana Giriş (Bahçe) açılışı ve Arşiv Mahmut Demirel'e, giriş zeminleri ve Fotokopi Alanı Yalçın Bıçakcı'ya; evrak taşıma ortaktır.
+   kurulum gününden başlayarak oluşturur: Koridor İş Paketi Uzman Yardımcıları Koridoru'nda Deniz Karabulut'a,
+   Makam Koridoru'nda Gülnaz Yalçın'a; Çay Ocağı Ana Sorumluluk Paketi Çay Ocağı'nda Aysel Akman'a atanır.
    Dağılım sonradan **İş Atamaları** ekranından değiştirilebilir.
 4. **Güvenlik:** Kurulumdan sonra `install.php` dosyasını silin. Sitede **SSL (https)** açık olsun
    (cPanel → *SSL/TLS Status* → AutoSSL).
