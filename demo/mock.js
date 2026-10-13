@@ -3,7 +3,7 @@
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v9';
+  const KEY = 'istakip-demo-v10';
   const store = {
     get() {
       try { const v = localStorage.getItem(KEY); if (v) return JSON.parse(v); } catch (e) { /* yoksay */ }
@@ -163,7 +163,7 @@
   function looksConsumable(name) {
     const n = name.toLocaleLowerCase('tr');
     if (n.includes('temizl')) return false;
-    return /tuvalet ka[gğ]ı|havlu|sabun|sebil|ö[gğ]ütücü|(^|\s)pil(\s|$)/.test(n);
+    return /tuvalet ka[gğ]ı|havlu|sabun|sebil|damacana|rulo|ikram tabağı|ö[gğ]ütücü|(^|\s)pil(\s|$)/.test(n);
   }
 
   /* ---------- örnek veri ---------- */
@@ -203,13 +203,24 @@
         ['Halı kenarlarına paspas atılması', 'every_n_days', 2, null, null, '15:00'], ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'daily', 1, null, null, '16:00'], ['Kağıt öğütücü haznesi', 'daily', 1, null, null, '16:00'],
         ['Çöp atılması (genel)', 'every_n_days', 3, null, null, '17:00'], ['Camların silinmesi', 'monthly', 1, null, 15, null]]],
       ['Çay Ocağı ve Ortak Alan', '#10b981', 'Çay ocağı, ortak alanlar ve su sebili', [
-        ['Çay ocağı ve ortak alan çöplerinin toplanması', 'daily', 1, null, null, '12:30'], ['Zemin temizliği', 'daily', 1, null, null, '13:00'],
-        ['Su sebili', 'daily', 1, null, null, '09:00']]],
+        ['Çay ocağı ve ortak alan çöplerinin toplanması', 'daily', 1, null, null, '12:30'], ['Zemin temizliği', 'daily', 1, null, null, '13:00']]],
       ['Destek Hizmetleri', '#ec4899', 'Taşıma, arşiv, toplantı ve güvenlik kontrolleri', [
-        ['Günlük yemek götürme', 'daily', 1, null, null, '12:00'], ['Evrak taşıma', 'daily', 1, null, null, null],
-        ['Toplantı odasının hazırlanması (su, soda)', 'daily', 1, null, null, '08:30'], ['Arşivin düzenlenmesi', 'weekly', 1, '5', null, null],
+        ['Evrak taşıma', 'daily', 1, null, null, null], ['Arşivin düzenlenmesi', 'weekly', 1, '5', null, null],
         ['Yangın şaft dolaplarının kontrolü', 'weekly', 1, '1', null, null], ['Asansör temizliği', 'weekly', 2, '3', null, null],
         ['Pil geri dönüşüm kutusu', 'weekly', 1, '5', null, null]]],
+      ['Çay Ocağı Ana Sorumluluk Paketi', '#b45309', 'Çay ocağı ana sorumlusunun günlük ve haftalık işleri', [
+        ['Çay hazırlama', 'daily', 1, null, null, '08:30', '08:30,13:30'],
+        ['Bulaşık Yıkama', 'daily', 1, null, null, '16:30'],
+        ['Çay malzeme eksiklerinin tedarik edilmesi', 'weekly', 1, '1', null, '10:00'],
+        ['Su/Damacana kontrolü', 'daily', 1, null, null, '09:00'],
+        ['Çaydanlıkların detaylı temizliği', 'weekly', 1, '5', null, '15:00'],
+        ['Kahve makinesi temizliği', 'daily', 1, null, null, '16:00'],
+        ['Çay Ocağı Zemin Temizliği', 'daily', 1, null, null, '17:00'],
+        ['Yemek görevi', 'daily', 1, null, null, '12:00'],
+        ['Detaylı Çay Ocağı Temizliği', 'weekly', 1, '5', null, '16:00'],
+        ['Makam ikram tabağı kontrolü', 'daily', 1, null, null, '09:30'],
+        ['Çay ocağı rulosunun değiştirilmesi', 'daily', 1, null, null, '09:30'],
+        ['Toplantıların ikramlarının hazırlanması ve sunumu', 'daily', 1, null, null, null]]],
     ];
     const T = {};
     const pk = {};
@@ -236,7 +247,7 @@
       });
     };
     apply('Sabah Açılış', 'Ana Giriş (Bahçe)', mahmut, ['Kapıların açılması']);
-    apply('Sabah Açılış', 'Çay Ocağı', deniz, ['Çay kazanının fişinin devreye alınması']);
+    apply('Sabah Açılış', 'Çay Ocağı', aysel, ['Çay kazanının fişinin devreye alınması']);
     apply('Destek Hizmetleri', 'Ana Giriş (Bahçe)', mahmut, ['Pil geri dönüşüm kutusu']);
     apply('Ofis Genel Temizlik', 'Ana Giriş (Bahçe)', yalcin, ['Zemin temizliği', 'Paspas']);
     apply('Destek Hizmetleri', 'Arşiv', mahmut, ['Arşivin düzenlenmesi', 'Yangın şaft dolaplarının kontrolü']);
@@ -244,10 +255,9 @@
     apply('Tuvalet Temizliği', 'Tuvalet Erkek', aysel);
     apply('Tuvalet Temizliği', 'Tuvalet Kadın', gulnaz);
     apply('Ofis Genel Temizlik', 'Uzman Yardımcıları Koridoru', deniz, ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi']);
-    apply('Çay Ocağı ve Ortak Alan', 'Çay Ocağı', deniz, ['Çay ocağı ve ortak alan çöplerinin toplanması', 'Su sebili', 'Zemin temizliği']);
-    apply('Tuvalet Temizliği', 'Çay Ocağı', deniz, ['Kağıt havlu']);
+    apply('Çay Ocağı ve Ortak Alan', 'Çay Ocağı', aysel, ['Çay ocağı ve ortak alan çöplerinin toplanması']);
+    apply('Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', aysel);
     apply('Ofis Genel Temizlik', 'Makam Koridoru', mumin, ['Çöplerin toplanması', 'Süpürme', 'Halıların gezilmesi ve fırçalanması']);
-    apply('Destek Hizmetleri', 'Makam Koridoru', null, ['Toplantı odasının hazırlanması (su, soda)', 'Günlük yemek götürme']);
     apply('Destek Hizmetleri', 'YÖK Girişi (Asansör)', mumin, ['Asansör temizliği']);
     apply('Ofis Genel Temizlik', 'YÖK Girişi (Asansör)', yalcin, ['Zemin temizliği', 'Paspas']);
     apply('Ofis Genel Temizlik', 'Fotokopi Alanı', yalcin, ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Kağıt öğütücü haznesi', 'Çöplerin toplanması']);
@@ -260,14 +270,14 @@
       'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi'];
     Object.entries({
       'Uzman Yardımcıları Koridoru': ofis,
-      'Makam Koridoru': ofis.concat(['Toplantı odasının hazırlanması (su, soda)', 'Günlük yemek götürme']),
+      'Makam Koridoru': ofis,
       'Tuvalet Erkek': tuv,
       'Tuvalet Kadın': tuv,
       'Ana Giriş (Bahçe)': ['Kapıların açılması', 'Zemin temizliği', 'Paspas', 'Camların silinmesi', 'Pil geri dönüşüm kutusu'],
       'YÖK Girişi (Asansör)': ['Asansör temizliği', 'Zemin temizliği', 'Paspas', 'Camların silinmesi'],
       'Fotokopi Alanı': ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Kağıt öğütücü haznesi', 'Çöplerin toplanması'],
       'Arşiv': ['Arşivin düzenlenmesi', 'Evrak taşıma', 'Yangın şaft dolaplarının kontrolü'],
-      'Çay Ocağı': ['Çay kazanının fişinin devreye alınması', 'Çay ocağı ve ortak alan çöplerinin toplanması', 'Su sebili', 'Zemin temizliği', 'Kağıt havlu'],
+      'Çay Ocağı': ['Çay hazırlama', 'Bulaşık Yıkama', 'Çay malzeme eksiklerinin tedarik edilmesi', 'Su/Damacana kontrolü', 'Çaydanlıkların detaylı temizliği', 'Kahve makinesi temizliği', 'Çay Ocağı Zemin Temizliği', 'Yemek görevi', 'Detaylı Çay Ocağı Temizliği', 'Makam ikram tabağı kontrolü', 'Çay ocağı rulosunun değiştirilmesi', 'Toplantıların ikramlarının hazırlanması ve sunumu'].concat(['Çay kazanının fişinin devreye alınması', 'Çay ocağı ve ortak alan çöplerinin toplanması']),
     }).forEach(([loc, tasks]) => tasks.forEach((t) => {
       if (!S.links.some((x) => x.location_id === L[loc].id && x.task_id === T[t].id)) S.links.push({ location_id: L[loc].id, task_id: T[t].id });
     }));

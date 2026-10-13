@@ -224,7 +224,7 @@ function looks_consumable(string $name): bool
     if (str_contains($n, 'temizl')) {
         return false; // "… çevresi temizliği" gibi temizlik işleri sarf malzemesi değildir.
     }
-    return (bool)preg_match('/tuvalet ka[gğ]ı|havlu|sabun|sebil|ö[gğ]ütücü|\bpil\b/u', $n);
+    return (bool)preg_match('/tuvalet ka[gğ]ı|havlu|sabun|sebil|damacana|rulo|ikram taba[gğ]ı|ö[gğ]ütücü|\bpil\b/u', $n);
 }
 
 /** @param array<int,array{0:int,1:int}> $pairs [mekan, iş] */
@@ -337,16 +337,27 @@ function schema_seed(PDO $pdo): void
         ['Çay Ocağı ve Ortak Alan', '#10b981', 'Çay ocağı, ortak alanlar ve su sebili', [
             ['Çay ocağı ve ortak alan çöplerinin toplanması', 'daily', 1, null, null, '12:30'],
             ['Zemin temizliği', 'daily', 1, null, null, '13:00'],
-            ['Su sebili', 'daily', 1, null, null, '09:00'],
         ]],
         ['Destek Hizmetleri', '#ec4899', 'Taşıma, arşiv, toplantı ve güvenlik kontrolleri', [
-            ['Günlük yemek götürme', 'daily', 1, null, null, '12:00'],
             ['Evrak taşıma', 'daily', 1, null, null, null],
-            ['Toplantı odasının hazırlanması (su, soda)', 'daily', 1, null, null, '08:30'],
             ['Arşivin düzenlenmesi', 'weekly', 1, '5', null, null],
             ['Yangın şaft dolaplarının kontrolü', 'weekly', 1, '1', null, null],
             ['Asansör temizliği', 'weekly', 2, '3', null, null],
             ['Pil geri dönüşüm kutusu', 'weekly', 1, '5', null, null],
+        ]],
+        ['Çay Ocağı Ana Sorumluluk Paketi', '#b45309', 'Çay ocağı ana sorumlusunun günlük ve haftalık işleri', [
+            ['Çay hazırlama', 'daily', 1, null, null, '08:30', '08:30,13:30'],
+            ['Bulaşık Yıkama', 'daily', 1, null, null, '16:30'],
+            ['Çay malzeme eksiklerinin tedarik edilmesi', 'weekly', 1, '1', null, '10:00'],
+            ['Su/Damacana kontrolü', 'daily', 1, null, null, '09:00'],
+            ['Çaydanlıkların detaylı temizliği', 'weekly', 1, '5', null, '15:00'],
+            ['Kahve makinesi temizliği', 'daily', 1, null, null, '16:00'],
+            ['Çay Ocağı Zemin Temizliği', 'daily', 1, null, null, '17:00'],
+            ['Yemek görevi', 'daily', 1, null, null, '12:00'],
+            ['Detaylı Çay Ocağı Temizliği', 'weekly', 1, '5', null, '16:00'],
+            ['Makam ikram tabağı kontrolü', 'daily', 1, null, null, '09:30'],
+            ['Çay ocağı rulosunun değiştirilmesi', 'daily', 1, null, null, '09:30'],
+            ['Toplantıların ikramlarının hazırlanması ve sunumu', 'daily', 1, null, null, null],
         ]],
     ];
 
@@ -375,14 +386,14 @@ function schema_seed(PDO $pdo): void
         'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi'];
     $map = [
         'Uzman Yardımcıları Koridoru' => $ofis,
-        'Makam Koridoru' => array_merge($ofis, ['Toplantı odasının hazırlanması (su, soda)', 'Günlük yemek götürme']),
+        'Makam Koridoru' => $ofis,
         'Tuvalet Erkek' => $tuvalet,
         'Tuvalet Kadın' => $tuvalet,
         'Ana Giriş (Bahçe)' => ['Kapıların açılması', 'Zemin temizliği', 'Paspas', 'Camların silinmesi', 'Pil geri dönüşüm kutusu'],
         'YÖK Girişi (Asansör)' => ['Asansör temizliği', 'Zemin temizliği', 'Paspas', 'Camların silinmesi'],
         'Fotokopi Alanı' => ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Kağıt öğütücü haznesi', 'Çöplerin toplanması'],
         'Arşiv' => ['Arşivin düzenlenmesi', 'Evrak taşıma', 'Yangın şaft dolaplarının kontrolü'],
-        'Çay Ocağı' => ['Çay kazanının fişinin devreye alınması', 'Çay ocağı ve ortak alan çöplerinin toplanması', 'Su sebili', 'Zemin temizliği', 'Kağıt havlu'],
+        'Çay Ocağı' => array_merge(['Çay hazırlama', 'Bulaşık Yıkama', 'Çay malzeme eksiklerinin tedarik edilmesi', 'Su/Damacana kontrolü', 'Çaydanlıkların detaylı temizliği', 'Kahve makinesi temizliği', 'Çay Ocağı Zemin Temizliği', 'Yemek görevi', 'Detaylı Çay Ocağı Temizliği', 'Makam ikram tabağı kontrolü', 'Çay ocağı rulosunun değiştirilmesi', 'Toplantıların ikramlarının hazırlanması ve sunumu'], ['Çay kazanının fişinin devreye alınması', 'Çay ocağı ve ortak alan çöplerinin toplanması']),
     ];
     $pairs = [];
     foreach ($map as $loc => $tasks) {
@@ -401,7 +412,7 @@ function schema_seed(PDO $pdo): void
  */
 const DEMO_ASSIGNMENTS = [
     ['Sabah Açılış', 'Ana Giriş (Bahçe)', 'mahmut.demirel', ['Kapıların açılması']],
-    ['Sabah Açılış', 'Çay Ocağı', 'deniz.karabulut', ['Çay kazanının fişinin devreye alınması']],
+    ['Sabah Açılış', 'Çay Ocağı', 'aysel.akman', ['Çay kazanının fişinin devreye alınması']],
     ['Destek Hizmetleri', 'Ana Giriş (Bahçe)', 'mahmut.demirel', ['Pil geri dönüşüm kutusu']],
     ['Ofis Genel Temizlik', 'Ana Giriş (Bahçe)', 'yalcin.bicakci', ['Zemin temizliği', 'Paspas']],
     ['Destek Hizmetleri', 'Arşiv', 'mahmut.demirel', ['Arşivin düzenlenmesi', 'Yangın şaft dolaplarının kontrolü']],
@@ -409,10 +420,9 @@ const DEMO_ASSIGNMENTS = [
     ['Tuvalet Temizliği', 'Tuvalet Erkek', 'aysel.akman', null],
     ['Tuvalet Temizliği', 'Tuvalet Kadın', 'gulnaz.yalcin', null],
     ['Ofis Genel Temizlik', 'Uzman Yardımcıları Koridoru', 'deniz.karabulut', ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi']],
-    ['Çay Ocağı ve Ortak Alan', 'Çay Ocağı', 'deniz.karabulut', ['Çay ocağı ve ortak alan çöplerinin toplanması', 'Su sebili', 'Zemin temizliği']],
-    ['Tuvalet Temizliği', 'Çay Ocağı', 'deniz.karabulut', ['Kağıt havlu']],
+    ['Çay Ocağı ve Ortak Alan', 'Çay Ocağı', 'aysel.akman', ['Çay ocağı ve ortak alan çöplerinin toplanması']],
+    ['Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', 'aysel.akman', null],
     ['Ofis Genel Temizlik', 'Makam Koridoru', 'mumin.tekin', ['Çöplerin toplanması', 'Süpürme', 'Halıların gezilmesi ve fırçalanması']],
-    ['Destek Hizmetleri', 'Makam Koridoru', null, ['Toplantı odasının hazırlanması (su, soda)', 'Günlük yemek götürme']],
     ['Destek Hizmetleri', 'YÖK Girişi (Asansör)', 'mumin.tekin', ['Asansör temizliği']],
     ['Ofis Genel Temizlik', 'YÖK Girişi (Asansör)', 'yalcin.bicakci', ['Zemin temizliği', 'Paspas']],
     ['Ofis Genel Temizlik', 'Fotokopi Alanı', 'yalcin.bicakci', ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Kağıt öğütücü haznesi', 'Çöplerin toplanması']],

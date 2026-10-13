@@ -55,10 +55,10 @@ hâlâ yapılmamışsa o tekrar **yapılmadı** olarak kaydedilir ve raporlara d
    Geçici şifreler kurulum bitince **bir kez** gösterilir. Not alıp personele iletin.
    Uygulama daha önce kurulduysa aynı kişileri yönetici panelinde **Personel → Ön tanımlı personeli ekle** butonuyla ekleyebilirsiniz.
    “Demodaki iş dağılımını da yükle” seçeneği (personel ve örnek veri seçiliyken) demodaki atamaların aynısını
-   kurulum gününden başlayarak oluşturur: Tuvalet Erkek Aysel Akman'a, Tuvalet Kadın Gülnaz Yalçın'a,
-   Uzman Yardımcıları Koridoru ve Çay Ocağı Deniz Karabulut'a, Makam Koridoru ve YÖK Girişi (Asansör) temizliği Mumin Tekin'e,
-   Ana Giriş (Bahçe) açılışı ve Arşiv Mahmut Demirel'e, giriş zeminleri ve Fotokopi Alanı Yalçın Bıçakcı'ya;
-   toplantı hazırlığı, yemek götürme ve evrak taşıma ortaktır.
+   kurulum gününden başlayarak oluşturur: Tuvalet Erkek ve Çay Ocağı (Çay Ocağı Ana Sorumluluk Paketi) Aysel Akman'a,
+   Tuvalet Kadın Gülnaz Yalçın'a, Uzman Yardımcıları Koridoru Deniz Karabulut'a, Makam Koridoru ve YÖK Girişi (Asansör)
+   temizliği Mumin Tekin'e, Ana Giriş (Bahçe) açılışı ve Arşiv Mahmut Demirel'e, giriş zeminleri ve Fotokopi Alanı
+   Yalçın Bıçakcı'ya; evrak taşıma ortaktır.
    Dağılım sonradan **İş Atamaları** ekranından değiştirilebilir.
 4. **Güvenlik:** Kurulumdan sonra `install.php` dosyasını silin. Sitede **SSL (https)** açık olsun
    (cPanel → *SSL/TLS Status* → AutoSSL).
