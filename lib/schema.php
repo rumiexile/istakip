@@ -288,9 +288,14 @@ function schema_seed(PDO $pdo): void
 {
     $now = date('Y-m-d H:i:s');
     $locations = [
-        'Ana Giriş', 'Kazan Dairesi', 'Kat 1 - Ofisler', 'Kat 1 - Tuvaletler',
-        'Kat 2 - Ofisler', 'Kat 2 - Tuvaletler', 'Çay Ocağı', 'Toplantı Odası',
-        'Arşiv', 'Asansör', 'Fotokopi Alanı', 'Yemekhane',
+        'Uzman Yardımcıları Koridoru',
+        'Makam Koridoru',
+        'Tuvalet Erkek',
+        'Tuvalet Kadın',
+        'Ana Giriş (Bahçe)',
+        'YÖK Girişi (Asansör)',
+        'Fotokopi Alanı',
+        'Arşiv',
     ];
     $st = $pdo->prepare('INSERT INTO locations (name, sort_order, active, created_at) VALUES (?, ?, 1, ?)');
     $locIds = [];
@@ -368,18 +373,14 @@ function schema_seed(PDO $pdo): void
     $ofis = ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Zemin temizliği', 'Halıların gezilmesi ve fırçalanması',
         'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi'];
     $map = [
-        'Ana Giriş' => ['Kapıların açılması', 'Zemin temizliği', 'Paspas', 'Camların silinmesi', 'Pil geri dönüşüm kutusu'],
-        'Kazan Dairesi' => ['Kazanın fişinin devreye alınması'],
-        'Kat 1 - Ofisler' => $ofis,
-        'Kat 1 - Tuvaletler' => $tuvalet,
-        'Kat 2 - Ofisler' => $ofis,
-        'Kat 2 - Tuvaletler' => $tuvalet,
-        'Çay Ocağı' => ['Çay ocağı ve ortak alan çöplerinin toplanması', 'Zemin temizliği', 'Su sebili', 'Kağıt havlu'],
-        'Toplantı Odası' => ['Toplantı odasının hazırlanması (su, soda)', 'Süpürme', 'Camların silinmesi'],
-        'Arşiv' => ['Arşivin düzenlenmesi', 'Evrak taşıma', 'Yangın şaft dolaplarının kontrolü'],
-        'Asansör' => ['Asansör temizliği'],
+        'Uzman Yardımcıları Koridoru' => array_merge($ofis, ['Çay ocağı ve ortak alan çöplerinin toplanması', 'Su sebili']),
+        'Makam Koridoru' => array_merge($ofis, ['Toplantı odasının hazırlanması (su, soda)', 'Günlük yemek götürme']),
+        'Tuvalet Erkek' => $tuvalet,
+        'Tuvalet Kadın' => $tuvalet,
+        'Ana Giriş (Bahçe)' => ['Kapıların açılması', 'Kazanın fişinin devreye alınması', 'Zemin temizliği', 'Paspas', 'Camların silinmesi', 'Pil geri dönüşüm kutusu'],
+        'YÖK Girişi (Asansör)' => ['Asansör temizliği', 'Zemin temizliği', 'Paspas', 'Camların silinmesi'],
         'Fotokopi Alanı' => ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Kağıt öğütücü haznesi', 'Çöplerin toplanması'],
-        'Yemekhane' => ['Günlük yemek götürme', 'Zemin temizliği', 'Çöplerin toplanması'],
+        'Arşiv' => ['Arşivin düzenlenmesi', 'Evrak taşıma', 'Yangın şaft dolaplarının kontrolü'],
     ];
     $pairs = [];
     foreach ($map as $loc => $tasks) {
@@ -397,20 +398,20 @@ function schema_seed(PDO $pdo): void
  * demo/mock.js içindeki apply() çağrılarıyla aynıdır.
  */
 const DEMO_ASSIGNMENTS = [
-    ['Sabah Açılış', 'Ana Giriş', 'mahmut.demirel', ['Kapıların açılması']],
-    ['Sabah Açılış', 'Kazan Dairesi', 'mahmut.demirel', ['Kazanın fişinin devreye alınması']],
-    ['Tuvalet Temizliği', 'Kat 1 - Tuvaletler', 'aysel.akman', null],
-    ['Tuvalet Temizliği', 'Kat 2 - Tuvaletler', 'gulnaz.yalcin', null],
-    ['Ofis Genel Temizlik', 'Kat 1 - Ofisler', 'deniz.karabulut', ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi']],
-    ['Ofis Genel Temizlik', 'Kat 1 - Ofisler', 'aysel.akman', ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Kağıt öğütücü haznesi']],
-    ['Ofis Genel Temizlik', 'Kat 2 - Ofisler', 'mumin.tekin', ['Çöplerin toplanması', 'Süpürme', 'Halıların gezilmesi ve fırçalanması']],
-    ['Çay Ocağı ve Ortak Alan', 'Çay Ocağı', 'yalcin.bicakci', null],
-    ['Destek Hizmetleri', 'Toplantı Odası', null, ['Toplantı odasının hazırlanması (su, soda)', 'Günlük yemek götürme', 'Evrak taşıma']],
+    ['Sabah Açılış', 'Ana Giriş (Bahçe)', 'mahmut.demirel', ['Kapıların açılması', 'Kazanın fişinin devreye alınması']],
+    ['Destek Hizmetleri', 'Ana Giriş (Bahçe)', 'mahmut.demirel', ['Pil geri dönüşüm kutusu']],
+    ['Ofis Genel Temizlik', 'Ana Giriş (Bahçe)', 'yalcin.bicakci', ['Zemin temizliği', 'Paspas']],
     ['Destek Hizmetleri', 'Arşiv', 'mahmut.demirel', ['Arşivin düzenlenmesi', 'Yangın şaft dolaplarının kontrolü']],
-    ['Destek Hizmetleri', 'Ana Giriş', 'mahmut.demirel', ['Pil geri dönüşüm kutusu']],
-    ['Ofis Genel Temizlik', 'Fotokopi Alanı', 'deniz.karabulut', ['Kağıt öğütücü haznesi']],
-    ['Tuvalet Temizliği', 'Çay Ocağı', 'yalcin.bicakci', ['Kağıt havlu']],
-    ['Destek Hizmetleri', 'Asansör', 'mumin.tekin', ['Asansör temizliği']],
+    ['Destek Hizmetleri', 'Arşiv', null, ['Evrak taşıma']],
+    ['Tuvalet Temizliği', 'Tuvalet Erkek', 'aysel.akman', null],
+    ['Tuvalet Temizliği', 'Tuvalet Kadın', 'gulnaz.yalcin', null],
+    ['Ofis Genel Temizlik', 'Uzman Yardımcıları Koridoru', 'deniz.karabulut', ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi']],
+    ['Çay Ocağı ve Ortak Alan', 'Uzman Yardımcıları Koridoru', 'deniz.karabulut', ['Çay ocağı ve ortak alan çöplerinin toplanması', 'Su sebili']],
+    ['Ofis Genel Temizlik', 'Makam Koridoru', 'mumin.tekin', ['Çöplerin toplanması', 'Süpürme', 'Halıların gezilmesi ve fırçalanması']],
+    ['Destek Hizmetleri', 'Makam Koridoru', null, ['Toplantı odasının hazırlanması (su, soda)', 'Günlük yemek götürme']],
+    ['Destek Hizmetleri', 'YÖK Girişi (Asansör)', 'mumin.tekin', ['Asansör temizliği']],
+    ['Ofis Genel Temizlik', 'YÖK Girişi (Asansör)', 'yalcin.bicakci', ['Zemin temizliği', 'Paspas']],
+    ['Ofis Genel Temizlik', 'Fotokopi Alanı', 'yalcin.bicakci', ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Kağıt öğütücü haznesi', 'Çöplerin toplanması']],
 ];
 
 /**

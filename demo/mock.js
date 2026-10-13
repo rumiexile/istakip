@@ -3,7 +3,7 @@
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v6';
+  const KEY = 'istakip-demo-v7';
   const store = {
     get() {
       try { const v = localStorage.getItem(KEY); if (v) return JSON.parse(v); } catch (e) { /* yoksay */ }
@@ -186,7 +186,7 @@
     const mumin = st('Mumin Tekin', 'mumin.tekin');
     const yalcin = st('Yalçın Bıçakcı', 'yalcin.bicakci');
     const L = {};
-    ['Ana Giriş', 'Kazan Dairesi', 'Kat 1 - Ofisler', 'Kat 1 - Tuvaletler', 'Kat 2 - Ofisler', 'Kat 2 - Tuvaletler', 'Çay Ocağı', 'Toplantı Odası', 'Arşiv', 'Asansör', 'Fotokopi Alanı', 'Yemekhane']
+    ['Uzman Yardımcıları Koridoru', 'Makam Koridoru', 'Tuvalet Erkek', 'Tuvalet Kadın', 'Ana Giriş (Bahçe)', 'YÖK Girişi (Asansör)', 'Fotokopi Alanı', 'Arşiv']
       .forEach((n, i) => { L[n] = add('locations', { name: n, description: null, sort_order: i, active: 1, created_at: now }); });
     const P = [
       ['Sabah Açılış', '#f59e0b', 'Mesai başlangıcında yapılacak işler', [
@@ -235,20 +235,20 @@
           start_date: start, end_date: null, note: null, active: 1, created_at: now });
       });
     };
-    apply('Sabah Açılış', 'Ana Giriş', mahmut, ['Kapıların açılması']);
-    apply('Sabah Açılış', 'Kazan Dairesi', mahmut, ['Kazanın fişinin devreye alınması']);
-    apply('Tuvalet Temizliği', 'Kat 1 - Tuvaletler', aysel);
-    apply('Tuvalet Temizliği', 'Kat 2 - Tuvaletler', gulnaz);
-    apply('Ofis Genel Temizlik', 'Kat 1 - Ofisler', deniz, ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi']);
-    apply('Ofis Genel Temizlik', 'Kat 1 - Ofisler', aysel, ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Kağıt öğütücü haznesi']);
-    apply('Ofis Genel Temizlik', 'Kat 2 - Ofisler', mumin, ['Çöplerin toplanması', 'Süpürme', 'Halıların gezilmesi ve fırçalanması']);
-    apply('Çay Ocağı ve Ortak Alan', 'Çay Ocağı', yalcin);
-    apply('Destek Hizmetleri', 'Toplantı Odası', null, ['Toplantı odasının hazırlanması (su, soda)', 'Günlük yemek götürme', 'Evrak taşıma']);
+    apply('Sabah Açılış', 'Ana Giriş (Bahçe)', mahmut, ['Kapıların açılması', 'Kazanın fişinin devreye alınması']);
+    apply('Destek Hizmetleri', 'Ana Giriş (Bahçe)', mahmut, ['Pil geri dönüşüm kutusu']);
+    apply('Ofis Genel Temizlik', 'Ana Giriş (Bahçe)', yalcin, ['Zemin temizliği', 'Paspas']);
     apply('Destek Hizmetleri', 'Arşiv', mahmut, ['Arşivin düzenlenmesi', 'Yangın şaft dolaplarının kontrolü']);
-    apply('Destek Hizmetleri', 'Ana Giriş', mahmut, ['Pil geri dönüşüm kutusu']);
-    apply('Ofis Genel Temizlik', 'Fotokopi Alanı', deniz, ['Kağıt öğütücü haznesi']);
-    apply('Tuvalet Temizliği', 'Çay Ocağı', yalcin, ['Kağıt havlu']);
-    apply('Destek Hizmetleri', 'Asansör', mumin, ['Asansör temizliği']);
+    apply('Destek Hizmetleri', 'Arşiv', null, ['Evrak taşıma']);
+    apply('Tuvalet Temizliği', 'Tuvalet Erkek', aysel);
+    apply('Tuvalet Temizliği', 'Tuvalet Kadın', gulnaz);
+    apply('Ofis Genel Temizlik', 'Uzman Yardımcıları Koridoru', deniz, ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi']);
+    apply('Çay Ocağı ve Ortak Alan', 'Uzman Yardımcıları Koridoru', deniz, ['Çay ocağı ve ortak alan çöplerinin toplanması', 'Su sebili']);
+    apply('Ofis Genel Temizlik', 'Makam Koridoru', mumin, ['Çöplerin toplanması', 'Süpürme', 'Halıların gezilmesi ve fırçalanması']);
+    apply('Destek Hizmetleri', 'Makam Koridoru', null, ['Toplantı odasının hazırlanması (su, soda)', 'Günlük yemek götürme']);
+    apply('Destek Hizmetleri', 'YÖK Girişi (Asansör)', mumin, ['Asansör temizliği']);
+    apply('Ofis Genel Temizlik', 'YÖK Girişi (Asansör)', yalcin, ['Zemin temizliği', 'Paspas']);
+    apply('Ofis Genel Temizlik', 'Fotokopi Alanı', yalcin, ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Kağıt öğütücü haznesi', 'Çöplerin toplanması']);
     S.plans.find((p) => p.task_id === T['Kapıların açılması'].id).note = 'Anahtarlar güvenlik kulübesinde.';
 
     // Hangi mekanda hangi işler yapılır (lib/schema.php ile aynı)
@@ -257,15 +257,14 @@
     const ofis = ['Çöplerin toplanması', 'Süpürme', 'Paspas', 'Zemin temizliği', 'Halıların gezilmesi ve fırçalanması',
       'Halı kenarlarına paspas atılması', 'Çöp atılması (genel)', 'Camların silinmesi'];
     Object.entries({
-      'Ana Giriş': ['Kapıların açılması', 'Zemin temizliği', 'Paspas', 'Camların silinmesi', 'Pil geri dönüşüm kutusu'],
-      'Kazan Dairesi': ['Kazanın fişinin devreye alınması'],
-      'Kat 1 - Ofisler': ofis.concat(['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Kağıt öğütücü haznesi']), 'Kat 1 - Tuvaletler': tuv, 'Kat 2 - Ofisler': ofis, 'Kat 2 - Tuvaletler': tuv,
-      'Çay Ocağı': ['Çay ocağı ve ortak alan çöplerinin toplanması', 'Zemin temizliği', 'Su sebili', 'Kağıt havlu'],
-      'Toplantı Odası': ['Toplantı odasının hazırlanması (su, soda)', 'Süpürme', 'Camların silinmesi', 'Günlük yemek götürme', 'Evrak taşıma'],
-      'Arşiv': ['Arşivin düzenlenmesi', 'Evrak taşıma', 'Yangın şaft dolaplarının kontrolü'],
-      'Asansör': ['Asansör temizliği'],
+      'Uzman Yardımcıları Koridoru': ofis.concat(['Çay ocağı ve ortak alan çöplerinin toplanması', 'Su sebili']),
+      'Makam Koridoru': ofis.concat(['Toplantı odasının hazırlanması (su, soda)', 'Günlük yemek götürme']),
+      'Tuvalet Erkek': tuv,
+      'Tuvalet Kadın': tuv,
+      'Ana Giriş (Bahçe)': ['Kapıların açılması', 'Kazanın fişinin devreye alınması', 'Zemin temizliği', 'Paspas', 'Camların silinmesi', 'Pil geri dönüşüm kutusu'],
+      'YÖK Girişi (Asansör)': ['Asansör temizliği', 'Zemin temizliği', 'Paspas', 'Camların silinmesi'],
       'Fotokopi Alanı': ['Kağıt öğütücü ve fotokopi makinesi çevresi temizliği', 'Kağıt öğütücü haznesi', 'Çöplerin toplanması'],
-      'Yemekhane': ['Günlük yemek götürme', 'Zemin temizliği', 'Çöplerin toplanması'],
+      'Arşiv': ['Arşivin düzenlenmesi', 'Evrak taşıma', 'Yangın şaft dolaplarının kontrolü'],
     }).forEach(([loc, tasks]) => tasks.forEach((t) => {
       if (!S.links.some((x) => x.location_id === L[loc].id && x.task_id === T[t].id)) S.links.push({ location_id: L[loc].id, task_id: T[t].id });
     }));
