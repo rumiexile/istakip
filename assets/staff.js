@@ -57,6 +57,7 @@
       const [d, hist] = await Promise.all([App.api('my_day', null, { date: day }), App.api('my_history')]);
       data = d; history = hist;
       render();
+      notifyInspections(d.inspections || []);
     } catch (e) { App.err(e); }
   }
 
@@ -223,11 +224,12 @@
     else if (cons && cs === 'replaced') sub += '<span class="cons-rep">Değiştirildi</span>';
     else if (cons && !it.completion) sub += '<span class="cons">Sarf malzemesi</span>';
     if (done && it.completion) sub += `<span>${h(it.completion.by || '')} · ${h(App.fmtTime(it.completion.at))}${it.completion.late ? ' · geç' : ''}</span>`;
+    if (it.completion && it.completion.inspected) sub += '<span class="insp">Yönetici kontrol etti</span>';
     if (!it.user_id) sub += '<span>Ortak</span>';
     const tickCls = cs === 'replaced' ? 'replaced' : it.status === 'done' ? 'on' : it.status === 'issue' ? 'issue' : it.status === 'overdue' ? 'overdue' : it.status === 'missed' ? 'missed' : '';
     return `<div class="task glass is-${it.status}${cons && cs === 'done' && App.canUndo(it) ? ' is-cons-checked' : ''}" data-key="${App.itemKey(it)}" style="${it.color ? '--c:' + h(it.color) : ''}">
       <span class="stripe"></span>
-      <button class="tick ${tickCls}" aria-label="${done ? 'Tamamlandı' : 'Tamamla'}"><svg viewBox="0 0 24 24">${cs === 'replaced' ? SWAP_PATH : it.status === 'issue' ? '<path d="M12 6v7M12 17.5v.5"/>' : it.status === 'missed' ? '<path d="M7 7l10 10M17 7L7 17"/>' : '<path d="M5 12.5l4.5 4.5L19 7.5"/>'}</svg><span class="burst"></span></button>
+      <button class="tick ${tickCls}" aria-label="${done ? 'Tamamlandı' : 'Tamamla'}"><svg viewBox="0 0 24 24">${cs === 'replaced' ? SWAP_PATH : it.status === 'issue' ? '<path d="M12 6v7M12 17.5v.5"/>' : it.status === 'missed' ? '<path d="M7 7l10 10M17 7L7 17"/>' : '<path d="M5 12.5l4.5 4.5L19 7.5"/>'}</svg><span class="burst"></span>${App.star(it)}</button>
       <div class="t-body"><div class="t-title">${h(it.task)}${it.slot_count > 1 ? ` <span class="slot-pill">${h(App.slotLabel(it))}</span>` : ''}</div><div class="t-sub">${sub}</div></div>
       <span class="chev">${icon('chev')}</span></div>`;
   }
@@ -263,6 +265,23 @@
         <div class="tasks stagger">${list.map(taskCard).join('')}</div></section>`;
     }
     area.innerHTML = html;
+  }
+
+  /** Yöneticinin kontrol ettiği işler için bir kez gösterilen bildirim */
+  function notifyInspections(list) {
+    if (!list.length) return;
+    const one = list[0];
+    const msg = list.length === 1
+      ? `“${one.task}” işiniz yönetici tarafından kontrol edildi.`
+      : `${list.length} işiniz yönetici tarafından kontrol edildi.`;
+    App.toast(msg, 'insp', { duration: 6000, action: list.length > 1 ? 'Gör' : null, onAction: () => App.modal({
+      title: 'Yönetici kontrol etti',
+      body: '<div class="list">' + list.map((x) => `<div class="row"><span class="star big">${icon('star')}</span>
+        <div><div class="title">${h(x.task)}</div><div class="sub"><span>${h(x.location)}</span><span>${h(App.fmtDate(String(x.occ_date).slice(0, 10)))}</span></div></div>
+        <span class="small muted nowrap">${h(x.inspected_name || '')}<br>${h(App.relDay(x.inspected_at))} ${h(App.fmtTime(x.inspected_at))}</span></div>`).join('') + '</div>',
+      actions: [{ label: 'Tamam', cls: 'primary' }],
+    }) });
+    App.api('inspections_seen', {}).catch(() => {});
   }
 
   function render() {

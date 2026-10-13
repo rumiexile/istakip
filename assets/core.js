@@ -57,6 +57,7 @@
     refresh: '<path d="M20 11a8 8 0 0 0-14.9-3M4 4v4h4M4 13a8 8 0 0 0 14.9 3M20 20v-4h-4"/>',
     camera: '<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/>',
     chev: '<path d="M9 6l6 6-6 6"/>',
+    star: '<path d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/>',
     download: '<path d="M12 4v11M7 10l5 5 5-5M4 20h16"/>',
     play: '<path d="M6 4l14 8-14 8z"/>',
     key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3"/>',
@@ -221,7 +222,7 @@
   App.toast = (msg, type, opts) => {
     opts = opts || {};
     if (!toastBox) { toastBox = App.el('<div class="toasts" role="status" aria-live="polite"></div>'); document.body.appendChild(toastBox); }
-    const ic = type === 'bad' ? P.x : type === 'info' ? P.sparkle : P.check;
+    const ic = type === 'bad' ? P.x : type === 'info' ? P.sparkle : type === 'insp' ? P.star : P.check;
     const t = App.el(`<div class="toast glass ${type || ''}"><span class="tdot"><svg viewBox="0 0 24 24">${ic}</svg></span><span>${App.h(msg)}</span></div>`);
     if (opts.action) {
       const b = App.el(`<button class="btn sm">${App.h(opts.action)}</button>`);
@@ -438,7 +439,7 @@
     const me = window.BOOT && BOOT.user;
     if (!it.completion || !me) return false;
     if (me.role === 'admin') return true;
-    return it.completion.by_id === me.id && it.completion.at.slice(0, 10) === App.today();
+    return !it.completion.inspected && it.completion.by_id === me.id && it.completion.at.slice(0, 10) === App.today();
   };
 
   App.completeItem = async (it, status, note, photo) => {
@@ -453,6 +454,10 @@
   };
   App.uncompleteItem = (it) => App.api('uncomplete', { plan_id: it.plan_id, occ_date: it.occ_date, slot: it.slot || 0 });
   App.replaceItem = (it, revert) => App.api('mark_replaced', { plan_id: it.plan_id, occ_date: it.occ_date, slot: it.slot || 0, revert: revert ? 1 : 0 });
+  App.inspectItem = (it, revert) => App.api('inspect', { plan_id: it.plan_id, occ_date: it.occ_date, slot: it.slot || 0, revert: revert ? 1 : 0 });
+  /** Yönetici kontrol ettiyse küçük yıldız */
+  App.star = (it) => (it.completion && it.completion.inspected
+    ? `<span class="star" title="Yönetici kontrol etti${it.completion.inspected.by ? ': ' + h(it.completion.inspected.by) : ''}" aria-label="Yönetici kontrol etti"><svg viewBox="0 0 24 24">${'<path d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/>'}</svg></span>` : '');
   /** Bir kaydın benzersiz anahtarı: plan|tarih|kontrol */
   App.itemKey = (it) => it.plan_id + '|' + it.occ_date + '|' + (it.slot || 0);
   /** "2/4" gibi kontrol etiketi (günde tek seferlik işlerde boş) */
@@ -477,6 +482,7 @@
         <div style="display:flex;gap:10px;align-items:center">${App.avatar(c.by || '?')}<div><b>${h(c.by || '')}</b>
         <div class="muted small">${h(App.relDay(c.at))} ${h(App.fmtTime(c.at))}${c.late ? ' · <span style="color:var(--warn);font-weight:700">geç yapıldı</span>' : ''}</div></div></div>
         ${c.note ? `<p style="margin-top:10px">${h(c.note)}</p>` : ''}
+        ${c.inspected ? `<div class="inspected-line">${App.star(it)}<span><b>Yönetici kontrol etti</b> · ${h(c.inspected.by || '')} · ${h(App.relDay(c.inspected.at))} ${h(App.fmtTime(c.inspected.at))}</span></div>` : ''}
         ${c.photo ? `<img class="photo-thumb" src="${App.h(App.photoUrl(c))}" alt="Fotoğraf" loading="lazy">` : ''}</div>`;
     } else if (canMark) {
       body += `<label class="field"><span>Not (isteğe bağlı, sorun bildirirken zorunlu)</span><textarea name="note" placeholder="Örn. sabun bitti, depodan istendi"></textarea></label>
@@ -498,6 +504,14 @@
       const toReplaced = c.status !== 'replaced';
       actions.push({ label: toReplaced ? 'Değiştirildi olarak işaretle' : '“Kontrol edildi”ye çevir', cls: toReplaced ? 'replace' : '', icon: 'swap', onClick: async () => {
         await App.replaceItem(it, !toReplaced); App.toast(toReplaced ? 'Değiştirildi olarak kaydedildi' : 'Kontrol edildi olarak kaydedildi'); onChange && onChange();
+      } });
+    }
+    if (c && isAdmin) {
+      const ins = !!c.inspected;
+      actions.push({ label: ins ? 'Kontrolü kaldır' : 'Kontrol ettim', cls: ins ? 'ghost' : 'inspect', icon: 'star', onClick: async () => {
+        await App.inspectItem(it, ins);
+        App.toast(ins ? 'Kontrol işareti kaldırıldı' : 'Kontrol edildi olarak işaretlendi; personele bildirildi', 'info');
+        onChange && onChange();
       } });
     }
     if (c && App.canUndo(it)) {

@@ -747,3 +747,22 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
 .cell.on svg { stroke-dashoffset: 0; }
 .cell:disabled { opacity: .6; }
 .cell:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- yönetici denetimi (yıldız) ---------- */
+.star { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-left: 4px; vertical-align: -4px; border-radius: 50%;
+  background: linear-gradient(135deg, #fde047, #f59e0b); box-shadow: 0 3px 8px -2px rgba(245,158,11,.8), inset 0 1px 0 rgba(255,255,255,.6);
+  animation: starIn .6s var(--spring) both; }
+.star svg { width: 12px; height: 12px; fill: #fff; stroke: none; }
+.star.big { width: 30px; height: 30px; margin: 0; }
+.star.big svg { width: 18px; height: 18px; fill: #fff; stroke: none; }
+.tick .star { position: absolute; top: -5px; right: -7px; margin: 0; width: 20px; height: 20px; border: 2px solid var(--bg); box-sizing: content-box; }
+.tick .star svg { stroke-dasharray: none; stroke-dashoffset: 0; transition: none; }
+.task:hover .tick .star { animation: starWiggle .6s var(--spring); }
+.task .t-sub .insp { color: #d97706; font-weight: 700; }
+.inspected-line { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 13px; }
+.inspected-line .star { margin: 0; }
+.btn.inspect { color: #fff; background: linear-gradient(135deg, #f59e0b, #eab308); border-color: rgba(255,255,255,.35); }
+@keyframes starIn { from { transform: scale(0) rotate(-120deg); opacity: 0; } }
+@keyframes starWiggle { 40% { transform: rotate(-18deg) scale(1.2); } 70% { transform: rotate(10deg); } }
+.toast.insp .tdot { background: linear-gradient(135deg, #fde047, #f59e0b); }
+.toast.insp .tdot svg { fill: #fff; stroke: none; }

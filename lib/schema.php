@@ -86,6 +86,9 @@ function schema_statements(string $driver): array
             note TEXT NULL,
             photo VARCHAR(255) NULL,
             created_at DATETIME NOT NULL,
+            inspected_by INT NULL,
+            inspected_at DATETIME NULL,
+            inspect_seen INT NOT NULL DEFAULT 0,
             UNIQUE (plan_id, occ_date, slot)
         )",
         "CREATE TABLE IF NOT EXISTS leaves (
@@ -116,7 +119,7 @@ function schema_statements(string $driver): array
     return $out;
 }
 
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 function schema_install(PDO $pdo, string $driver): void
 {
@@ -213,6 +216,16 @@ function schema_upgrade(PDO $pdo, string $driver, int $from): void
                     }
                 }
                 $pdo->exec('ALTER TABLE completions ADD UNIQUE KEY uq_compl_slot (plan_id, occ_date, slot)');
+            }
+        }
+    }
+    if ($from < 6) {
+        // Yönetici denetimi: işi kim, ne zaman kontrol etti; personel bildirimi gördü mü.
+        foreach (['inspected_by INT NULL', 'inspected_at DATETIME NULL', 'inspect_seen INT NOT NULL DEFAULT 0'] as $col) {
+            try {
+                $pdo->exec('ALTER TABLE completions ADD COLUMN ' . $col);
+            } catch (PDOException $e) {
+                // Sütun zaten var.
             }
         }
     }

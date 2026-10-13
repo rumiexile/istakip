@@ -254,8 +254,9 @@ function ckey(int $planId, string $ymd, int $slot = 0): string
 function completions_map(string $from, string $to): array
 {
     $map = [];
-    $rows = q('SELECT c.id, c.plan_id, c.occ_date, c.slot, c.user_id, c.status, c.note, c.photo, c.created_at, u.name AS by_name
-               FROM completions c LEFT JOIN users u ON u.id = c.user_id
+    $rows = q('SELECT c.id, c.plan_id, c.occ_date, c.slot, c.user_id, c.status, c.note, c.photo, c.created_at,
+                      c.inspected_at, u.name AS by_name, iu.name AS inspected_name
+               FROM completions c LEFT JOIN users u ON u.id = c.user_id LEFT JOIN users iu ON iu.id = c.inspected_by
                WHERE c.occ_date BETWEEN ? AND ?', [$from, $to])->fetchAll();
     foreach ($rows as $r) {
         $map[ckey((int)$r['plan_id'], substr((string)$r['occ_date'], 0, 10), (int)($r['slot'] ?? 0))] = $r;
@@ -318,6 +319,7 @@ function item_out(array $p, int $occ, ?array $c, string $status): array
             'note' => $c['note'],
             'photo' => (bool)$c['photo'],
             'late' => $late,
+            'inspected' => !empty($c['inspected_at']) ? ['by' => $c['inspected_name'], 'at' => $c['inspected_at']] : null,
         ] : null,
     ];
 }
@@ -522,7 +524,47 @@ try {
                 'leave_note' => $leave['note'] ?? null,
                 'items' => $items,
                 'tally' => tally($items),
+                // Yöneticinin kontrol ettiği, personelin henüz görmediği işler (bildirim)
+                'inspections' => q("SELECT c.id, c.occ_date, c.slot, c.inspected_at, t.name AS task, l.name AS location, iu.name AS inspected_name
+                    FROM completions c JOIN plans p ON p.id = c.plan_id JOIN tasks t ON t.id = p.task_id JOIN locations l ON l.id = p.location_id
+                    LEFT JOIN users iu ON iu.id = c.inspected_by
+                    WHERE c.user_id = ? AND c.inspected_at IS NOT NULL AND c.inspect_seen = 0
+                    ORDER BY c.inspected_at DESC", [$u['id']])->fetchAll(),
             ]);
+        }
+
+        case 'inspections_seen': {
+            // Personel, denetim bildirimlerini gördü.
+            need_post();
+            $u = need_user();
+            q('UPDATE completions SET inspect_seen = 1 WHERE user_id = ? AND inspected_at IS NOT NULL', [$u['id']]);
+            out();
+        }
+
+        case 'inspect': {
+            // Yönetici, tamamlanmış bir işi kontrol etti (revert=1 ile geri alır).
+            need_post();
+            $u = need_admin();
+            $planId = i_in('plan_id', 0);
+            $occ = d_in('occ_date', true);
+            $slot = i_in('slot', 0);
+            $c = q('SELECT * FROM completions WHERE plan_id = ? AND occ_date = ? AND slot = ?', [$planId, $occ, $slot])->fetch();
+            $p = plans_query('p.id = ?', [$planId])[0] ?? null;
+            if (!$c || !$p) {
+                fail('Kontrol edilecek bir kayıt yok; iş henüz işaretlenmemiş.', 404);
+            }
+            if (!empty($in['revert'])) {
+                q('UPDATE completions SET inspected_by = NULL, inspected_at = NULL, inspect_seen = 0 WHERE id = ?', [$c['id']]);
+            } else {
+                // Yöneticinin kendi işaretlediği işte bildirim gerekmez.
+                q('UPDATE completions SET inspected_by = ?, inspected_at = ?, inspect_seen = ? WHERE id = ?',
+                    [$u['id'], now_str(), (int)$c['user_id'] === (int)$u['id'] ? 1 : 0, $c['id']]);
+            }
+            $S = Sched::fromSettings();
+            $pp = slot_plan($S, $S->prep($p), $slot);
+            [$today, $nowHm] = today_ctx();
+            $cc = completions_map($occ, $occ)[ckey($planId, $occ, $slot)];
+            out(item_out($pp, Sched::dn($occ), $cc, $S->status($pp, Sched::dn($occ), $cc, $today, $nowHm)));
         }
 
         case 'my_history': {
@@ -668,6 +710,9 @@ try {
                 if ((int)$c['user_id'] !== (int)$u['id']) {
                     fail('Bu kaydı başka biri işaretlemiş; değiştirmek için yöneticinize başvurun.', 403);
                 }
+                if (!empty($c['inspected_at'])) {
+                    fail('Bu iş yönetici tarafından kontrol edildi; değiştirilemez.', 403);
+                }
                 if (substr((string)$c['created_at'], 0, 10) !== date('Y-m-d')) {
                     fail('Geçmiş günlerdeki kayıtlar değiştirilemez.', 403);
                 }
@@ -696,6 +741,9 @@ try {
             if ($u['role'] !== 'admin') {
                 if ((int)$c['user_id'] !== (int)$u['id']) {
                     fail('Yalnızca kendi işaretlediğiniz işleri geri alabilirsiniz.', 403);
+                }
+                if (!empty($c['inspected_at'])) {
+                    fail('Bu iş yönetici tarafından kontrol edildi; geri alınamaz.', 403);
                 }
                 if (substr((string)$c['created_at'], 0, 10) !== date('Y-m-d')) {
                     fail('Geçmiş günlerdeki kayıtlar geri alınamaz.', 403);

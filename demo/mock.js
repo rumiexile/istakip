@@ -3,7 +3,7 @@
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v16';
+  const KEY = 'istakip-demo-v17';
   const store = {
     get() {
       try { const v = localStorage.getItem(KEY); if (v) return JSON.parse(v); } catch (e) { /* yoksay */ }
@@ -302,7 +302,7 @@
     const onLeave = new Set(S.leaves.map((l) => l.user_id + '|' + l.leave_date));
 
     // Geçmiş kayıtlar
-    const r = rng(20261007);
+    const r = rng(20261007), r2 = rng(20261013);
     const today = dn(localToday());
     const hm = nowHm();
     const issues = ['Sabun stoğu bitti, depodan istendi.', 'Kağıt havlu dispenseri kırık.', 'Çamaşır suyu kalmadı.', 'Süpürge arızalı, elle yapıldı.'];
@@ -326,8 +326,14 @@
         const issue = x > rate;
         const kind = S.tasks.find((t) => t.id === p0.task_id).kind;
         const st = issue ? 'issue' : kind === 'consumable' && r() < 0.35 ? 'replaced' : 'done';
-        add('completions', { plan_id: p0.id, occ_date: ymd(o), slot: ps._slot, user_id: who, status: st,
+        const c = add('completions', { plan_id: p0.id, occ_date: ymd(o), slot: ps._slot, user_id: who, status: st,
           note: issue ? issues[Math.floor(r() * issues.length)] : null, photo: null, created_at: at });
+        // Yöneticinin bir kısmını kontrol etmesi (son iki günün kontrolleri personele bildirim olarak düşer)
+        if (!issue && r2() < 0.22) {
+          let im = mins + 25 + Math.floor(r2() * 90);
+          if (isToday) { const [nh, nm] = hm.split(':').map(Number); im = Math.min(im, nh * 60 + nm); }
+          Object.assign(c, { inspected_by: admin.id, inspected_at: ymd(o) + ' ' + pad(Math.floor(im / 60)) + ':' + pad(im % 60) + ':00', inspect_seen: o < today - 1 ? 1 : 0 });
+        }
       }));
     });
     return S;
@@ -359,7 +365,8 @@
     S.completions.forEach((c) => {
       if (c.occ_date >= from && c.occ_date <= to) {
         const u = byId('users', c.user_id);
-        m[ck(c.plan_id, c.occ_date, c.slot || 0)] = Object.assign({}, c, { by_name: u ? u.name : null });
+        const iu = c.inspected_by ? byId('users', c.inspected_by) : null;
+        m[ck(c.plan_id, c.occ_date, c.slot || 0)] = Object.assign({}, c, { by_name: u ? u.name : null, inspected_name: iu ? iu.name : null });
       }
     });
     return m;
@@ -382,7 +389,8 @@
       plan_id: p.id, occ_date: o, slot: p._slot || 0, slot_count: p._slots || 1, opens_at: p._prev || null, task: p.task_name, task_desc: p.task_desc, location: p.location_name, location_id: p.location_id,
       user: p.user_name, user_id: p.user_id, package: p.package_name, color: p.package_color, due_time: p.due_time,
       freq: Sched.label(p), kind: p.task_kind || 'normal', note: p.note, status,
-      completion: c ? { id: c.id, by: c.by_name, by_id: c.user_id, at: c.created_at, status: c.status, note: c.note, photo: !!c.photo, late } : null,
+      completion: c ? { id: c.id, by: c.by_name, by_id: c.user_id, at: c.created_at, status: c.status, note: c.note, photo: !!c.photo, late,
+        inspected: c.inspected_at ? { by: c.inspected_name, at: c.inspected_at } : null } : null,
     };
   }
   function dayItems(sc, plans, day) {
@@ -491,7 +499,30 @@
         : plansQuery((p) => p.active && (p.user_id === u.id || p.user_id === null));
       const items = dayItems(sc, plans, day);
       const lv = S.leaves.find((l) => l.user_id === u.id && l.leave_date === D);
-      return { date: D, today: ymd(today), workday: sc.isWorkday(day), on_leave: !!lv, leave_note: lv ? lv.note : null, items, tally: tally(items) };
+      const inspections = S.completions.filter((c) => c.user_id === u.id && c.inspected_at && !c.inspect_seen).map((c) => {
+        const p = byId('plans', c.plan_id), t = p && byId('tasks', p.task_id), l = p && byId('locations', p.location_id), iu = byId('users', c.inspected_by);
+        return { id: c.id, occ_date: c.occ_date, slot: c.slot || 0, inspected_at: c.inspected_at, task: t ? t.name : '', location: l ? l.name : '', inspected_name: iu ? iu.name : null };
+      }).sort((a, b2) => cmpTr(b2.inspected_at, a.inspected_at));
+      return { date: D, today: ymd(today), workday: sc.isWorkday(day), on_leave: !!lv, leave_note: lv ? lv.note : null, items, tally: tally(items), inspections };
+    },
+    async inspections_seen() {
+      const u = me();
+      S.completions.forEach((c) => { if (c.user_id === u.id && c.inspected_at) c.inspect_seen = 1; });
+      save();
+      return null;
+    },
+    async inspect(b) {
+      needAdmin();
+      const slot = +b.slot || 0;
+      const c = S.completions.find((x) => x.plan_id === +b.plan_id && x.occ_date === b.occ_date && (x.slot || 0) === slot);
+      const p = plansQuery((x) => x.id === +b.plan_id)[0];
+      if (!c || !p) err('Kontrol edilecek bir kayıt yok; iş henüz işaretlenmemiş.');
+      if (+b.revert) Object.assign(c, { inspected_by: null, inspected_at: null, inspect_seen: 0 });
+      else Object.assign(c, { inspected_by: me().id, inspected_at: nowStr(), inspect_seen: c.user_id === me().id ? 1 : 0 });
+      save();
+      const sc = sched(), pp = sc.slots(sc.prep(p))[slot], [today, hm] = todayCtx(), o = dn(b.occ_date);
+      const cc = cmap(b.occ_date, b.occ_date)[ck(p.id, b.occ_date, slot)];
+      return itemOut(pp, o, cc, sc.status(pp, o, cc, today, hm));
     },
     async my_history() {
       const u = me(), sc = sched(), [today, hm] = todayCtx();
@@ -551,6 +582,7 @@
       if (p.task_kind !== 'consumable') err('Bu iş bir sarf malzemesi değil.');
       if (u.role !== 'admin') {
         if (c.user_id !== u.id) err('Bu kaydı başka biri işaretlemiş; değiştirmek için yöneticinize başvurun.');
+        if (c.inspected_at) err('Bu iş yönetici tarafından kontrol edildi; değiştirilemez.');
         if (c.created_at.slice(0, 10) !== localToday()) err('Geçmiş günlerdeki kayıtlar değiştirilemez.');
       }
       if (c.status === 'issue') err('Sorun bildirilen kayıt değiştirilemez; önce işareti geri alın.');
@@ -567,6 +599,7 @@
       const c = S.completions[i];
       if (u.role !== 'admin') {
         if (c.user_id !== u.id) err('Yalnızca kendi işaretlediğiniz işleri geri alabilirsiniz.');
+        if (c.inspected_at) err('Bu iş yönetici tarafından kontrol edildi; geri alınamaz.');
         if (c.created_at.slice(0, 10) !== localToday()) err('Geçmiş günlerdeki kayıtlar geri alınamaz.');
       }
       S.completions.splice(i, 1);

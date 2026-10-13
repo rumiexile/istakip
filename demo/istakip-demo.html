@@ -774,6 +774,25 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
 .cell:disabled { opacity: .6; }
 .cell:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+/* ---------- yönetici denetimi (yıldız) ---------- */
+.star { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-left: 4px; vertical-align: -4px; border-radius: 50%;
+  background: linear-gradient(135deg, #fde047, #f59e0b); box-shadow: 0 3px 8px -2px rgba(245,158,11,.8), inset 0 1px 0 rgba(255,255,255,.6);
+  animation: starIn .6s var(--spring) both; }
+.star svg { width: 12px; height: 12px; fill: #fff; stroke: none; }
+.star.big { width: 30px; height: 30px; margin: 0; }
+.star.big svg { width: 18px; height: 18px; fill: #fff; stroke: none; }
+.tick .star { position: absolute; top: -5px; right: -7px; margin: 0; width: 20px; height: 20px; border: 2px solid var(--bg); box-sizing: content-box; }
+.tick .star svg { stroke-dasharray: none; stroke-dashoffset: 0; transition: none; }
+.task:hover .tick .star { animation: starWiggle .6s var(--spring); }
+.task .t-sub .insp { color: #d97706; font-weight: 700; }
+.inspected-line { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 13px; }
+.inspected-line .star { margin: 0; }
+.btn.inspect { color: #fff; background: linear-gradient(135deg, #f59e0b, #eab308); border-color: rgba(255,255,255,.35); }
+@keyframes starIn { from { transform: scale(0) rotate(-120deg); opacity: 0; } }
+@keyframes starWiggle { 40% { transform: rotate(-18deg) scale(1.2); } 70% { transform: rotate(10deg); } }
+.toast.insp .tdot { background: linear-gradient(135deg, #fde047, #f59e0b); }
+.toast.insp .tdot svg { fill: #fff; stroke: none; }
+
 
 .demo-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 10px 16px 0; padding: 8px 10px 8px 14px; border-radius: 20px; font-size: 13px; position: relative; z-index: 50; }
 :root { --logo-1: #6BBDEB; --logo-2: #1A7EC1; --logo-3: #27568F; }
@@ -817,7 +836,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v16';
+  const KEY = 'istakip-demo-v17';
   const store = {
     get() {
       try { const v = localStorage.getItem(KEY); if (v) return JSON.parse(v); } catch (e) { /* yoksay */ }
@@ -1116,7 +1135,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
     const onLeave = new Set(S.leaves.map((l) => l.user_id + '|' + l.leave_date));
 
     // Geçmiş kayıtlar
-    const r = rng(20261007);
+    const r = rng(20261007), r2 = rng(20261013);
     const today = dn(localToday());
     const hm = nowHm();
     const issues = ['Sabun stoğu bitti, depodan istendi.', 'Kağıt havlu dispenseri kırık.', 'Çamaşır suyu kalmadı.', 'Süpürge arızalı, elle yapıldı.'];
@@ -1140,8 +1159,14 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
         const issue = x > rate;
         const kind = S.tasks.find((t) => t.id === p0.task_id).kind;
         const st = issue ? 'issue' : kind === 'consumable' && r() < 0.35 ? 'replaced' : 'done';
-        add('completions', { plan_id: p0.id, occ_date: ymd(o), slot: ps._slot, user_id: who, status: st,
+        const c = add('completions', { plan_id: p0.id, occ_date: ymd(o), slot: ps._slot, user_id: who, status: st,
           note: issue ? issues[Math.floor(r() * issues.length)] : null, photo: null, created_at: at });
+        // Yöneticinin bir kısmını kontrol etmesi (son iki günün kontrolleri personele bildirim olarak düşer)
+        if (!issue && r2() < 0.22) {
+          let im = mins + 25 + Math.floor(r2() * 90);
+          if (isToday) { const [nh, nm] = hm.split(':').map(Number); im = Math.min(im, nh * 60 + nm); }
+          Object.assign(c, { inspected_by: admin.id, inspected_at: ymd(o) + ' ' + pad(Math.floor(im / 60)) + ':' + pad(im % 60) + ':00', inspect_seen: o < today - 1 ? 1 : 0 });
+        }
       }));
     });
     return S;
@@ -1173,7 +1198,8 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
     S.completions.forEach((c) => {
       if (c.occ_date >= from && c.occ_date <= to) {
         const u = byId('users', c.user_id);
-        m[ck(c.plan_id, c.occ_date, c.slot || 0)] = Object.assign({}, c, { by_name: u ? u.name : null });
+        const iu = c.inspected_by ? byId('users', c.inspected_by) : null;
+        m[ck(c.plan_id, c.occ_date, c.slot || 0)] = Object.assign({}, c, { by_name: u ? u.name : null, inspected_name: iu ? iu.name : null });
       }
     });
     return m;
@@ -1196,7 +1222,8 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
       plan_id: p.id, occ_date: o, slot: p._slot || 0, slot_count: p._slots || 1, opens_at: p._prev || null, task: p.task_name, task_desc: p.task_desc, location: p.location_name, location_id: p.location_id,
       user: p.user_name, user_id: p.user_id, package: p.package_name, color: p.package_color, due_time: p.due_time,
       freq: Sched.label(p), kind: p.task_kind || 'normal', note: p.note, status,
-      completion: c ? { id: c.id, by: c.by_name, by_id: c.user_id, at: c.created_at, status: c.status, note: c.note, photo: !!c.photo, late } : null,
+      completion: c ? { id: c.id, by: c.by_name, by_id: c.user_id, at: c.created_at, status: c.status, note: c.note, photo: !!c.photo, late,
+        inspected: c.inspected_at ? { by: c.inspected_name, at: c.inspected_at } : null } : null,
     };
   }
   function dayItems(sc, plans, day) {
@@ -1305,7 +1332,30 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
         : plansQuery((p) => p.active && (p.user_id === u.id || p.user_id === null));
       const items = dayItems(sc, plans, day);
       const lv = S.leaves.find((l) => l.user_id === u.id && l.leave_date === D);
-      return { date: D, today: ymd(today), workday: sc.isWorkday(day), on_leave: !!lv, leave_note: lv ? lv.note : null, items, tally: tally(items) };
+      const inspections = S.completions.filter((c) => c.user_id === u.id && c.inspected_at && !c.inspect_seen).map((c) => {
+        const p = byId('plans', c.plan_id), t = p && byId('tasks', p.task_id), l = p && byId('locations', p.location_id), iu = byId('users', c.inspected_by);
+        return { id: c.id, occ_date: c.occ_date, slot: c.slot || 0, inspected_at: c.inspected_at, task: t ? t.name : '', location: l ? l.name : '', inspected_name: iu ? iu.name : null };
+      }).sort((a, b2) => cmpTr(b2.inspected_at, a.inspected_at));
+      return { date: D, today: ymd(today), workday: sc.isWorkday(day), on_leave: !!lv, leave_note: lv ? lv.note : null, items, tally: tally(items), inspections };
+    },
+    async inspections_seen() {
+      const u = me();
+      S.completions.forEach((c) => { if (c.user_id === u.id && c.inspected_at) c.inspect_seen = 1; });
+      save();
+      return null;
+    },
+    async inspect(b) {
+      needAdmin();
+      const slot = +b.slot || 0;
+      const c = S.completions.find((x) => x.plan_id === +b.plan_id && x.occ_date === b.occ_date && (x.slot || 0) === slot);
+      const p = plansQuery((x) => x.id === +b.plan_id)[0];
+      if (!c || !p) err('Kontrol edilecek bir kayıt yok; iş henüz işaretlenmemiş.');
+      if (+b.revert) Object.assign(c, { inspected_by: null, inspected_at: null, inspect_seen: 0 });
+      else Object.assign(c, { inspected_by: me().id, inspected_at: nowStr(), inspect_seen: c.user_id === me().id ? 1 : 0 });
+      save();
+      const sc = sched(), pp = sc.slots(sc.prep(p))[slot], [today, hm] = todayCtx(), o = dn(b.occ_date);
+      const cc = cmap(b.occ_date, b.occ_date)[ck(p.id, b.occ_date, slot)];
+      return itemOut(pp, o, cc, sc.status(pp, o, cc, today, hm));
     },
     async my_history() {
       const u = me(), sc = sched(), [today, hm] = todayCtx();
@@ -1365,6 +1415,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
       if (p.task_kind !== 'consumable') err('Bu iş bir sarf malzemesi değil.');
       if (u.role !== 'admin') {
         if (c.user_id !== u.id) err('Bu kaydı başka biri işaretlemiş; değiştirmek için yöneticinize başvurun.');
+        if (c.inspected_at) err('Bu iş yönetici tarafından kontrol edildi; değiştirilemez.');
         if (c.created_at.slice(0, 10) !== localToday()) err('Geçmiş günlerdeki kayıtlar değiştirilemez.');
       }
       if (c.status === 'issue') err('Sorun bildirilen kayıt değiştirilemez; önce işareti geri alın.');
@@ -1381,6 +1432,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
       const c = S.completions[i];
       if (u.role !== 'admin') {
         if (c.user_id !== u.id) err('Yalnızca kendi işaretlediğiniz işleri geri alabilirsiniz.');
+        if (c.inspected_at) err('Bu iş yönetici tarafından kontrol edildi; geri alınamaz.');
         if (c.created_at.slice(0, 10) !== localToday()) err('Geçmiş günlerdeki kayıtlar geri alınamaz.');
       }
       S.completions.splice(i, 1);
@@ -1778,6 +1830,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
     refresh: '<path d="M20 11a8 8 0 0 0-14.9-3M4 4v4h4M4 13a8 8 0 0 0 14.9 3M20 20v-4h-4"/>',
     camera: '<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/>',
     chev: '<path d="M9 6l6 6-6 6"/>',
+    star: '<path d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/>',
     download: '<path d="M12 4v11M7 10l5 5 5-5M4 20h16"/>',
     play: '<path d="M6 4l14 8-14 8z"/>',
     key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3"/>',
@@ -1942,7 +1995,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
   App.toast = (msg, type, opts) => {
     opts = opts || {};
     if (!toastBox) { toastBox = App.el('<div class="toasts" role="status" aria-live="polite"></div>'); document.body.appendChild(toastBox); }
-    const ic = type === 'bad' ? P.x : type === 'info' ? P.sparkle : P.check;
+    const ic = type === 'bad' ? P.x : type === 'info' ? P.sparkle : type === 'insp' ? P.star : P.check;
     const t = App.el(`<div class="toast glass ${type || ''}"><span class="tdot"><svg viewBox="0 0 24 24">${ic}</svg></span><span>${App.h(msg)}</span></div>`);
     if (opts.action) {
       const b = App.el(`<button class="btn sm">${App.h(opts.action)}</button>`);
@@ -2159,7 +2212,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
     const me = window.BOOT && BOOT.user;
     if (!it.completion || !me) return false;
     if (me.role === 'admin') return true;
-    return it.completion.by_id === me.id && it.completion.at.slice(0, 10) === App.today();
+    return !it.completion.inspected && it.completion.by_id === me.id && it.completion.at.slice(0, 10) === App.today();
   };
 
   App.completeItem = async (it, status, note, photo) => {
@@ -2174,6 +2227,10 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
   };
   App.uncompleteItem = (it) => App.api('uncomplete', { plan_id: it.plan_id, occ_date: it.occ_date, slot: it.slot || 0 });
   App.replaceItem = (it, revert) => App.api('mark_replaced', { plan_id: it.plan_id, occ_date: it.occ_date, slot: it.slot || 0, revert: revert ? 1 : 0 });
+  App.inspectItem = (it, revert) => App.api('inspect', { plan_id: it.plan_id, occ_date: it.occ_date, slot: it.slot || 0, revert: revert ? 1 : 0 });
+  /** Yönetici kontrol ettiyse küçük yıldız */
+  App.star = (it) => (it.completion && it.completion.inspected
+    ? `<span class="star" title="Yönetici kontrol etti${it.completion.inspected.by ? ': ' + h(it.completion.inspected.by) : ''}" aria-label="Yönetici kontrol etti"><svg viewBox="0 0 24 24">${'<path d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/>'}</svg></span>` : '');
   /** Bir kaydın benzersiz anahtarı: plan|tarih|kontrol */
   App.itemKey = (it) => it.plan_id + '|' + it.occ_date + '|' + (it.slot || 0);
   /** "2/4" gibi kontrol etiketi (günde tek seferlik işlerde boş) */
@@ -2198,6 +2255,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
         <div style="display:flex;gap:10px;align-items:center">${App.avatar(c.by || '?')}<div><b>${h(c.by || '')}</b>
         <div class="muted small">${h(App.relDay(c.at))} ${h(App.fmtTime(c.at))}${c.late ? ' · <span style="color:var(--warn);font-weight:700">geç yapıldı</span>' : ''}</div></div></div>
         ${c.note ? `<p style="margin-top:10px">${h(c.note)}</p>` : ''}
+        ${c.inspected ? `<div class="inspected-line">${App.star(it)}<span><b>Yönetici kontrol etti</b> · ${h(c.inspected.by || '')} · ${h(App.relDay(c.inspected.at))} ${h(App.fmtTime(c.inspected.at))}</span></div>` : ''}
         ${c.photo ? `<img class="photo-thumb" src="${App.h(App.photoUrl(c))}" alt="Fotoğraf" loading="lazy">` : ''}</div>`;
     } else if (canMark) {
       body += `<label class="field"><span>Not (isteğe bağlı, sorun bildirirken zorunlu)</span><textarea name="note" placeholder="Örn. sabun bitti, depodan istendi"></textarea></label>
@@ -2219,6 +2277,14 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
       const toReplaced = c.status !== 'replaced';
       actions.push({ label: toReplaced ? 'Değiştirildi olarak işaretle' : '“Kontrol edildi”ye çevir', cls: toReplaced ? 'replace' : '', icon: 'swap', onClick: async () => {
         await App.replaceItem(it, !toReplaced); App.toast(toReplaced ? 'Değiştirildi olarak kaydedildi' : 'Kontrol edildi olarak kaydedildi'); onChange && onChange();
+      } });
+    }
+    if (c && isAdmin) {
+      const ins = !!c.inspected;
+      actions.push({ label: ins ? 'Kontrolü kaldır' : 'Kontrol ettim', cls: ins ? 'ghost' : 'inspect', icon: 'star', onClick: async () => {
+        await App.inspectItem(it, ins);
+        App.toast(ins ? 'Kontrol işareti kaldırıldı' : 'Kontrol edildi olarak işaretlendi; personele bildirildi', 'info');
+        onChange && onChange();
       } });
     }
     if (c && App.canUndo(it)) {
@@ -2431,7 +2497,7 @@ window.__runAdmin = function () {
             <td><b>${h(it.task)}</b>${it.slot_count > 1 ? ` <span class="slot-pill">${h(App.slotLabel(it))}</span>` : ''}<div class="muted small">${h(it.freq)}${it.occ_date !== data.date ? ' · ' + h(App.fmtDate(it.occ_date)) + ' tarihli' : ''}</div></td>
             <td class="nowrap">${it.user ? h(it.user) : '<span class="muted">Ortak</span>'}</td>
             <td class="nowrap">${h(it.due_time || '—')}</td>
-            <td>${App.itemBadge(it)}${it.completion && it.completion.late ? ' <span class="badge overdue plain">geç</span>' : ''}</td>
+            <td class="nowrap">${App.itemBadge(it)}${App.star(it)}${it.completion && it.completion.late ? ' <span class="badge overdue plain">geç</span>' : ''}</td>
             <td class="nowrap small">${it.completion ? `${h(it.completion.by || '')} · ${h(App.fmtTime(it.completion.at))}${it.completion.photo ? ' ' + icon('camera') : ''}${it.completion.note ? ' 💬' : ''}` : '<span class="muted">—</span>'}</td></tr>`).join('');
         }
         html += '</tbody></table></div>';
@@ -3294,6 +3360,7 @@ window.__runStaff = function () {
       const [d, hist] = await Promise.all([App.api('my_day', null, { date: day }), App.api('my_history')]);
       data = d; history = hist;
       render();
+      notifyInspections(d.inspections || []);
     } catch (e) { App.err(e); }
   }
 
@@ -3460,11 +3527,12 @@ window.__runStaff = function () {
     else if (cons && cs === 'replaced') sub += '<span class="cons-rep">Değiştirildi</span>';
     else if (cons && !it.completion) sub += '<span class="cons">Sarf malzemesi</span>';
     if (done && it.completion) sub += `<span>${h(it.completion.by || '')} · ${h(App.fmtTime(it.completion.at))}${it.completion.late ? ' · geç' : ''}</span>`;
+    if (it.completion && it.completion.inspected) sub += '<span class="insp">Yönetici kontrol etti</span>';
     if (!it.user_id) sub += '<span>Ortak</span>';
     const tickCls = cs === 'replaced' ? 'replaced' : it.status === 'done' ? 'on' : it.status === 'issue' ? 'issue' : it.status === 'overdue' ? 'overdue' : it.status === 'missed' ? 'missed' : '';
     return `<div class="task glass is-${it.status}${cons && cs === 'done' && App.canUndo(it) ? ' is-cons-checked' : ''}" data-key="${App.itemKey(it)}" style="${it.color ? '--c:' + h(it.color) : ''}">
       <span class="stripe"></span>
-      <button class="tick ${tickCls}" aria-label="${done ? 'Tamamlandı' : 'Tamamla'}"><svg viewBox="0 0 24 24">${cs === 'replaced' ? SWAP_PATH : it.status === 'issue' ? '<path d="M12 6v7M12 17.5v.5"/>' : it.status === 'missed' ? '<path d="M7 7l10 10M17 7L7 17"/>' : '<path d="M5 12.5l4.5 4.5L19 7.5"/>'}</svg><span class="burst"></span></button>
+      <button class="tick ${tickCls}" aria-label="${done ? 'Tamamlandı' : 'Tamamla'}"><svg viewBox="0 0 24 24">${cs === 'replaced' ? SWAP_PATH : it.status === 'issue' ? '<path d="M12 6v7M12 17.5v.5"/>' : it.status === 'missed' ? '<path d="M7 7l10 10M17 7L7 17"/>' : '<path d="M5 12.5l4.5 4.5L19 7.5"/>'}</svg><span class="burst"></span>${App.star(it)}</button>
       <div class="t-body"><div class="t-title">${h(it.task)}${it.slot_count > 1 ? ` <span class="slot-pill">${h(App.slotLabel(it))}</span>` : ''}</div><div class="t-sub">${sub}</div></div>
       <span class="chev">${icon('chev')}</span></div>`;
   }
@@ -3500,6 +3568,23 @@ window.__runStaff = function () {
         <div class="tasks stagger">${list.map(taskCard).join('')}</div></section>`;
     }
     area.innerHTML = html;
+  }
+
+  /** Yöneticinin kontrol ettiği işler için bir kez gösterilen bildirim */
+  function notifyInspections(list) {
+    if (!list.length) return;
+    const one = list[0];
+    const msg = list.length === 1
+      ? `“${one.task}” işiniz yönetici tarafından kontrol edildi.`
+      : `${list.length} işiniz yönetici tarafından kontrol edildi.`;
+    App.toast(msg, 'insp', { duration: 6000, action: list.length > 1 ? 'Gör' : null, onAction: () => App.modal({
+      title: 'Yönetici kontrol etti',
+      body: '<div class="list">' + list.map((x) => `<div class="row"><span class="star big">${icon('star')}</span>
+        <div><div class="title">${h(x.task)}</div><div class="sub"><span>${h(x.location)}</span><span>${h(App.fmtDate(String(x.occ_date).slice(0, 10)))}</span></div></div>
+        <span class="small muted nowrap">${h(x.inspected_name || '')}<br>${h(App.relDay(x.inspected_at))} ${h(App.fmtTime(x.inspected_at))}</span></div>`).join('') + '</div>',
+      actions: [{ label: 'Tamam', cls: 'primary' }],
+    }) });
+    App.api('inspections_seen', {}).catch(() => {});
   }
 
   function render() {

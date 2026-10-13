@@ -167,7 +167,7 @@
             <td><b>${h(it.task)}</b>${it.slot_count > 1 ? ` <span class="slot-pill">${h(App.slotLabel(it))}</span>` : ''}<div class="muted small">${h(it.freq)}${it.occ_date !== data.date ? ' · ' + h(App.fmtDate(it.occ_date)) + ' tarihli' : ''}</div></td>
             <td class="nowrap">${it.user ? h(it.user) : '<span class="muted">Ortak</span>'}</td>
             <td class="nowrap">${h(it.due_time || '—')}</td>
-            <td>${App.itemBadge(it)}${it.completion && it.completion.late ? ' <span class="badge overdue plain">geç</span>' : ''}</td>
+            <td class="nowrap">${App.itemBadge(it)}${App.star(it)}${it.completion && it.completion.late ? ' <span class="badge overdue plain">geç</span>' : ''}</td>
             <td class="nowrap small">${it.completion ? `${h(it.completion.by || '')} · ${h(App.fmtTime(it.completion.at))}${it.completion.photo ? ' ' + icon('camera') : ''}${it.completion.note ? ' 💬' : ''}` : '<span class="muted">—</span>'}</td></tr>`).join('');
         }
         html += '</tbody></table></div>';
