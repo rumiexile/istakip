@@ -23,6 +23,15 @@
     try { const m = localStorage.getItem(KEY + '-mode'); if (m) return m; } catch (e) { /* yoksay */ }
     try { return JSON.parse(window.name || '{}')[KEY + '-mode'] || 'admin'; } catch (e) { return 'admin'; }
   }
+  /** Demo tercihleri (görünüm, personel ekranında gösterilen kişi) */
+  function getPref(name, def) {
+    try { const v = localStorage.getItem(KEY + '-' + name); if (v) return v; } catch (e) { /* yoksay */ }
+    try { return JSON.parse(window.name || '{}')[KEY + '-' + name] || def; } catch (e) { return def; }
+  }
+  function setPref(name, v) {
+    try { localStorage.setItem(KEY + '-' + name, v); } catch (e) { /* yoksay */ }
+    try { const w = JSON.parse(window.name || '{}'); w[KEY + '-' + name] = v; window.name = JSON.stringify(w); } catch (e) { /* yoksay */ }
+  }
   function setMode(m) {
     try { localStorage.setItem(KEY + '-mode', m); } catch (e) { /* yoksay */ }
     try { const w = JSON.parse(window.name || '{}'); w[KEY + '-mode'] = m; window.name = JSON.stringify(w); } catch (e) { /* yoksay */ }
@@ -462,7 +471,7 @@
     return { count };
   }
 
-  function me() { return byId('users', MODE === 'admin' ? 1 : 2); }
+  function me() { return MODE === 'admin' ? byId('users', 1) : STAFF; }
   function needAdmin() { if (me().role !== 'admin') err('Bu işlem için yönetici yetkisi gerekli.'); }
 
   /* ---------- işlemler ---------- */
@@ -857,12 +866,18 @@
 
   /* ---------- dışa açılan demo arayüzü ---------- */
   const MODE = getMode() === 'staff' ? 'staff' : 'admin';
-  const u0 = byId('users', MODE === 'admin' ? 1 : 2);
+  // Personel ekranında gösterilen kişi (varsayılan: Deniz Karabulut)
+  const staffList = S.users.filter((u) => u.active && u.role === 'staff');
+  const STAFF = staffList.find((u) => u.username === getPref('staff', 'deniz.karabulut')) || staffList[0] || byId('users', 1);
+  const u0 = MODE === 'admin' ? byId('users', 1) : STAFF;
   window.BOOT = { user: { id: u0.id, name: u0.name, username: u0.username, role: u0.role, phone: u0.phone }, company: S.settings.company_name };
 
   window.DEMO = {
     mode: MODE,
     switchTo(m) { setMode(m); location.reload(); },
+    staff: staffList.map((u) => ({ username: u.username, name: u.name })),
+    staffUser: STAFF.username,
+    switchStaff(username) { setPref('staff', username); setMode('staff'); location.reload(); },
     reset() { store.clear(); location.reload(); },
     async api(action, body, query) {
       await new Promise((r) => setTimeout(r, 120 + Math.random() * 160));

@@ -31,10 +31,11 @@ demo_css = """
 @keyframes logoIn { from { opacity: 0; transform: translateY(14px); } }
 .demo-bar .desc { color: var(--muted); flex: 1; min-width: 180px; }
 .demo-bar .seg span { padding: 6px 12px; }
+#demo-user { width: auto; min-height: 34px; padding: 4px 32px 4px 12px; font-size: 13px; font-weight: 600; border-radius: 999px; }
 .role-admin .side { height: auto; max-height: 100dvh; }
 .role-admin .side .glass.nav-card { flex: none; }
 .role-admin .side-foot { margin-top: 24px; }
-@media (max-width: 900px) { .demo-bar .desc, .demo-bar .lg { display: none; } .demo-bar { margin: 8px 10px 0; flex-wrap: nowrap; justify-content: space-between; } }
+@media (max-width: 900px) { .demo-bar .desc, .demo-bar .lg { display: none; } .demo-bar { margin: 8px 10px 0; flex-wrap: wrap; justify-content: space-between; row-gap: 6px; } #demo-user { order: 5; flex: 1 0 100%; } }
 """
 
 def wrap(js, name):
@@ -56,6 +57,7 @@ html = f"""<title>İş Takip Demo</title>
     <label><input type="radio" name="demo-mode" id="demo-admin" value="admin"><span>Yönetici<i class="lg"> paneli</i></span></label>
     <label><input type="radio" name="demo-mode" id="demo-staff" value="staff"><span>Personel<i class="lg"> telefonu</i></span></label>
   </div>
+  <select id="demo-user" aria-label="Personel ekranında gösterilecek kişi" hidden></select>
   <button class="btn sm ghost" id="demo-reset" type="button" title="Örnek verileri baştan yükle">Sıfırla</button>
 </div>
 <div id="app"></div>
@@ -80,6 +82,12 @@ html = f"""<title>İş Takip Demo</title>
     DEMO.switchTo(a.getAttribute('href').indexOf('view=staff') >= 0 ? 'staff' : 'admin');
   }}, true);
   document.getElementById('demo-' + DEMO.mode).checked = true;
+  var who = document.getElementById('demo-user');
+  who.innerHTML = DEMO.staff.map(function (u) {{
+    return '<option value="' + App.h(u.username) + '"' + (u.username === DEMO.staffUser ? ' selected' : '') + '>' + App.h(u.name) + '</option>';
+  }}).join('');
+  who.hidden = DEMO.mode !== 'staff';
+  who.onchange = function () {{ DEMO.switchStaff(who.value); }};
   document.querySelectorAll('input[name=demo-mode]').forEach(function (r) {{
     r.addEventListener('change', function () {{ DEMO.switchTo(r.value); }});
   }});
