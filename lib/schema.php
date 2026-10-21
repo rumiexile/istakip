@@ -137,7 +137,7 @@ function schema_statements(string $driver): array
     return $out;
 }
 
-const SCHEMA_VERSION = 10;
+const SCHEMA_VERSION = 11;
 
 function schema_install(PDO $pdo, string $driver): void
 {
@@ -236,6 +236,9 @@ function schema_upgrade(PDO $pdo, string $driver, int $from): void
                 $pdo->exec('ALTER TABLE completions ADD UNIQUE KEY uq_compl_slot (plan_id, occ_date, slot)');
             }
         }
+    }
+    if ($from < 11) {
+        schema_make_on_demand($pdo, ['Çay ocağı rulosunun değiştirilmesi']);
     }
     if ($from < 10) {
         schema_make_on_demand($pdo, ['Çay hazırlama', 'Bulaşık Yıkama'], 'routine');
@@ -469,7 +472,7 @@ function schema_seed(PDO $pdo): void
             ['Yemek görevi', 'daily', 1, null, null, '12:00'],
             ['Detaylı Çay Ocağı Temizliği', 'weekly', 1, '5', null, '16:00'],
             ['Makam ikram tabağı kontrolü', 'daily', 1, null, null, '09:30'],
-            ['Çay ocağı rulosunun değiştirilmesi', 'daily', 1, null, null, '09:30'],
+            ['Çay ocağı rulosunun değiştirilmesi', 'on_demand', 1, null, null, null],
             ['Toplantıların ikramlarının hazırlanması ve sunumu', 'on_demand', 1, null, null, null],
         ]],
         ['Koridor İş Paketi', '#0f766e', 'Koridor sorumlusunun odalar, tuvaletler, çay servisi ve toplantı odası işleri', [
