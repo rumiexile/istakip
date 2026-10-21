@@ -3,7 +3,7 @@
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v29';
+  const KEY = 'istakip-demo-v30';
   const REPORT_CATS = { clean: 'Temizlik gerekiyor', supply: 'Malzeme bitti', broken: 'Arıza / tamir', climate: 'Isıtma / soğutma', other: 'Diğer' };
   const store = {
     get() {
@@ -215,22 +215,23 @@
         ['Makam ikram tabağı kontrolü', 'daily', 1, null, null, '09:30'],
         ['Çay ocağı rulosunun değiştirilmesi', 'on_demand', 1, null, null, null],
         ['Toplantıların ikramlarının hazırlanması ve sunumu', 'on_demand', 1, null, null, null]]],
-      ['Koridor İş Paketi', '#0f766e', 'Koridor sorumlusunun odalar, tuvaletler, çay servisi ve toplantı odası işleri', [
+      ['Koridor İş Paketi', '#0f766e', 'Koridor sorumlusunun odalar, çay servisi ve toplantı odası işleri', [
         ['Çay hazırlama', 'routine', 1, null, null, null],
         ['Bulaşık Yıkama', 'routine', 1, null, null, null],
         ['Odalarda masa üstü, pencere önü temizliği ve düzeni', 'daily', 1, null, null, '09:00'],
+        ['Koridor pencere küpeşte önü temizliği', 'weekly', 1, '2,4', null, '14:00'],
+        ['Çay servis hizmetleri', 'daily', 1, null, null, null],
+        ['Toplantı odalarında temizlik ve düzen oluşturulması', 'daily', 1, null, null, '08:30'],
+        ['Detaylı oda temizliği', 'weekly', 1, '3', null, '14:00'],
+        ['Misafir alanı temizliği', 'every_n_days', 2, null, null, '11:00']]],
+      ['Tuvalet İş Paketi', '#0e7490', 'Koridordaki tuvaletlerin temizliği, sarf malzemesi ve saatlik kontrolleri', [
         ['Tuvalet zemin temizliği', 'daily', 1, null, null, '10:00'],
         ['Tuvalet klozet temizliği', 'daily', 1, null, null, '10:00'],
         ['Tuvalet lavabo temizliği', 'daily', 1, null, null, '10:00'],
         ['Tuvalet ayna temizliği', 'daily', 1, null, null, '10:00'],
         ['Sabunluk kontrolü', 'daily', 1, null, null, '09:30'],
         ['Tuvalet Genel Kontrol', 'daily', 1, null, null, '10:00', '10:00,11:00,12:00,14:00,15:00,16:00,17:00'],
-        ['Detaylı tuvalet temizliği', 'weekly', 1, '5', null, '15:00'],
-        ['Koridor pencere küpeşte önü temizliği', 'weekly', 1, '2,4', null, '14:00'],
-        ['Çay servis hizmetleri', 'daily', 1, null, null, null],
-        ['Toplantı odalarında temizlik ve düzen oluşturulması', 'daily', 1, null, null, '08:30'],
-        ['Detaylı oda temizliği', 'weekly', 1, '3', null, '14:00'],
-        ['Misafir alanı temizliği', 'every_n_days', 2, null, null, '11:00']]],
+        ['Detaylı tuvalet temizliği', 'weekly', 1, '5', null, '15:00']]],
       ['Bahçe Sorumluluk Paketi', '#15803d', 'Bahçe, otopark ve giriş çevresi; çiçek bakımı, sulama ve depo işleri', [
         ['Girişin temizliği, halı temizliği', 'daily', 1, null, null, '08:00'],
         ['Bahçe çöplerinin toplanması', 'every_n_days', 2, null, null, '10:00'],
@@ -283,6 +284,8 @@
     apply('Fotokopi Alanı Paketi', 'Fotokopi Alanı', deniz);
     apply('Koridor İş Paketi', 'Uzman Yardımcıları Koridoru', deniz);
     apply('Koridor İş Paketi', 'Makam Koridoru', gulnaz);
+    apply('Tuvalet İş Paketi', 'Uzman Yardımcıları Koridoru', deniz);
+    apply('Tuvalet İş Paketi', 'Makam Koridoru', gulnaz);
     apply('Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', aysel);
     // Yemek görevi nöbeti (lib/schema.php DEMO_ASSIGNMENTS ile aynı)
     apply('Yemek Görevi Nöbeti', 'Genel', aysel, null, null, '1');

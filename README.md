@@ -56,13 +56,13 @@ hâlâ yapılmamışsa o tekrar **yapılmadı** olarak kaydedilir ve raporlara d
    - Alternatif olarak bir alt alan adı (örn. `istakip.siteniz.com`) açıp kök klasörünü bu klasör olarak gösterebilirsiniz.
 3. **Kurulum sihirbazı:** Tarayıcıda `https://siteniz.com/istakip/install.php` adresini açın.
    Veritabanı bilgilerini, kurum adını ve yönetici hesabını girin. “Örnek verileri yükle” seçeneği,
-   11 mekanı (son mekan “Genel”: belirli bir yere bağlı olmayan görevler) ve beş iş paketini getirir: **Çay Ocağı Ana Sorumluluk Paketi** (12 iş), **Koridor İş Paketi** (15 iş), **Bahçe Sorumluluk Paketi** (9 iş), **Fotokopi Alanı Paketi** (1 iş) ve **Yemek Görevi Nöbeti** (1 iş).
+   11 mekanı (son mekan “Genel”: belirli bir yere bağlı olmayan görevler) ve altı iş paketini getirir: **Çay Ocağı Ana Sorumluluk Paketi** (12 iş), **Koridor İş Paketi** (8 iş), **Tuvalet İş Paketi** (7 iş), **Bahçe Sorumluluk Paketi** (9 iş), **Fotokopi Alanı Paketi** (1 iş) ve **Yemek Görevi Nöbeti** (1 iş).
    “Ön tanımlı personeli ekle” seçeneği şu kişileri ekler: Aysel Akman, Deniz Karabulut, Gülnaz Yalçın,
    Mahmut Demirel, Mumin Tekin, Yalçın Bıçakcı. Kullanıcı adları `ad.soyad` biçimindedir (örn. `aysel.akman`).
    Geçici şifreler kurulum bitince **bir kez** gösterilir. Not alıp personele iletin.
    Uygulama daha önce kurulduysa aynı kişileri yönetici panelinde **Personel → Ön tanımlı personeli ekle** butonuyla ekleyebilirsiniz.
    “Demodaki iş dağılımını da yükle” seçeneği (personel ve örnek veri seçiliyken) demodaki atamaların aynısını
-   kurulum gününden başlayarak oluşturur: Koridor İş Paketi Uzman Yardımcıları Koridoru'nda Deniz Karabulut'a,
+   kurulum gününden başlayarak oluşturur: Koridor İş Paketi ve Tuvalet İş Paketi Uzman Yardımcıları Koridoru'nda Deniz Karabulut'a,
    Makam Koridoru'nda Gülnaz Yalçın'a; Çay Ocağı Ana Sorumluluk Paketi Çay Ocağı'nda Aysel Akman'a; Bahçe Sorumluluk Paketi
    Bahçe ve Otopark'ta Mahmut Demirel'e; Fotokopi Alanı Paketi Fotokopi Alanı'nda Deniz Karabulut'a atanır (kar küreme yalnızca kış döneminde, 1 Aralık – 15 Mart).
    Yemek görevi Genel mekanında, 12:00'de nöbetle yapılır: Pazartesi Aysel Akman, Salı Deniz Karabulut, Çarşamba Gülnaz Yalçın, Perşembe Yalçın Bıçakcı, Cuma Mumin Tekin.

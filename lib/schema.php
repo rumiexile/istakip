@@ -137,7 +137,7 @@ function schema_statements(string $driver): array
     return $out;
 }
 
-const SCHEMA_VERSION = 19;
+const SCHEMA_VERSION = 20;
 
 function schema_install(PDO $pdo, string $driver): void
 {
@@ -257,6 +257,12 @@ function schema_upgrade(PDO $pdo, string $driver, int $from): void
     }
     if ($from < 19) {
         schema_add_to_package($pdo, 'Bulaşık Yıkama', 'Koridor İş Paketi');
+    }
+    if ($from < 20) {
+        schema_split_package($pdo, 'Koridor İş Paketi', 'Tuvalet İş Paketi', '#0e7490',
+            'Koridordaki tuvaletlerin temizliği, sarf malzemesi ve saatlik kontrolleri',
+            ['Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği',
+             'Sabunluk kontrolü', 'Tuvalet Genel Kontrol', 'Detaylı tuvalet temizliği']);
     }
     if ($from < 12) {
         // "Su/Damacana kontrolü" → "Su/Damacana Değişimi", ihtiyaç olduğunda
@@ -650,6 +656,42 @@ function schema_add_to_package(PDO $pdo, string $taskName, string $package): voi
     }
 }
 
+/**
+ * v20: Bir paketin bazı işlerini yeni bir pakete ayırır. Paket satırları taşınır; aktif atamalar
+ * aynı kişi, mekan ve saatlerle kalır, yalnızca bağlı oldukları paket değişir.
+ */
+function schema_split_package(PDO $pdo, string $from, string $to, string $color, string $desc, array $tasks): void
+{
+    $one = function (string $sql, array $p) use ($pdo) { $st = $pdo->prepare($sql); $st->execute($p); return $st->fetchColumn(); };
+    $src = (int)$one('SELECT id FROM packages WHERE name = ?', [$from]);
+    if (!$src) {
+        return;
+    }
+    $pdo->beginTransaction();
+    try {
+        $dst = (int)$one('SELECT id FROM packages WHERE name = ?', [$to]);
+        if (!$dst) {
+            $pdo->prepare('INSERT INTO packages (name, description, color, created_at) VALUES (?, ?, ?, ?)')->execute([$to, $desc, $color, date('Y-m-d H:i:s')]);
+            $dst = (int)$pdo->lastInsertId();
+        }
+        $so = 0;
+        foreach ($tasks as $n) {
+            $tid = (int)$one('SELECT id FROM tasks WHERE name = ? AND active = 1', [$n]);
+            if (!$tid) {
+                continue;
+            }
+            $pdo->prepare('UPDATE package_items SET package_id = ?, sort_order = ? WHERE package_id = ? AND task_id = ?')->execute([$dst, $so++, $src, $tid]);
+            $pdo->prepare('UPDATE plans SET package_id = ? WHERE package_id = ? AND task_id = ? AND active = 1')->execute([$dst, $src, $tid]);
+        }
+        $pdo->prepare("UPDATE packages SET description = ? WHERE id = ? AND description LIKE '%tuvalet%'")
+            ->execute(['Koridor sorumlusunun odalar, çay servisi ve toplantı odası işleri', $src]);
+        $pdo->commit();
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        throw $e;
+    }
+}
+
 function looks_consumable(string $name): bool
 {
     $n = mb_strtolower(str_replace(['İ', 'I'], ['i', 'ı'], $name));
@@ -755,10 +797,17 @@ function schema_seed(PDO $pdo): void
             ['Çay ocağı rulosunun değiştirilmesi', 'on_demand', 1, null, null, null],
             ['Toplantıların ikramlarının hazırlanması ve sunumu', 'on_demand', 1, null, null, null],
         ]],
-        ['Koridor İş Paketi', '#0f766e', 'Koridor sorumlusunun odalar, tuvaletler, çay servisi ve toplantı odası işleri', [
+        ['Koridor İş Paketi', '#0f766e', 'Koridor sorumlusunun odalar, çay servisi ve toplantı odası işleri', [
             ['Çay hazırlama', 'routine', 1, null, null, null],
             ['Bulaşık Yıkama', 'routine', 1, null, null, null],
             ['Odalarda masa üstü, pencere önü temizliği ve düzeni', 'daily', 1, null, null, '09:00'],
+            ['Koridor pencere küpeşte önü temizliği', 'weekly', 1, '2,4', null, '14:00'],
+            ['Çay servis hizmetleri', 'daily', 1, null, null, null],
+            ['Toplantı odalarında temizlik ve düzen oluşturulması', 'daily', 1, null, null, '08:30'],
+            ['Detaylı oda temizliği', 'weekly', 1, '3', null, '14:00'],
+            ['Misafir alanı temizliği', 'every_n_days', 2, null, null, '11:00'],
+        ]],
+        ['Tuvalet İş Paketi', '#0e7490', 'Koridordaki tuvaletlerin temizliği, sarf malzemesi ve saatlik kontrolleri', [
             ['Tuvalet zemin temizliği', 'daily', 1, null, null, '10:00'],
             ['Tuvalet klozet temizliği', 'daily', 1, null, null, '10:00'],
             ['Tuvalet lavabo temizliği', 'daily', 1, null, null, '10:00'],
@@ -766,11 +815,6 @@ function schema_seed(PDO $pdo): void
             ['Sabunluk kontrolü', 'daily', 1, null, null, '09:30'],
             ['Tuvalet Genel Kontrol', 'daily', 1, null, null, '10:00', '10:00,11:00,12:00,14:00,15:00,16:00,17:00'],
             ['Detaylı tuvalet temizliği', 'weekly', 1, '5', null, '15:00'],
-            ['Koridor pencere küpeşte önü temizliği', 'weekly', 1, '2,4', null, '14:00'],
-            ['Çay servis hizmetleri', 'daily', 1, null, null, null],
-            ['Toplantı odalarında temizlik ve düzen oluşturulması', 'daily', 1, null, null, '08:30'],
-            ['Detaylı oda temizliği', 'weekly', 1, '3', null, '14:00'],
-            ['Misafir alanı temizliği', 'every_n_days', 2, null, null, '11:00'],
         ]],
         ['Bahçe Sorumluluk Paketi', '#15803d', 'Bahçe, otopark ve giriş çevresi; çiçek bakımı, sulama ve depo işleri', [
             ['Girişin temizliği, halı temizliği', 'daily', 1, null, null, '08:00'],
@@ -849,6 +893,8 @@ const DEMO_ASSIGNMENTS = [
     ['Bahçe Sorumluluk Paketi', 'Bahçe ve Otopark', 'mahmut.demirel', ['Kar küreme ve tuzlama işlemleri'], 'winter'],
     ['Koridor İş Paketi', 'Uzman Yardımcıları Koridoru', 'deniz.karabulut', null],
     ['Koridor İş Paketi', 'Makam Koridoru', 'gulnaz.yalcin', null],
+    ['Tuvalet İş Paketi', 'Uzman Yardımcıları Koridoru', 'deniz.karabulut', null],
+    ['Tuvalet İş Paketi', 'Makam Koridoru', 'gulnaz.yalcin', null],
     ['Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', 'aysel.akman', null],
     // Yemek görevi nöbeti (Genel, 12:00): Pazartesi Aysel, Salı Deniz, Çarşamba Gülnaz, Perşembe Yalçın, Cuma Mumin
     ['Yemek Görevi Nöbeti', 'Genel', 'aysel.akman', null, null, '1'],
