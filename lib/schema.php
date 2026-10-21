@@ -137,7 +137,7 @@ function schema_statements(string $driver): array
     return $out;
 }
 
-const SCHEMA_VERSION = 13;
+const SCHEMA_VERSION = 15;
 
 function schema_install(PDO $pdo, string $driver): void
 {
@@ -239,6 +239,12 @@ function schema_upgrade(PDO $pdo, string $driver, int $from): void
     }
     if ($from < 13) {
         schema_meal_rotation($pdo);
+    }
+    if ($from < 14) {
+        schema_meal_to_general($pdo);
+    }
+    if ($from < 15) {
+        schema_retire_tasks($pdo, ['Başkanlık yemek getirme']);
     }
     if ($from < 12) {
         // "Su/Damacana kontrolü" → "Su/Damacana Değişimi", ihtiyaç olduğunda
@@ -426,6 +432,86 @@ function schema_meal_rotation(PDO $pdo): void
     }
 }
 
+/**
+ * v14: Yemek görevi "Genel" mekanında görünür ve kendi paketinde ("Yemek Görevi Nöbeti") durur.
+ * Bugünden önce başlamış atamalar dün itibarıyla kapanıp Genel'de yeniden başlar (geçmiş Çay Ocağı'nda kalır).
+ */
+function schema_meal_to_general(PDO $pdo): void
+{
+    $tid = (int)$pdo->query("SELECT id FROM tasks WHERE name = 'Yemek görevi' AND active = 1")->fetchColumn();
+    if (!$tid) {
+        return;
+    }
+    $now = date('Y-m-d H:i:s');
+    $today = date('Y-m-d');
+    $yesterday = date('Y-m-d', strtotime('-1 day'));
+    $pdo->beginTransaction();
+    try {
+        $gen = (int)$pdo->query("SELECT id FROM locations WHERE name = 'Genel' AND active = 1")->fetchColumn();
+        if (!$gen) {
+            $sort = (int)$pdo->query('SELECT COALESCE(MAX(sort_order), 0) + 1 FROM locations')->fetchColumn();
+            $pdo->prepare('INSERT INTO locations (name, sort_order, active, created_at) VALUES (?, ?, 1, ?)')->execute(['Genel', $sort, $now]);
+            $gen = (int)$pdo->lastInsertId();
+        }
+        $pkg = (int)$pdo->query("SELECT id FROM packages WHERE name = 'Yemek Görevi Nöbeti'")->fetchColumn();
+        if (!$pkg) {
+            $pdo->prepare('INSERT INTO packages (name, description, color, created_at) VALUES (?, ?, ?, ?)')
+                ->execute(['Yemek Görevi Nöbeti', 'Mekana bağlı olmayan, her gün farklı personelin yaptığı yemek görevi', '#0369a1', $now]);
+            $pkg = (int)$pdo->lastInsertId();
+        }
+        // Paket satırı yeni pakete taşınır (Çay Ocağı paketinden çıkar)
+        $item = $pdo->prepare('SELECT id FROM package_items WHERE task_id = ? ORDER BY id LIMIT 1');
+        $item->execute([$tid]);
+        if ($iid = $item->fetchColumn()) {
+            $pdo->prepare('UPDATE package_items SET package_id = ?, sort_order = 0 WHERE id = ?')->execute([$pkg, $iid]);
+            $pdo->prepare('DELETE FROM package_items WHERE task_id = ? AND id <> ?')->execute([$tid, $iid]);
+        }
+        $plans = $pdo->prepare('SELECT * FROM plans WHERE task_id = ? AND active = 1 AND location_id <> ?');
+        $plans->execute([$tid, $gen]);
+        $ins = $pdo->prepare('INSERT INTO plans (task_id, location_id, user_id, package_id, freq_type, freq_interval, weekdays, month_day, due_time, times, start_date, end_date, note, active, created_at)
+                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)');
+        foreach ($plans->fetchAll() as $p) {
+            if (substr((string)$p['start_date'], 0, 10) >= $today) {
+                $pdo->prepare('UPDATE plans SET location_id = ?, package_id = ? WHERE id = ?')->execute([$gen, $pkg, $p['id']]);
+                continue;
+            }
+            $pdo->prepare('UPDATE plans SET active = 0, end_date = ? WHERE id = ?')->execute([$yesterday, $p['id']]);
+            $ins->execute([$tid, $gen, $p['user_id'], $pkg, $p['freq_type'], $p['freq_interval'], $p['weekdays'], $p['month_day'], $p['due_time'], $p['times'],
+                $today, $p['end_date'] ?: null, $p['note'], $now]);
+        }
+        $pdo->prepare('DELETE FROM location_tasks WHERE task_id = ? AND location_id <> ?')->execute([$tid, $gen]);
+        link_pairs($pdo, [[$gen, $tid]]);
+        $pdo->commit();
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        throw $e;
+    }
+}
+
+/**
+ * v15: Artık yapılmayan işleri kaldırır: atamalar dün itibarıyla kapanır (geçmiş kayıtlar raporlarda kalır),
+ * iş paketlerden ve mekan bağlantılarından çıkar, iş tanımı pasif olur.
+ */
+function schema_retire_tasks(PDO $pdo, array $names): void
+{
+    $yesterday = date('Y-m-d', strtotime('-1 day'));
+    $today = date('Y-m-d');
+    $find = $pdo->prepare('SELECT id FROM tasks WHERE name = ? AND active = 1');
+    foreach ($names as $n) {
+        $find->execute([$n]);
+        $tid = (int)$find->fetchColumn();
+        if (!$tid) {
+            continue;
+        }
+        $pdo->prepare('UPDATE plans SET active = 0, end_date = ? WHERE task_id = ? AND active = 1 AND start_date < ?')->execute([$yesterday, $tid, $today]);
+        $pdo->prepare('DELETE FROM plans WHERE task_id = ? AND active = 1 AND start_date >= ? AND id NOT IN (SELECT plan_id FROM completions)')->execute([$tid, $today]);
+        $pdo->prepare('UPDATE plans SET active = 0, end_date = ? WHERE task_id = ? AND active = 1')->execute([$yesterday, $tid]);
+        $pdo->prepare('DELETE FROM package_items WHERE task_id = ?')->execute([$tid]);
+        $pdo->prepare('DELETE FROM location_tasks WHERE task_id = ?')->execute([$tid]);
+        $pdo->prepare('UPDATE tasks SET active = 0 WHERE id = ?')->execute([$tid]);
+    }
+}
+
 function looks_consumable(string $name): bool
 {
     $n = mb_strtolower(str_replace(['İ', 'I'], ['i', 'ı'], $name));
@@ -506,6 +592,7 @@ function schema_seed(PDO $pdo): void
         'Arşiv',
         'Çay Ocağı',
         'Bahçe ve Otopark',
+        'Genel',
     ];
     $st = $pdo->prepare('INSERT INTO locations (name, sort_order, active, created_at) VALUES (?, ?, 1, ?)');
     $locIds = [];
@@ -524,7 +611,6 @@ function schema_seed(PDO $pdo): void
             ['Çaydanlıkların detaylı temizliği', 'weekly', 1, '5', null, '15:00'],
             ['Kahve makinesi temizliği', 'daily', 1, null, null, '16:00'],
             ['Çay Ocağı Zemin Temizliği', 'daily', 1, null, null, '17:00'],
-            ['Yemek görevi', 'weekly', 1, '1', null, '12:00'],
             ['Detaylı Çay Ocağı Temizliği', 'weekly', 1, '5', null, '16:00'],
             ['Makam ikram tabağı kontrolü', 'daily', 1, null, null, '09:30'],
             ['Çay ocağı rulosunun değiştirilmesi', 'on_demand', 1, null, null, null],
@@ -542,7 +628,6 @@ function schema_seed(PDO $pdo): void
             ['Detaylı tuvalet temizliği', 'weekly', 1, '5', null, '15:00'],
             ['Koridor pencere küpeşte önü temizliği', 'weekly', 1, '2,4', null, '14:00'],
             ['Çay servis hizmetleri', 'daily', 1, null, null, null],
-            ['Başkanlık yemek getirme', 'daily', 1, null, null, '12:00'],
             ['Toplantı odalarında temizlik ve düzen oluşturulması', 'daily', 1, null, null, '08:30'],
             ['Detaylı oda temizliği', 'weekly', 1, '3', null, '14:00'],
             ['Misafir alanı temizliği', 'every_n_days', 2, null, null, '11:00'],
@@ -560,6 +645,9 @@ function schema_seed(PDO $pdo): void
         ]],
         ['Fotokopi Alanı Paketi', '#7c3aed', 'Fotokopi alanı ve makine çevresinin düzenli temizliği', [
             ['Fotokopi makinesinin çevre temizliği', 'weekly', 1, '1,4', null, '15:00'],
+        ]],
+        ['Yemek Görevi Nöbeti', '#0369a1', 'Mekana bağlı olmayan, her gün farklı personelin yaptığı yemek görevi', [
+            ['Yemek görevi', 'weekly', 1, '1', null, '12:00'],
         ]],
     ];
 
@@ -593,11 +681,12 @@ function schema_seed(PDO $pdo): void
 
     // Hangi mekanda hangi işler yapılır
     $map = [
-        'Uzman Yardımcıları Koridoru' => ['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Sabunluk kontrolü', 'Tuvalet Genel Kontrol', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği', 'Misafir alanı temizliği'],
-        'Makam Koridoru' => ['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Sabunluk kontrolü', 'Tuvalet Genel Kontrol', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği', 'Misafir alanı temizliği'],
-        'Çay Ocağı' => ['Çay hazırlama', 'Bulaşık Yıkama', 'Çay malzeme eksiklerinin tedarik edilmesi', 'Su/Damacana Değişimi', 'Çaydanlıkların detaylı temizliği', 'Kahve makinesi temizliği', 'Çay Ocağı Zemin Temizliği', 'Yemek görevi', 'Detaylı Çay Ocağı Temizliği', 'Makam ikram tabağı kontrolü', 'Çay ocağı rulosunun değiştirilmesi', 'Toplantıların ikramlarının hazırlanması ve sunumu'],
+        'Uzman Yardımcıları Koridoru' => ['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Sabunluk kontrolü', 'Tuvalet Genel Kontrol', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği', 'Misafir alanı temizliği'],
+        'Makam Koridoru' => ['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Sabunluk kontrolü', 'Tuvalet Genel Kontrol', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği', 'Misafir alanı temizliği'],
+        'Çay Ocağı' => ['Çay hazırlama', 'Bulaşık Yıkama', 'Çay malzeme eksiklerinin tedarik edilmesi', 'Su/Damacana Değişimi', 'Çaydanlıkların detaylı temizliği', 'Kahve makinesi temizliği', 'Çay Ocağı Zemin Temizliği', 'Detaylı Çay Ocağı Temizliği', 'Makam ikram tabağı kontrolü', 'Çay ocağı rulosunun değiştirilmesi', 'Toplantıların ikramlarının hazırlanması ve sunumu'],
         'Bahçe ve Otopark' => ['Girişin temizliği, halı temizliği', 'Bahçe çöplerinin toplanması', 'Çiçeklerin bakımı, budama', 'Sulama', 'Yaprak temizliği', 'Ofis ve koridor saksı çiçeklerinin bakımı', 'Kar küreme ve tuzlama işlemleri', 'Bahçe ilaçlaması', 'Depo düzenlemesi'],
         'Fotokopi Alanı' => ['Fotokopi makinesinin çevre temizliği'],
+        'Genel' => ['Yemek görevi'],
     ];
     $pairs = [];
     foreach ($map as $loc => $tasks) {
@@ -621,11 +710,12 @@ const DEMO_ASSIGNMENTS = [
     ['Koridor İş Paketi', 'Uzman Yardımcıları Koridoru', 'deniz.karabulut', null],
     ['Koridor İş Paketi', 'Makam Koridoru', 'gulnaz.yalcin', null],
     ['Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', 'aysel.akman', null],
-    // Yemek görevi nöbeti (12:00): Pazartesi Aysel (paketten), Salı Deniz, Çarşamba Gülnaz, Perşembe Yalçın, Cuma Mumin
-    ['Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', 'deniz.karabulut', ['Yemek görevi'], null, '2'],
-    ['Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', 'gulnaz.yalcin', ['Yemek görevi'], null, '3'],
-    ['Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', 'yalcin.bicakci', ['Yemek görevi'], null, '4'],
-    ['Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', 'mumin.tekin', ['Yemek görevi'], null, '5'],
+    // Yemek görevi nöbeti (Genel, 12:00): Pazartesi Aysel, Salı Deniz, Çarşamba Gülnaz, Perşembe Yalçın, Cuma Mumin
+    ['Yemek Görevi Nöbeti', 'Genel', 'aysel.akman', null, null, '1'],
+    ['Yemek Görevi Nöbeti', 'Genel', 'deniz.karabulut', null, null, '2'],
+    ['Yemek Görevi Nöbeti', 'Genel', 'gulnaz.yalcin', null, null, '3'],
+    ['Yemek Görevi Nöbeti', 'Genel', 'yalcin.bicakci', null, null, '4'],
+    ['Yemek Görevi Nöbeti', 'Genel', 'mumin.tekin', null, null, '5'],
 ];
 
 /** Kış dönemi: 1 Aralık – 15 Mart. Dönem içindeysek bugünden, değilsek ilk 1 Aralık'tan başlar. */
