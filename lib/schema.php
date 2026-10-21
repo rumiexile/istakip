@@ -137,7 +137,7 @@ function schema_statements(string $driver): array
     return $out;
 }
 
-const SCHEMA_VERSION = 18;
+const SCHEMA_VERSION = 19;
 
 function schema_install(PDO $pdo, string $driver): void
 {
@@ -254,6 +254,9 @@ function schema_upgrade(PDO $pdo, string $driver, int $from): void
     }
     if ($from < 18) {
         schema_replace_task($pdo, 'Çay demleme', 'Çay hazırlama', 'routine');
+    }
+    if ($from < 19) {
+        schema_add_to_package($pdo, 'Bulaşık Yıkama', 'Koridor İş Paketi');
     }
     if ($from < 12) {
         // "Su/Damacana kontrolü" → "Su/Damacana Değişimi", ihtiyaç olduğunda
@@ -614,6 +617,39 @@ function schema_replace_task(PDO $pdo, string $oldName, string $newName, string 
     }
 }
 
+/**
+ * v19: Var olan bir işi pakete ekler ve paketin atandığı her mekan + kişi için atamasını oluşturur
+ * (işin kendi sıklığıyla, bugünden başlayarak). Zaten varsa dokunmaz.
+ */
+function schema_add_to_package(PDO $pdo, string $taskName, string $package): void
+{
+    $one = function (string $sql, array $p) use ($pdo) { $st = $pdo->prepare($sql); $st->execute($p); return $st->fetch(); };
+    $t = $one('SELECT * FROM tasks WHERE name = ? AND active = 1', [$taskName]);
+    $pk = $one('SELECT id FROM packages WHERE name = ?', [$package]);
+    if (!$t || !$pk) {
+        return;
+    }
+    $tid = (int)$t['id'];
+    $pid = (int)$pk['id'];
+    $now = date('Y-m-d H:i:s');
+    if (!$one('SELECT 1 FROM package_items WHERE package_id = ? AND task_id = ?', [$pid, $tid])) {
+        $so = (int)$one('SELECT COALESCE(MAX(sort_order), 0) + 1 AS n FROM package_items WHERE package_id = ?', [$pid])['n'];
+        $pdo->prepare('INSERT INTO package_items (package_id, task_id, freq_type, freq_interval, weekdays, month_day, due_time, times, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+            ->execute([$pid, $tid, $t['freq_type'], $t['freq_interval'], $t['weekdays'], $t['month_day'], $t['due_time'], $t['times'], $so]);
+    }
+    $targets = $pdo->prepare('SELECT DISTINCT location_id, user_id FROM plans WHERE package_id = ? AND active = 1');
+    $targets->execute([$pid]);
+    foreach ($targets->fetchAll() as $g) {
+        if ($one('SELECT 1 FROM plans WHERE task_id = ? AND location_id = ? AND COALESCE(user_id, 0) = ? AND active = 1', [$tid, $g['location_id'], (int)($g['user_id'] ?? 0)])) {
+            continue;
+        }
+        $pdo->prepare('INSERT INTO plans (task_id, location_id, user_id, package_id, freq_type, freq_interval, weekdays, month_day, due_time, times, start_date, active, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)')
+            ->execute([$tid, $g['location_id'], $g['user_id'], $pid, $t['freq_type'], $t['freq_interval'], $t['weekdays'], $t['month_day'], $t['due_time'], $t['times'], date('Y-m-d'), $now]);
+        link_pairs($pdo, [[(int)$g['location_id'], $tid]]);
+    }
+}
+
 function looks_consumable(string $name): bool
 {
     $n = mb_strtolower(str_replace(['İ', 'I'], ['i', 'ı'], $name));
@@ -721,6 +757,7 @@ function schema_seed(PDO $pdo): void
         ]],
         ['Koridor İş Paketi', '#0f766e', 'Koridor sorumlusunun odalar, tuvaletler, çay servisi ve toplantı odası işleri', [
             ['Çay hazırlama', 'routine', 1, null, null, null],
+            ['Bulaşık Yıkama', 'routine', 1, null, null, null],
             ['Odalarda masa üstü, pencere önü temizliği ve düzeni', 'daily', 1, null, null, '09:00'],
             ['Tuvalet zemin temizliği', 'daily', 1, null, null, '10:00'],
             ['Tuvalet klozet temizliği', 'daily', 1, null, null, '10:00'],
@@ -784,8 +821,8 @@ function schema_seed(PDO $pdo): void
 
     // Hangi mekanda hangi işler yapılır
     $map = [
-        'Uzman Yardımcıları Koridoru' => ['Çay hazırlama', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Sabunluk kontrolü', 'Tuvalet Genel Kontrol', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği', 'Misafir alanı temizliği'],
-        'Makam Koridoru' => ['Çay hazırlama', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Sabunluk kontrolü', 'Tuvalet Genel Kontrol', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği', 'Misafir alanı temizliği'],
+        'Uzman Yardımcıları Koridoru' => ['Çay hazırlama', 'Bulaşık Yıkama', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Sabunluk kontrolü', 'Tuvalet Genel Kontrol', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği', 'Misafir alanı temizliği'],
+        'Makam Koridoru' => ['Çay hazırlama', 'Bulaşık Yıkama', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Sabunluk kontrolü', 'Tuvalet Genel Kontrol', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği', 'Misafir alanı temizliği'],
         'Çay Ocağı' => ['Çay hazırlama', 'Bulaşık Yıkama', 'Makam Odaları Çay İkram Hizmetleri', 'Çay malzeme eksiklerinin tedarik edilmesi', 'Su/Damacana Değişimi', 'Çaydanlıkların detaylı temizliği', 'Kahve makinesi temizliği', 'Çay Ocağı Zemin Temizliği', 'Detaylı Çay Ocağı Temizliği', 'Makam ikram tabağı kontrolü', 'Çay ocağı rulosunun değiştirilmesi', 'Toplantıların ikramlarının hazırlanması ve sunumu'],
         'Bahçe ve Otopark' => ['Girişin temizliği, halı temizliği', 'Bahçe çöplerinin toplanması', 'Çiçeklerin bakımı, budama', 'Sulama', 'Yaprak temizliği', 'Ofis ve koridor saksı çiçeklerinin bakımı', 'Kar küreme ve tuzlama işlemleri', 'Bahçe ilaçlaması', 'Depo düzenlemesi'],
         'Fotokopi Alanı' => ['Fotokopi makinesinin çevre temizliği'],
