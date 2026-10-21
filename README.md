@@ -56,7 +56,7 @@ hâlâ yapılmamışsa o tekrar **yapılmadı** olarak kaydedilir ve raporlara d
    - Alternatif olarak bir alt alan adı (örn. `istakip.siteniz.com`) açıp kök klasörünü bu klasör olarak gösterebilirsiniz.
 3. **Kurulum sihirbazı:** Tarayıcıda `https://siteniz.com/istakip/install.php` adresini açın.
    Veritabanı bilgilerini, kurum adını ve yönetici hesabını girin. “Örnek verileri yükle” seçeneği,
-   11 mekanı (son mekan “Genel”: belirli bir yere bağlı olmayan görevler) ve beş iş paketini getirir: **Çay Ocağı Ana Sorumluluk Paketi** (11 iş), **Koridor İş Paketi** (14 iş), **Bahçe Sorumluluk Paketi** (9 iş), **Fotokopi Alanı Paketi** (1 iş) ve **Yemek Görevi Nöbeti** (1 iş).
+   11 mekanı (son mekan “Genel”: belirli bir yere bağlı olmayan görevler) ve beş iş paketini getirir: **Çay Ocağı Ana Sorumluluk Paketi** (12 iş), **Koridor İş Paketi** (14 iş), **Bahçe Sorumluluk Paketi** (9 iş), **Fotokopi Alanı Paketi** (1 iş) ve **Yemek Görevi Nöbeti** (1 iş).
    “Ön tanımlı personeli ekle” seçeneği şu kişileri ekler: Aysel Akman, Deniz Karabulut, Gülnaz Yalçın,
    Mahmut Demirel, Mumin Tekin, Yalçın Bıçakcı. Kullanıcı adları `ad.soyad` biçimindedir (örn. `aysel.akman`).
    Geçici şifreler kurulum bitince **bir kez** gösterilir. Not alıp personele iletin.
