@@ -99,7 +99,7 @@ $driver = $_POST['driver'] ?? 'mysql';
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Kurulum · İş Takip</title>
-<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="icon" href="assets/icon.svg?v=<?= APP_VERSION ?>" type="image/svg+xml">
 <link rel="stylesheet" href="assets/app.css?v=<?= APP_VERSION ?>">
 </head>
 <body class="auth-page">

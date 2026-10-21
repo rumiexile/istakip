@@ -24,9 +24,12 @@ $v = APP_VERSION;
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="csrf" content="<?= e(csrf_token()) ?>">
 <title><?= e($company) ?> · İş Takip</title>
-<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="assets/icon.svg">
-<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-title" content="YÖKAK Destek">
+<meta name="application-name" content="YÖKAK Destek">
+<link rel="icon" href="assets/icon.svg?v=<?= $v ?>" type="image/svg+xml">
+<link rel="icon" href="assets/icon-192.png?v=<?= $v ?>" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="assets/icon-180.png?v=<?= $v ?>" sizes="180x180">
+<link rel="manifest" href="manifest.webmanifest?v=<?= $v ?>">
 <link rel="stylesheet" href="assets/app.css?v=<?= $v ?>">
 </head>
 <body class="<?= $user ? 'role-' . e($user['role']) : 'auth-page' ?>">
