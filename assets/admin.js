@@ -7,6 +7,7 @@
 
   const ROUTES = [
     { id: 'panel', label: 'Günlük Durum', short: 'Durum', icon: 'home', view: viewDashboard },
+    { id: 'bildirimler', label: 'Gelen Bildirimler', short: 'Bildirim', icon: 'flag', view: viewInbox },
     { id: 'atamalar', label: 'İş Atamaları', short: 'Atamalar', icon: 'list', view: viewPlans },
     { id: 'paketler', label: 'İş Paketleri', short: 'Paketler', icon: 'layers', view: viewPackages },
     { id: 'isler', label: 'İş Tanımları', short: 'İşler', icon: 'check', view: viewTasks },
@@ -71,6 +72,24 @@
     try { await r.view(v); } catch (e) { App.err(e); }
   }
   window.addEventListener('hashchange', route);
+
+  /* Gelen bildirim sayısı: menüde rozet */
+  let inboxNew = 0;
+  async function refreshInbox() {
+    try {
+      const c = await api('reports_count');
+      inboxNew = c.new;
+      $$('[data-r="bildirimler"]').forEach((a) => {
+        let b = a.querySelector('.count');
+        if (!c.new) { if (b) b.remove(); return; }
+        if (!b) { b = App.el('<span class="count"></span>'); a.appendChild(b); }
+        if (b.textContent !== String(c.new)) { b.textContent = c.new; b.style.animation = 'none'; void b.offsetWidth; b.style.animation = ''; }
+      });
+    } catch (e) { /* sessiz */ }
+    return inboxNew;
+  }
+  refreshInbox();
+  setInterval(() => { if (!document.hidden) refreshInbox(); }, 60000);
   window.addEventListener('resize', () => setActive((location.hash.match(/^#\/([\w-]+)/) || [])[1] || 'panel'));
 
   const head = (title, sub, tools) => `<div class="page-head"><div><h2>${h(title)}</h2>${sub ? `<p>${sub}</p>` : ''}</div><div class="toolbar">${tools || ''}</div></div>`;
@@ -98,7 +117,7 @@
       <button class="btn icon" data-next title="Sonraki gün">${icon('chev')}</button>
       <button class="btn" data-today>Bugün</button>
       <button class="btn icon" data-refresh title="Yenile">${icon('refresh')}</button>`) +
-      `<div class="stats stagger" data-stats>${'<div class="skeleton" style="height:118px;border-radius:22px"></div>'.repeat(6)}</div>
+      `<div data-inbox-alert></div><div class="stats stagger" data-stats>${'<div class="skeleton" style="height:118px;border-radius:22px"></div>'.repeat(6)}</div>
       <div class="dash-grid"><div class="glass card" data-list>${skel(6)}</div><div class="grid" data-side></div></div>`;
     $('[data-prev] svg', v).style.transform = 'rotate(180deg)';
     const sub = $('.page-head p', v) || App.el('<p></p>');
@@ -115,6 +134,10 @@
       try {
         data = await api('dashboard', null, { date });
         render();
+        refreshInbox().then((n) => {
+          const box = $('[data-inbox-alert]', v);
+          if (box) box.innerHTML = n ? `<a class="alert inbox-alert lift" href="#/bildirimler">${icon('flag')}<span><b>${n} yeni sorun bildirimi</b> var. Karekodla gönderilen bildirimleri görmek için tıklayın.</span>${icon('chev')}</a>` : '';
+        });
       } catch (e) { App.err(e); }
     }
 
@@ -642,13 +665,165 @@
     f.addEventListener('change', upd); upd();
   }
 
+  /* =========================================================
+     Gelen bildirimler (karekodla dış kullanıcılardan)
+     ========================================================= */
+  const CAT_EMOJI = { clean: '🧹', supply: '🧻', broken: '🔧', climate: '🌡️', other: '💬' };
+  const REP_STATUS = { new: ['Yeni', 'missed'], progress: ['İşlemde', 'overdue'], done: ['Çözüldü', 'done'] };
+
+  async function viewInbox(v) {
+    let filter = sessionStorage.getItem('istakip.inbox') || 'open';
+    v.innerHTML = head('Gelen Bildirimler', 'Odalardaki karekodlarla kurum çalışanlarının bildirdiği sorunlar', `
+      <a class="btn" href="#/mekanlar">${icon('qr')}<span>Karekodlar</span></a>
+      <button class="btn icon" data-refresh title="Yenile">${icon('refresh')}</button>`) + `<div data-box>${skel(4, 90)}</div>`;
+    const box = $('[data-box]', v);
+    let data;
+    async function load() {
+      try { data = await api('reports'); render(); refreshInbox(); } catch (e) { App.err(e); }
+    }
+    $('[data-refresh]', v).onclick = load;
+
+    function render() {
+      const c = data.counts;
+      const items = data.items.filter((r) => filter === 'all' ? true : filter === 'open' ? r.status !== 'done' : r.status === filter);
+      const chip = (k, l, n) => `<button class="chip ${filter === k ? 'active' : ''}" data-chip="${k}">${l}<span class="n">${n}</span></button>`;
+      let html = `<div class="chips" style="margin-bottom:12px">${chip('open', 'Açık', c.new + c.progress)}${chip('new', 'Yeni', c.new)}${chip('progress', 'İşlemde', c.progress)}${chip('done', 'Çözüldü', c.done)}${chip('all', 'Tümü', c.new + c.progress + c.done)}</div>`;
+      if (!items.length) {
+        html += `<div class="glass">${emptyBox(filter === 'done' ? '📭' : '✨', filter === 'done' ? 'Çözülmüş bildirim yok' : 'Açık bildirim yok',
+          'Mekanlar ekranından karekodları yazdırıp odalara asın; kurum çalışanları sorunları buradan bildirsin.',
+          `<a class="btn primary" href="#/mekanlar">${icon('qr')}<span>Karekodları hazırla</span></a>`)}</div>`;
+      } else {
+        html += '<div class="inbox stagger">' + items.map((r) => {
+          const [sl, sc] = REP_STATUS[r.status] || REP_STATUS.new;
+          return `<article class="glass inbox-item lift st-${r.status}" data-id="${r.id}">
+            <div class="inbox-emoji">${CAT_EMOJI[r.category] || '💬'}</div>
+            <div class="inbox-main">
+              <div class="inbox-top"><b>${h(r.category_label)}</b><span class="tag">${icon('pin')}${h(r.location || 'Silinmiş mekan')}</span>
+                <span class="badge ${sc}">${sl}</span><span class="muted small nowrap">${h(App.relDay(r.created_at))} ${h(App.fmtTime(r.created_at))}</span></div>
+              <p class="inbox-desc">${h(r.description)}</p>
+              ${r.photo ? `<img class="inbox-photo" src="${h(App.reportPhotoUrl(r.id))}" alt="Bildirim fotoğrafı" loading="lazy" data-photo="${r.id}">` : ''}
+              <div class="sub small muted">${r.reporter_name || r.reporter_contact ? `${icon('user')} ${h([r.reporter_name, r.reporter_contact].filter(Boolean).join(' · '))}` : 'İsim bırakılmadı'}</div>
+              ${r.status !== 'new' && r.handled_name ? `<div class="inbox-note">${r.status === 'done' ? '✅' : '⏳'} <b>${h(r.handled_name)}</b> · ${h(App.relDay(r.handled_at))} ${h(App.fmtTime(r.handled_at))}${r.admin_note ? ' — ' + h(r.admin_note) : ''}</div>` : ''}
+            </div>
+            <div class="inbox-actions">
+              ${r.status === 'new' ? `<button class="btn sm" data-st="progress">${icon('clock')}<span>İşleme al</span></button>` : ''}
+              ${r.status !== 'done' ? `<button class="btn sm success" data-st="done">${icon('check')}<span>Çözüldü</span></button>` : `<button class="btn sm ghost" data-st="new">${icon('refresh')}<span>Yeniden aç</span></button>`}
+              <button class="btn icon sm ghost danger" data-del title="Sil">${icon('trash')}</button></div></article>`;
+        }).join('') + '</div>';
+      }
+      box.innerHTML = html;
+      $$('[data-chip]', box).forEach((b) => (b.onclick = () => { filter = b.dataset.chip; sessionStorage.setItem('istakip.inbox', filter); render(); }));
+      $$('[data-photo]', box).forEach((img) => (img.onclick = () => App.modal({ title: 'Fotoğraf', wide: true, body: `<img class="photo-thumb" src="${h(img.src)}" alt="">` })));
+      $$('.inbox-item', box).forEach((el) => {
+        const r = data.items.find((x) => x.id == el.dataset.id);
+        $$('[data-st]', el).forEach((b) => (b.onclick = () => setStatus(r, b.dataset.st, b)));
+        $('[data-del]', el).onclick = async () => {
+          if (!(await App.confirm('Bildirim kalıcı olarak silinecek.', { ok: 'Sil' }))) return;
+          try { await api('report_delete', { id: r.id }); App.toast('Silindi'); load(); } catch (e) { App.err(e); }
+        };
+      });
+    }
+
+    function setStatus(r, st, btn) {
+      if (st === 'done') {
+        App.modal({
+          title: 'Çözüldü olarak işaretle',
+          body: `<p class="muted">${h(r.location || '')} · ${h(r.description)}</p><br>
+            <label class="field"><span>Yapılan işlem (isteğe bağlı)</span><textarea name="note" rows="3" placeholder="Örn. kağıt havlu yenilendi">${h(r.admin_note || '')}</textarea></label>`,
+          actions: [{ label: 'Vazgeç', cls: 'ghost' }, { label: 'Çözüldü', cls: 'success', icon: 'check', onClick: async (m) => {
+            await api('report_update', { id: r.id, status: 'done', admin_note: $('textarea', m.body).value });
+            const rect = btn.getBoundingClientRect();
+            App.confetti(rect.left + rect.width / 2, rect.top, 30);
+            App.toast('Bildirim çözüldü');
+            load();
+          } }],
+        });
+        return;
+      }
+      api('report_update', { id: r.id, status: st, admin_note: r.admin_note || '' })
+        .then(() => { App.toast(st === 'progress' ? 'İşleme alındı' : 'Bildirim yeniden açıldı', 'info'); load(); })
+        .catch(App.err);
+    }
+
+    await load();
+    timer = setInterval(() => { if (!document.hidden && !document.querySelector('.modal-back')) load(); }, 60000);
+  }
+
+  /* ---------- karekodlar ---------- */
+  const reportUrl = (l) => App.reportUrl(l.qr_token);
+
+  function qrPoster(l) {
+    return `<article class="qr-poster">
+      <img class="qr-logo" src="${h(App.ANTET)}" alt="Yükseköğretim Kalite Kurulu">
+      <h2>Bir sorun mu var?</h2>
+      <p>Karekodu telefonunuzun kamerasıyla okutun,<br>sorunu bize hemen bildirin.</p>
+      <div class="qr-code">${App.qrSvg(reportUrl(l))}</div>
+      <div class="qr-loc">${h(l.name)}</div>
+      <small class="qr-url">${h(reportUrl(l))}</small></article>`;
+  }
+
+  function qrModal(l) {
+    const m = App.modal({
+      title: l.name + ' · Sorun bildirme karekodu',
+      body: `<div class="qr-single"><div class="qr-code big">${App.qrSvg(reportUrl(l))}</div>
+        <div class="grid" style="gap:10px;align-content:start">
+          <p class="muted small">Bu karekodu okutan kişi giriş yapmadan <b>${h(l.name)}</b> için sorun bildirebilir. Bildirimler <b>Gelen Bildirimler</b> ekranına düşer.</p>
+          <label class="field"><span>Bağlantı</span><input readonly value="${h(reportUrl(l))}" data-url></label>
+          <div class="toolbar"><button class="btn sm" type="button" data-copy>${icon('doc')}<span>Kopyala</span></button>
+            <a class="btn sm" href="${h(reportUrl(l))}" target="_blank" rel="noopener">${icon('chev')}<span>Sayfayı aç</span></a></div>
+          <button class="btn sm ghost danger" type="button" data-reset>${icon('refresh')}<span>Karekodu yenile</span></button>
+          <p class="muted small">Yenilerseniz eski karekod çalışmaz; yenisini yazdırıp asmanız gerekir.</p></div></div>`,
+      actions: [{ label: 'Kapat', cls: 'ghost' }, { label: 'Afiş yazdır', cls: 'primary', icon: 'printer', onClick: () => { printDoc(`<div class="qr-sheet one">${qrPoster(l)}</div>`); return false; } }],
+    });
+    $('[data-copy]', m.body).onclick = async () => {
+      try { await navigator.clipboard.writeText(reportUrl(l)); App.toast('Bağlantı kopyalandı'); } catch (e) { $('[data-url]', m.body).select(); }
+    };
+    $('[data-reset]', m.body).onclick = async () => {
+      if (!(await App.confirm('Bu mekanın karekodu yenilenecek. Asılı olan eski karekod çalışmayacak.', { ok: 'Yenile' }))) return;
+      try { await api('location_qr_reset', { id: l.id }); invalidate('locations'); m.close(); App.toast('Karekod yenilendi; yenisini yazdırın'); route(); } catch (e) { App.err(e); }
+    };
+  }
+
+  function qrPrintModal(locs) {
+    App.modal({
+      title: 'Karekodları yazdır', wide: true,
+      body: `<form class="form">
+        <div class="field"><span>Mekanlar</span>
+          <div class="pick-tools"><button type="button" class="btn sm ghost" data-all>Tümünü seç</button><button type="button" class="btn sm ghost" data-none>Temizle</button></div>
+          <div class="pick-items">${locs.map((l) => `<label><input type="checkbox" name="ids[]" value="${l.id}" checked><span>${h(l.name)}</span></label>`).join('')}</div></div>
+        <div class="field"><span>Yerleşim</span><div class="seg">
+          <label><input type="radio" name="layout" value="one" checked><span>Sayfa başına 1 (A4 afiş)</span></label>
+          <label><input type="radio" name="layout" value="four"><span>Sayfa başına 4 (kapı etiketi)</span></label></div></div>
+        <p class="muted small">Her afişte YÖKAK logosu, mekan adı ve o mekana özel karekod bulunur.</p></form>`,
+      actions: [{ label: 'Vazgeç', cls: 'ghost' }, { label: 'Yazdır', cls: 'primary', icon: 'printer', onClick: (m) => {
+        const f = $('form', m.body);
+        const ids = $$('input[name="ids[]"]:checked', f).map((i) => +i.value);
+        if (!ids.length) throw new Error('En az bir mekan seçin.');
+        const layout = f.querySelector('input[name=layout]:checked').value;
+        const sel = locs.filter((l) => ids.includes(+l.id));
+        const pages = [];
+        for (let i = 0; i < sel.length; i += 4) pages.push(sel.slice(i, i + 4));
+        printDoc(layout === 'four'
+          ? `<div class="qr-sheet four">${pages.map((p) => `<div class="qr-page">${p.map(qrPoster).join('')}</div>`).join('')}</div>`
+          : `<div class="qr-sheet one">${sel.map(qrPoster).join('')}</div>`);
+        return false;
+      } }],
+      onOpen: (m) => {
+        $('[data-all]', m.body).onclick = () => $$('input[name="ids[]"]', m.body).forEach((i) => (i.checked = true));
+        $('[data-none]', m.body).onclick = () => $$('input[name="ids[]"]', m.body).forEach((i) => (i.checked = false));
+      },
+    });
+  }
+
   async function viewLocations(v) {
     let mode = sessionStorage.getItem('istakip.locview') || 'list';
     v.innerHTML = head('Mekanlar', 'İşlerin yapıldığı yerler ve her mekanda yapılacak işler', `
       <div class="seg" role="radiogroup"><label><input type="radio" name="lv" value="list" ${mode === 'list' ? 'checked' : ''}><span>Liste</span></label>
         <label><input type="radio" name="lv" value="matrix" ${mode === 'matrix' ? 'checked' : ''}><span>Mekan × İş tablosu</span></label></div>
+      <button class="btn" data-qrall>${icon('qr')}<span>Karekodları yazdır</span></button>
       <button class="btn primary" data-new>${icon('plus')}<span>Yeni mekan</span></button>`) + `<div class="glass card" data-box>${skel(6)}</div>`;
     const [locs, tasks] = await Promise.all([get('locations', true), get('tasks', true)]);
+    $('[data-qrall]', v).onclick = () => qrPrintModal(locs);
     const taskName = Object.fromEntries(tasks.map((t) => [t.id, t.name]));
     $('[data-new]', v).onclick = () => locationModal(null, locs.length, route);
     $$('input[name=lv]', v).forEach((r) => (r.onchange = () => { mode = r.value; sessionStorage.setItem('istakip.locview', mode); render(); }));
@@ -665,6 +840,7 @@
           <div class="loc-chips">${shown.map((n) => `<span class="lchip">${h(n)}</span>`).join('')}${names.length > 5 ? `<span class="lchip more">+${names.length - 5}</span>` : ''}${!names.length ? '<span class="lchip none">İş tanımlanmamış</span>' : ''}</div></div>
         <div class="actions">
           <button class="btn sm" data-assign="${l.id}" title="Bu mekanın işlerini personele ata">${icon('play')}<span>İşleri ata</span></button>
+          <button class="btn icon sm ghost" data-qr="${l.id}" title="Sorun bildirme karekodu">${icon('qr')}</button>
           <button class="btn icon sm ghost" data-up="${i}" ${i === 0 ? 'disabled' : ''} title="Yukarı"><svg class="ico" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button>
           <button class="btn icon sm ghost" data-down="${i}" ${i === locs.length - 1 ? 'disabled' : ''} title="Aşağı"><svg class="ico" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
           <button class="btn icon sm ghost" data-edit="${l.id}" title="Düzenle">${icon('edit')}</button>
@@ -676,6 +852,7 @@
         try { await api('locations_order', { ids }); invalidate('locations'); route(); } catch (e) { App.err(e); }
       };
       $$('[data-assign]', box).forEach((b) => (b.onclick = () => locationAssignModal(locs.find((l) => l.id == b.dataset.assign), route)));
+      $$('[data-qr]', box).forEach((b) => (b.onclick = () => qrModal(locs.find((l) => l.id == b.dataset.qr))));
       $$('[data-up]', box).forEach((b) => (b.onclick = () => move(+b.dataset.up, -1)));
       $$('[data-down]', box).forEach((b) => (b.onclick = () => move(+b.dataset.down, 1)));
       $$('[data-edit]', box).forEach((b) => (b.onclick = () => locationModal(locs.find((l) => l.id == b.dataset.edit), locs.length, route)));
@@ -1061,6 +1238,8 @@
           <small>İşler yalnızca çalışma günlerinde planlanır. “X günde 1” işler iş günü üzerinden sayılır.</small></div>
         <label class="field"><span>Resmi tatiller / kapalı günler</span><textarea name="holidays" placeholder="Her satıra bir tarih: 2026-10-29">${h(s.holidays)}</textarea>
           <small>Bu günlerde iş planlanmaz. Biçim: YYYY-AA-GG</small></label>
+        <input type="hidden" name="public_reports" value="0">
+        <label class="check"><input type="checkbox" name="public_reports" value="1" ${s.public_reports !== '0' ? 'checked' : ''}><span></span>Karekodla sorun bildirimi açık (kurum çalışanları giriş yapmadan bildirim gönderebilir)</label>
         <div><button class="btn primary" type="submit">${icon('check')}<span>Kaydet</span></button></div>
       </form>
       <div class="grid" style="align-content:start">

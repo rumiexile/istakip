@@ -57,6 +57,7 @@
     refresh: '<path d="M20 11a8 8 0 0 0-14.9-3M4 4v4h4M4 13a8 8 0 0 0 14.9 3M20 20v-4h-4"/>',
     camera: '<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/>',
     chev: '<path d="M9 6l6 6-6 6"/>',
+    qr: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 17h4v4h-4"/>',
     doc: '<path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5M9 13h7M9 17h5"/>',
     printer: '<path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M7 14h10v7H7z"/>',
     star: '<path d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/>',
@@ -105,6 +106,17 @@
 
   App.initials = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toLocaleUpperCase('tr');
   const PAL = [['#6366f1', '#ec4899'], ['#06b6d4', '#6366f1'], ['#10b981', '#06b6d4'], ['#f59e0b', '#ef4444'], ['#8b5cf6', '#06b6d4'], ['#ec4899', '#f59e0b']];
+  /** Karekoddan açılan sorun bildirme sayfasının adresi */
+  App.reportUrl = (token) => new URL('report.php?t=' + encodeURIComponent(token), location.href.split('#')[0]).href;
+  App.reportPhotoUrl = (id) => 'photo.php?r=' + id;
+  /** Metni karekod SVG'sine çevirir (assets/vendor/qrcode.js) */
+  App.qrSvg = (text) => {
+    if (!window.qrcode) return '<p class="muted small">Karekod kütüphanesi yüklenemedi.</p>';
+    const qr = window.qrcode(0, 'M'); qr.addData(text); qr.make();
+    const n = qr.getModuleCount(), q = 4; let d = '';
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += `M${c + q} ${r + q}h1v1h-1z`;
+    return `<svg class="qr" viewBox="0 0 ${n + q * 2} ${n + q * 2}" shape-rendering="crispEdges" role="img" aria-label="Karekod"><rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="#111827"/></svg>`;
+  };
   /** Antetli belgelerde kullanılan YÖKAK logosu (logo + yazı) */
   App.ANTET = 'assets/yokak-antet.png';
   App.LOGO = '<svg class="logo" viewBox="185 312 683 400" aria-hidden="true"><path class="l1" d="M191 550H300Q324 550 337 571L357 602L289 706Z"/><path class="l2" d="M314 706L483 444Q503 412 545 411H638L480 657Q450 704 390 706Z"/><path class="l3" d="M449 706Q485 702 503 672L706 352Q727 318 768 317H862L636 672Q614 705 576 706Z"/></svg>';

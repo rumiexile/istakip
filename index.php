@@ -54,6 +54,7 @@ $v = APP_VERSION;
 <script>window.BOOT = <?= json_encode(['user' => $user, 'company' => $company], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;</script>
 <script src="assets/core.js?v=<?= $v ?>"></script>
 <?php $staffView = $user['role'] !== 'admin' || ($_GET['view'] ?? '') === 'staff'; ?>
+<?php if (!$staffView): ?><script src="assets/vendor/qrcode.js?v=<?= $v ?>"></script><?php endif; ?>
 <script src="assets/<?= $staffView ? 'staff' : 'admin' ?>.js?v=<?= $v ?>"></script>
 <?php endif; ?>
 </body>

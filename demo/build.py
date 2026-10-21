@@ -31,11 +31,11 @@ demo_css = """
 @keyframes logoIn { from { opacity: 0; transform: translateY(14px); } }
 .demo-bar .desc { color: var(--muted); flex: 1; min-width: 180px; }
 .demo-bar .seg span { padding: 6px 12px; }
-#demo-user { width: auto; min-height: 34px; padding: 4px 32px 4px 12px; font-size: 13px; font-weight: 600; border-radius: 999px; }
+#demo-user, #demo-loc { width: auto; min-height: 34px; padding: 4px 32px 4px 12px; font-size: 13px; font-weight: 600; border-radius: 999px; }
 .role-admin .side { height: auto; max-height: 100dvh; }
 .role-admin .side .glass.nav-card { flex: none; }
 .role-admin .side-foot { margin-top: 24px; }
-@media (max-width: 900px) { .demo-bar .desc, .demo-bar .lg { display: none; } .demo-bar { margin: 8px 10px 0; flex-wrap: wrap; justify-content: space-between; row-gap: 6px; } #demo-user { order: 5; flex: 1 0 100%; } }
+@media (max-width: 900px) { .demo-bar .desc, .demo-bar .lg { display: none; } .demo-bar { margin: 8px 10px 0; flex-wrap: wrap; justify-content: space-between; row-gap: 6px; } #demo-user, #demo-loc { order: 5; flex: 1 0 100%; } }
 """
 
 def wrap(js, name):
@@ -59,8 +59,10 @@ html = f"""<title>İş Takip Demo</title>
   <div class="seg" role="radiogroup" aria-label="Görünüm">
     <label><input type="radio" name="demo-mode" id="demo-admin" value="admin"><span>Yönetici<i class="lg"> paneli</i></span></label>
     <label><input type="radio" name="demo-mode" id="demo-staff" value="staff"><span>Personel<i class="lg"> telefonu</i></span></label>
+    <label><input type="radio" name="demo-mode" id="demo-report" value="report"><span>Karekod<i class="lg"> sayfası</i></span></label>
   </div>
   <select id="demo-user" aria-label="Personel ekranında gösterilecek kişi" hidden></select>
+  <select id="demo-loc" aria-label="Karekodu okutulan mekan" hidden></select>
   <button class="btn sm ghost" id="demo-reset" type="button" title="Örnek verileri baştan yükle">Sıfırla</button>
 </div>
 <div id="app"></div>
@@ -73,13 +75,23 @@ html = f"""<title>İş Takip Demo</title>
 <script>
 {wrap(read('assets/admin.js'), '__runAdmin')}
 {wrap(read('assets/staff.js'), '__runStaff')}
+</script>
+<script>
+{read('assets/vendor/qrcode.js')}
+</script>
+<script>
+{read('assets/report.js')}
 (function () {{
   App.api = DEMO.api;
   App.photoUrl = DEMO.photo;
   App.ANTET = '{antet}';
+  App.reportUrl = function (t) {{ return 'https://siteniz.com/istakip/report.php?t=' + t; }};
+  App.reportPhotoUrl = function (id) {{ return DEMO.reportPhoto(id); }};
   App.download = function () {{ App.toast('Demoda dosya indirilemez. Gerçek kurulumda rapor Excel’de açılan bir CSV olarak iner.', 'info', {{ duration: 5000 }}); }};
   App.logout = function () {{ App.toast('Demoda çıkış yok. Görünümü üstteki çubuktan değiştirebilirsiniz.', 'info'); }};
   document.addEventListener('click', function (e) {{
+    var q = e.target.closest && e.target.closest('a[href*="report.php?t="]');
+    if (q) {{ e.preventDefault(); DEMO.openReport(q.getAttribute('href').split('t=')[1]); return; }}
     var a = e.target.closest && e.target.closest('a[href^="index.php"]');
     if (!a) return;
     e.preventDefault();
@@ -92,14 +104,26 @@ html = f"""<title>İş Takip Demo</title>
   }}).join('');
   who.hidden = DEMO.mode !== 'staff';
   who.onchange = function () {{ DEMO.switchStaff(who.value); }};
+  var loc = document.getElementById('demo-loc');
+  loc.innerHTML = DEMO.qrLocs.map(function (l) {{
+    return '<option value="' + App.h(l.token) + '"' + (l.token === DEMO.qrToken ? ' selected' : '') + '>' + App.h(l.name) + '</option>';
+  }}).join('');
+  loc.hidden = DEMO.mode !== 'report';
+  loc.onchange = function () {{ DEMO.openReport(loc.value); }};
   document.querySelectorAll('input[name=demo-mode]').forEach(function (r) {{
     r.addEventListener('change', function () {{ DEMO.switchTo(r.value); }});
   }});
   document.getElementById('demo-reset').onclick = function () {{
     App.confirm('Tüm değişiklikler silinip örnek veriler yeniden yüklenecek.', {{ ok: 'Sıfırla', title: 'Demoyu sıfırla' }}).then(function (ok) {{ if (ok) DEMO.reset(); }});
   }};
-  document.body.classList.add(DEMO.mode === 'admin' ? 'role-admin' : 'role-staff');
-  if (DEMO.mode === 'admin') window.__runAdmin(); else window.__runStaff();
+  if (DEMO.mode === 'report') {{
+    document.body.classList.add('auth-page', 'public-report');
+    document.getElementById('app').innerHTML = '<main class="auth-wrap"><div id="report"></div></main>';
+    window.__runReport();
+  }} else {{
+    document.body.classList.add(DEMO.mode === 'admin' ? 'role-admin' : 'role-staff');
+    if (DEMO.mode === 'admin') window.__runAdmin(); else window.__runStaff();
+  }}
 }})();
 </script>
 """

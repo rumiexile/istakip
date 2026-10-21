@@ -454,6 +454,60 @@ function handle_upload(): ?string
 try {
     switch ($action) {
 
+        /* ----- dış kullanıcı sorun bildirimi (giriş gerektirmez) ----- */
+
+        case 'public_location': {
+            $loc = location_by_token((string)($in['t'] ?? ''));
+            if (!$loc) {
+                fail('Bu karekod geçersiz ya da yenilenmiş. Lütfen görevlilere haber verin.', 404);
+            }
+            $s = settings_all();
+            out([
+                'location' => $loc['name'],
+                'company' => $s['company_name'] ?? '',
+                'enabled' => ($s['public_reports'] ?? '1') !== '0',
+                'categories' => REPORT_CATEGORIES,
+            ]);
+        }
+
+        case 'public_report': {
+            need_post();
+            $loc = location_by_token((string)($in['t'] ?? ''));
+            if (!$loc) {
+                fail('Bu karekod geçersiz ya da yenilenmiş.', 404);
+            }
+            if ((settings_all()['public_reports'] ?? '1') === '0') {
+                fail('Sorun bildirimi şu anda kapalı.', 403);
+            }
+            if (!empty($in['website'])) {
+                out(['id' => 0]); // bot tuzağı: sessizce yoksay
+            }
+            $cat = (string)($in['category'] ?? 'other');
+            if (!isset(REPORT_CATEGORIES[$cat])) {
+                $cat = 'other';
+            }
+            $desc = s_in('description', 1000);
+            if ($desc === null || mb_strlen($desc) < 3) {
+                fail('Lütfen sorunu kısaca yazın.');
+            }
+            // Kötüye kullanım sınırı: aynı tarayıcıdan 10 dakikada 5, aynı ağdan (kurumda herkes aynı IP'yi
+            // paylaşabilir) 10 dakikada 40 bildirim.
+            $ip = ip_hash();
+            $now = time();
+            $mine = array_values(array_filter((array)($_SESSION['report_times'] ?? []), fn($t) => is_int($t) && $t > $now - 600));
+            $since = date('Y-m-d H:i:s', $now - 600);
+            if (count($mine) >= 5 || (int)q('SELECT COUNT(*) FROM reports WHERE ip_hash = ? AND created_at >= ?', [$ip, $since])->fetchColumn() >= 40) {
+                fail('Kısa sürede çok fazla bildirim gönderildi. Lütfen biraz sonra tekrar deneyin.', 429);
+            }
+            $photo = handle_upload();
+            q('INSERT INTO reports (location_id, category, description, photo, reporter_name, reporter_contact, status, ip_hash, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, \'new\', ?, ?)',
+                [$loc['id'], $cat, $desc, $photo, s_in('name', 120), s_in('contact', 120), $ip, now_str()]);
+            $mine[] = $now;
+            $_SESSION['report_times'] = $mine;
+            out(['id' => (int)db()->lastInsertId()]);
+        }
+
         case 'login': {
             need_post();
             $username = s_in('username', 60, true, 'Kullanıcı adı');
@@ -912,14 +966,86 @@ try {
         /* ----- mekanlar ----- */
 
         case 'locations': {
-            need_user();
+            $me = need_user();
+            if ($me['role'] === 'admin') {
+                ensure_qr_tokens();
+            }
             $rows = q('SELECT l.*, (SELECT COUNT(*) FROM plans p WHERE p.location_id = l.id AND p.active = 1) AS plan_count
                        FROM locations l WHERE l.active = 1 ORDER BY l.sort_order, l.name')->fetchAll();
             $links = link_index('location_id', 'task_id');
             foreach ($rows as &$r) {
                 $r['task_ids'] = $links[(int)$r['id']] ?? [];
+                if ($me['role'] !== 'admin') {
+                    unset($r['qr_token']);
+                }
             }
             out($rows);
+        }
+
+        case 'location_qr_reset': {
+            // Karekodu yenile: eski karekod artık çalışmaz.
+            need_post();
+            need_admin();
+            q('UPDATE locations SET qr_token = ? WHERE id = ?', [bin2hex(random_bytes(10)), i_in('id', 0)]);
+            out();
+        }
+
+        /* ----- gelen bildirimler (yönetici) ----- */
+
+        case 'reports': {
+            need_admin();
+            $st = (string)($in['status'] ?? '');
+            $where = in_array($st, ['new', 'progress', 'done'], true) ? 'r.status = ?' : '1=1';
+            $rows = q("SELECT r.id, r.location_id, r.category, r.description, r.photo, r.reporter_name, r.reporter_contact, r.status,
+                              r.admin_note, r.handled_at, r.created_at, l.name AS location, u.name AS handled_name
+                       FROM reports r LEFT JOIN locations l ON l.id = r.location_id LEFT JOIN users u ON u.id = r.handled_by
+                       WHERE $where ORDER BY CASE r.status WHEN 'new' THEN 0 WHEN 'progress' THEN 1 ELSE 2 END, r.created_at DESC, r.id DESC LIMIT 300",
+                $where === '1=1' ? [] : [$st])->fetchAll();
+            foreach ($rows as &$r) {
+                $r['id'] = (int)$r['id'];
+                $r['photo'] = (bool)$r['photo'];
+                $r['category_label'] = REPORT_CATEGORIES[$r['category']] ?? 'Diğer';
+            }
+            $counts = ['new' => 0, 'progress' => 0, 'done' => 0];
+            foreach (q('SELECT status, COUNT(*) AS n FROM reports GROUP BY status')->fetchAll() as $c) {
+                $counts[$c['status']] = (int)$c['n'];
+            }
+            out(['items' => $rows, 'counts' => $counts]);
+        }
+
+        case 'reports_count': {
+            need_admin();
+            out(['open' => (int)q("SELECT COUNT(*) FROM reports WHERE status IN ('new', 'progress')")->fetchColumn(),
+                 'new' => (int)q("SELECT COUNT(*) FROM reports WHERE status = 'new'")->fetchColumn()]);
+        }
+
+        case 'report_update': {
+            need_post();
+            $u = need_admin();
+            $id = i_in('id', 0);
+            $st = (string)($in['status'] ?? '');
+            if (!in_array($st, ['new', 'progress', 'done'], true)) {
+                fail('Geçersiz durum.');
+            }
+            if (!q('SELECT 1 FROM reports WHERE id = ?', [$id])->fetchColumn()) {
+                fail('Bildirim bulunamadı.', 404);
+            }
+            q('UPDATE reports SET status = ?, admin_note = ?, handled_by = ?, handled_at = ? WHERE id = ?',
+                [$st, s_in('admin_note', 1000), $st === 'new' ? null : $u['id'], $st === 'new' ? null : now_str(), $id]);
+            out();
+        }
+
+        case 'report_delete': {
+            need_post();
+            need_admin();
+            $r = q('SELECT photo FROM reports WHERE id = ?', [i_in('id', 0)])->fetch();
+            if ($r) {
+                q('DELETE FROM reports WHERE id = ?', [i_in('id', 0)]);
+                if ($r['photo']) {
+                    @unlink(DATA_DIR . '/uploads/' . $r['photo']);
+                }
+            }
+            out();
         }
 
         case 'location_save': {
@@ -1378,6 +1504,9 @@ try {
             setting_set('company_name', $name);
             setting_set('work_days', implode(',', $wd));
             setting_set('holidays', implode("\n", array_unique($hol)));
+            if (array_key_exists('public_reports', $in)) {
+                setting_set('public_reports', !empty($in['public_reports']) && $in['public_reports'] !== '0' ? '1' : '0');
+            }
             out();
         }
 

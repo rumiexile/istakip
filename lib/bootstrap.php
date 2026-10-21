@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 define('APP_ROOT', dirname(__DIR__));
-define('APP_VERSION', '1.0.7');
+define('APP_VERSION', '1.1.0');
 // YÖKAK logosu (giriş, kurulum ve uygulama başlıklarında kullanılır)
 define('LOGO_SVG', '<svg class="logo" viewBox="185 312 683 400" aria-hidden="true"><path class="l1" d="M191 550H300Q324 550 337 571L357 602L289 706Z"/><path class="l2" d="M314 706L483 444Q503 412 545 411H638L480 657Q450 704 390 706Z"/><path class="l3" d="M449 706Q485 702 503 672L706 352Q727 318 768 317H862L636 672Q614 705 576 706Z"/></svg>');
 define('DATA_DIR', APP_ROOT . '/data');
@@ -178,4 +178,42 @@ function migrate_schema(): void
     }
     schema_upgrade(db(), app_config()['db']['driver'] ?? 'mysql', (int)($s['schema_version'] ?? 1));
     setting_set('schema_version', (string)SCHEMA_VERSION);
+}
+
+/* ---------- dış kullanıcı sorun bildirimi ---------- */
+
+const REPORT_CATEGORIES = [
+    'clean' => 'Temizlik gerekiyor',
+    'supply' => 'Malzeme bitti',
+    'broken' => 'Arıza / tamir',
+    'climate' => 'Isıtma / soğutma',
+    'other' => 'Diğer',
+];
+
+/** Karekodu olmayan mekanlara tahmin edilemeyen bir anahtar verir. */
+function ensure_qr_tokens(): void
+{
+    foreach (q('SELECT id FROM locations WHERE qr_token IS NULL OR qr_token = \'\'')->fetchAll() as $r) {
+        q('UPDATE locations SET qr_token = ? WHERE id = ?', [bin2hex(random_bytes(10)), $r['id']]);
+    }
+}
+
+function location_by_token(string $t): ?array
+{
+    if (!preg_match('/^[a-f0-9]{20}$/', $t)) {
+        return null;
+    }
+    $row = q('SELECT id, name, description FROM locations WHERE qr_token = ? AND active = 1', [$t])->fetch();
+    return $row ?: null;
+}
+
+/** IP adresini saklamadan, kötüye kullanımı sınırlamak için tuzlanmış özet. */
+function ip_hash(): string
+{
+    $salt = settings_all()['ip_salt'] ?? '';
+    if ($salt === '') {
+        $salt = bin2hex(random_bytes(16));
+        setting_set('ip_salt', $salt);
+    }
+    return hash('sha256', $salt . '|' . ($_SERVER['REMOTE_ADDR'] ?? ''));
 }

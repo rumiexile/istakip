@@ -19,6 +19,7 @@ siteyi açıp işleri işaretler. Yönetici de geciken ve yapılmayan işleri an
 | **Personel** | Personel silinirken üzerindeki işler başkasına devredilir. Her personel kartındaki **Tebliğ** butonu, kişinin aktif işlerini mekan mekan listeleyen **görev tebliğ belgesini** hazırlar: tarih, sayı, konu, antet, metin ve imza bilgileri düzenlenir, A4 önizlemesi görülür ve yazdırılır. Belgenin altında *Tebliğ eden* ve *Tebellüğ eden* imza alanları vardır. Hazır antetli kağıda basmak için antet kapatılabilir; antet, metin ve imza bilgileri sonraki belgeler için hatırlanabilir. |
 | **Sarf malzemeleri** | Su/damacana, tuvalet kağıdı ve havlu kağıt, sabunluk, makam ikram tabağı, çay ocağı rulosu gibi işler “Sarf malzemesi” türündedir: personel bir kez dokununca **Kontrol edildi**, ikinci dokunuşta **Değiştirildi** kaydedilir. Raporlarda malzeme başına kontrol ve değişim sayıları ile en çok değişen mekanlar görünür. Tür, iş formundan değiştirilebilir. |
 | **Yönetici kontrolü** | Yönetici tamamlanmış bir işi açıp **Kontrol ettim** dediğinde işin yanında küçük bir ⭐ belirir. Personel uygulamayı açınca “işiniz yönetici tarafından kontrol edildi” bildirimini alır ve kendi listesinde yıldızı görür. Kontrol edilmiş iş personel tarafından geri alınamaz. |
+| **Karekodla sorun bildirimi** | Her mekanın kendine özel bir karekodu vardır (**Mekanlar → karekod simgesi** veya **Karekodları yazdır**; A4 afiş ya da sayfa başına 4 kapı etiketi). Karekodu okutan kurum çalışanı giriş yapmadan sorun türünü (temizlik, malzeme bitti, arıza, ısıtma/soğutma, diğer) seçer, açıklama ve isteğe bağlı fotoğraf ekler. Bildirimler **Gelen Bildirimler** ekranına düşer; menüde yeni bildirim sayısı görünür. Yönetici bildirimi *işleme alır*, *çözüldü* olarak işaretler ve yapılan işlemi not eder. Kötüye kullanıma karşı aynı tarayıcıdan 10 dakikada en fazla 5 bildirim alınır; karekod yenilenince eskisi çalışmaz; özellik Ayarlar'dan kapatılabilir. |
 | **Raporlar** | Tarih aralığı, personel ve mekan filtresi. Günlük grafik, en çok aksayan işler, Excel'de açılan CSV dışa aktarma. |
 | **Ayarlar** | Kurum adı, çalışma günleri, resmi tatiller. |
 | **Personel ekranı (mobil)** | Bugünün işleri mekana göre gruplu. Tek dokunuşla tamamlama ve geri alma, “Sorun var” bildirimi, not ve fotoğraf ekleme. Son 14 günün şeridiyle geçmiş günlere bakma, “Bugün izinliyim” ve ileri tarihli izin bildirme. |
@@ -74,6 +75,7 @@ index.php          Giriş + uygulama kabuğu (rol'e göre yönetici veya persone
 api.php            JSON API (tüm işlemler)
 install.php        Kurulum sihirbazı (kurulumdan sonra silin)
 photo.php          Fotoğrafları yalnızca giriş yapmış kullanıcılara sunar
+report.php         Karekodla açılan, girişsiz sorun bildirme sayfası
 lib/               PHP kodu (web'den erişime kapalı)
   schedule.php     Sıklık / gecikme hesaplama motoru
   schema.php       Veritabanı tabloları + örnek veriler

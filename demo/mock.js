@@ -4,6 +4,7 @@
 
   /* ---------- kalıcılık ---------- */
   const KEY = 'istakip-demo-v17';
+  const REPORT_CATS = { clean: 'Temizlik gerekiyor', supply: 'Malzeme bitti', broken: 'Arıza / tamir', climate: 'Isıtma / soğutma', other: 'Diğer' };
   const store = {
     get() {
       try { const v = localStorage.getItem(KEY); if (v) return JSON.parse(v); } catch (e) { /* yoksay */ }
@@ -342,6 +343,22 @@
   let S = store.get() || seed();
   // Önceki demo sürümünden kalan kurum adını güncelle (diğer değişiklikler korunur).
   if (S.settings && S.settings.company_name === 'Merkez Bina Destek Hizmetleri') S.settings.company_name = 'YÖKAK Destek Hizmetleri';
+  // Karekodla sorun bildirimi: mekan anahtarları ve örnek bildirimler
+  const rtok = () => Array.from({ length: 20 }, () => '0123456789abcdef'[Math.floor(Math.random() * 16)]).join('');
+  S.locations.forEach((l) => { if (!l.qr_token) l.qr_token = rtok(); });
+  if (!S.reports) {
+    S.reports = [];
+    const locN = (n) => (S.locations.find((l) => l.name === n) || S.locations[0] || {}).id;
+    const ago = (min) => { const d = new Date(Date.now() - min * 60000); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':00'; };
+    [
+      ['Tuvalet Erkek', 'supply', 'Sabunluk boş, kağıt havlu da azalmış.', 'Emre Y.', null, 'new', 18],
+      ['Makam Koridoru', 'climate', 'Toplantı salonunun kliması çalışmıyor, içerisi çok sıcak.', 'Selin A.', '0532 000 00 00', 'new', 55],
+      ['Fotokopi Alanı', 'broken', 'Fotokopi makinesinin yanındaki priz yerinden çıkmış.', null, null, 'progress', 140],
+      ['Çay Ocağı', 'clean', 'Tezgahın üzeri dökülmüş çay ile kirli.', 'Burak T.', null, 'done', 300],
+    ].forEach(([ln, cat, desc, name, contact, st, min], i) => S.reports.push({ id: 9000 + i, location_id: locN(ln), category: cat, description: desc, photo: null,
+      reporter_name: name, reporter_contact: contact, status: st, admin_note: st === 'done' ? 'Tezgah temizlendi.' : null,
+      handled_by: st === 'new' ? null : 1, handled_at: st === 'new' ? null : ago(min - 30), created_at: ago(min) }));
+  }
   const save = () => store.set(S);
   save();
 
@@ -902,8 +919,56 @@
       const hol = String(b.holidays || '').split(/[\s,;]+/).filter(Boolean);
       hol.forEach((h) => { if (!validDate(h)) err('Tatil tarihi YYYY-AA-GG biçiminde olmalı: ' + h); });
       Object.assign(S.settings, { company_name: name, work_days: wd.join(','), holidays: [...new Set(hol)].sort().join('\n') });
+      if (b.public_reports !== undefined) S.settings.public_reports = b.public_reports === '1' || b.public_reports === true ? '1' : '0';
       save(); return null;
     },
+    /* ----- karekodla sorun bildirimi ----- */
+    async public_location(b, q) {
+      const l = S.locations.find((x) => x.active && x.qr_token === q.t);
+      if (!l) err('Bu karekod geçersiz ya da yenilenmiş. Lütfen görevlilere haber verin.');
+      return { location: l.name, company: S.settings.company_name, enabled: S.settings.public_reports !== '0', categories: REPORT_CATS };
+    },
+    async public_report(b) {
+      const l = S.locations.find((x) => x.active && x.qr_token === b.t);
+      if (!l) err('Bu karekod geçersiz ya da yenilenmiş.');
+      if (S.settings.public_reports === '0') err('Sorun bildirimi şu anda kapalı.');
+      const desc = String(b.description || '').trim().slice(0, 1000);
+      if (desc.length < 3) err('Lütfen sorunu kısaca yazın.');
+      const r = { id: S.seq++, location_id: l.id, category: REPORT_CATS[b.category] ? b.category : 'other', description: desc, photo: null,
+        reporter_name: str(b.name) || null, reporter_contact: str(b.contact) || null, status: 'new', admin_note: null, handled_by: null, handled_at: null, created_at: nowStr() };
+      if (b.photo && b.photo.size) { const url = await fileToDataUrl(b.photo); if (url) { r.photo = 'demo'; S.photos['r' + r.id] = url; } }
+      S.reports.push(r); save();
+      return { id: r.id };
+    },
+    async reports(b, q) {
+      needAdmin();
+      const ord = { new: 0, progress: 1, done: 2 };
+      const items = S.reports.filter((r) => !['new', 'progress', 'done'].includes(q.status) || r.status === q.status)
+        .sort((a, b2) => ord[a.status] - ord[b2.status] || cmpTr(b2.created_at, a.created_at) || b2.id - a.id)
+        .map((r) => { const l = byId('locations', r.location_id), u = r.handled_by ? byId('users', r.handled_by) : null;
+          return Object.assign({}, r, { photo: !!r.photo, location: l ? l.name : null, handled_name: u ? u.name : null, category_label: REPORT_CATS[r.category] || 'Diğer' }); });
+      const counts = { new: 0, progress: 0, done: 0 };
+      S.reports.forEach((r) => { counts[r.status]++; });
+      return { items, counts };
+    },
+    async reports_count() {
+      needAdmin();
+      return { open: S.reports.filter((r) => r.status !== 'done').length, new: S.reports.filter((r) => r.status === 'new').length };
+    },
+    async report_update(b) {
+      needAdmin();
+      const r = S.reports.find((x) => x.id === +b.id);
+      if (!r) err('Bildirim bulunamadı.');
+      if (!['new', 'progress', 'done'].includes(b.status)) err('Geçersiz durum.');
+      Object.assign(r, { status: b.status, admin_note: str(b.admin_note) || null, handled_by: b.status === 'new' ? null : me().id, handled_at: b.status === 'new' ? null : nowStr() });
+      save(); return null;
+    },
+    async report_delete(b) {
+      needAdmin();
+      S.reports = S.reports.filter((r) => r.id !== +b.id); delete S.photos['r' + b.id];
+      save(); return null;
+    },
+    async location_qr_reset(b) { needAdmin(); const l = byId('locations', b.id); if (l) l.qr_token = rtok(); save(); return null; },
     async doc_settings_save(b) {
       needAdmin();
       const lim = { doc_header: 600, doc_intro: 3000, doc_signer_name: 120, doc_signer_title: 160, doc_staff_title: 120, doc_subject: 200, doc_print_header: 1 };
@@ -915,12 +980,16 @@
   };
 
   /* ---------- dışa açılan demo arayüzü ---------- */
-  const MODE = getMode() === 'staff' ? 'staff' : 'admin';
+  const MODE = ['staff', 'report'].includes(getMode()) ? getMode() : 'admin';
+  const qrLocs = S.locations.filter((l) => l.active).sort((a, b) => a.sort_order - b.sort_order);
+  const QRLOC = qrLocs.find((l) => l.qr_token === getPref('qr', '')) || qrLocs.find((l) => l.name === 'Tuvalet Kadın') || qrLocs[0];
   // Personel ekranında gösterilen kişi (varsayılan: Deniz Karabulut)
   const staffList = S.users.filter((u) => u.active && u.role === 'staff');
   const STAFF = staffList.find((u) => u.username === getPref('staff', 'deniz.karabulut')) || staffList[0] || byId('users', 1);
   const u0 = MODE === 'admin' ? byId('users', 1) : STAFF;
-  window.BOOT = { user: { id: u0.id, name: u0.name, username: u0.username, role: u0.role, phone: u0.phone }, company: S.settings.company_name };
+  window.BOOT = MODE === 'report'
+    ? { token: QRLOC ? QRLOC.qr_token : '', company: S.settings.company_name }
+    : { user: { id: u0.id, name: u0.name, username: u0.username, role: u0.role, phone: u0.phone }, company: S.settings.company_name };
 
   window.DEMO = {
     mode: MODE,
@@ -929,6 +998,10 @@
     staffUser: STAFF.username,
     switchStaff(username) { setPref('staff', username); setMode('staff'); location.reload(); },
     reset() { store.clear(); location.reload(); },
+    qrLocs: qrLocs.map((l) => ({ token: l.qr_token, name: l.name })),
+    qrToken: QRLOC ? QRLOC.qr_token : '',
+    openReport(token) { setPref('qr', token); setMode('report'); location.reload(); },
+    reportPhoto(id) { return S.photos['r' + id] || ''; },
     async api(action, body, query) {
       await new Promise((r) => setTimeout(r, 120 + Math.random() * 160));
       const fn = A[action];

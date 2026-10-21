@@ -23,6 +23,7 @@ function schema_statements(string $driver): array
             description TEXT NULL,
             sort_order INT NOT NULL DEFAULT 0,
             active INT NOT NULL DEFAULT 1,
+            qr_token VARCHAR(40) NULL,
             created_at DATETIME NOT NULL
         )",
         "CREATE TABLE IF NOT EXISTS tasks (
@@ -106,6 +107,21 @@ function schema_statements(string $driver): array
             task_id INT NOT NULL,
             UNIQUE (location_id, task_id)
         )",
+        "CREATE TABLE IF NOT EXISTS reports (
+            id $pk,
+            location_id INT NOT NULL,
+            category VARCHAR(30) NOT NULL DEFAULT 'other',
+            description TEXT NOT NULL,
+            photo VARCHAR(255) NULL,
+            reporter_name VARCHAR(120) NULL,
+            reporter_contact VARCHAR(120) NULL,
+            status VARCHAR(12) NOT NULL DEFAULT 'new',
+            admin_note TEXT NULL,
+            handled_by INT NULL,
+            handled_at DATETIME NULL,
+            ip_hash VARCHAR(64) NULL,
+            created_at DATETIME NOT NULL
+        )",
         "CREATE TABLE IF NOT EXISTS settings (
             k VARCHAR(50) NOT NULL PRIMARY KEY,
             v TEXT NULL
@@ -116,10 +132,12 @@ function schema_statements(string $driver): array
     $out[] = 'CREATE INDEX idx_compl_date ON completions (occ_date)';
     $out[] = 'CREATE INDEX idx_pitems_pkg ON package_items (package_id)';
     $out[] = 'CREATE INDEX idx_leaves_date ON leaves (leave_date)';
+    $out[] = 'CREATE INDEX idx_reports_status ON reports (status)';
+    $out[] = 'CREATE INDEX idx_reports_created ON reports (created_at)';
     return $out;
 }
 
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 7;
 
 function schema_install(PDO $pdo, string $driver): void
 {
@@ -217,6 +235,14 @@ function schema_upgrade(PDO $pdo, string $driver, int $from): void
                 }
                 $pdo->exec('ALTER TABLE completions ADD UNIQUE KEY uq_compl_slot (plan_id, occ_date, slot)');
             }
+        }
+    }
+    if ($from < 7) {
+        // Dış kullanıcı sorun bildirimi: her mekanın karekod anahtarı (reports tablosu yukarıda kurulur).
+        try {
+            $pdo->exec('ALTER TABLE locations ADD COLUMN qr_token VARCHAR(40) NULL');
+        } catch (PDOException $e) {
+            // Sütun zaten var.
         }
     }
     if ($from < 6) {
