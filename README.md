@@ -37,7 +37,7 @@ siteyi açıp işleri işaretler. Yönetici de geciken ve yapılmayan işleri an
 - **Sürekli görev (takip yok)**: bulaşık yıkama, çay hazırlama gibi zaten fiilen yapılan işler. Personel ekranında
   “Sürekli görevler” bölümünde bilgi olarak görünür, işaretlenmez; hiçbir sayıma ve orana girmez. Görev tebliğ belgesinde yer alır.
 - İsteğe bağlı **hedef saat**: saat geçince iş “gecikti” olarak görünür.
-- **Günde birden çok kez**: sıklık editöründe “Saat ekle” ile birden fazla saat girilir (ör. Tuvalet Genel Kontrol 10:00, 11:00, 12:00, 14:00, 15:00, 16:00, 17:00; çay demleme 08:15 ve 13:00).
+- **Günde birden çok kez**: sıklık editöründe “Saat ekle” ile birden fazla saat girilir (ör. Tuvalet Genel Kontrol 10:00, 11:00, 12:00, 14:00, 15:00, 16:00, 17:00).
   Personel her saat için ayrı bir kontrol işaretler (1/4, 2/4…). Her kontrol bir önceki kontrolün saatinde açılır; bir sonraki
   kontrolün saati geldiğinde hâlâ yapılmamışsa “yapılmadı” sayılır. Böylece kontroller sonradan topluca işaretlenemez.
 
