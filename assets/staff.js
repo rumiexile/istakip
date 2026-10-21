@@ -13,10 +13,13 @@
   let celebrated = false;
   // Bu oturumda "kontrol edildi" yapılan sarf malzemeleri, ikinci dokunuş için "Yapılacak" listesinde kalır.
   const recentChecked = new Set();
+  // Bu ekranda işaretlenen işler, filtre değişene kadar listede yerinde kalır (alta kaymaz, kaybolmaz).
+  const keepHere = new Set();
+  // Kartların giriş animasyonu yalnızca ilk çizimde ve filtre/gün değişince oynar; işaretleme sonrası yeniden çizimde oynamaz.
+  let animateNext = true;
   const SWAP_PATH = '<path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/>';
   try { filter = localStorage.getItem('istakip.filter') || 'todo'; } catch (e) { /* yoksay */ }
 
-  const ORDER = { overdue: 0, pending: 1, upcoming: 2, issue: 3, done: 4, missed: 5, leave: 6 };
   const isPast = () => data && data.date !== data.today;
 
   function shell() {
@@ -63,6 +66,7 @@
 
   function goDay(d) {
     day = !d || d === (data && data.today) ? null : d;
+    keepHere.clear(); animateNext = true;
     celebrated = true; // geçmişe bakarken konfeti patlamasın
     skeleton();
     load().then(() => { if (!day) celebrated = data.tally.pending + data.tally.overdue + data.tally.upcoming === 0; });
@@ -193,6 +197,7 @@
     $('.chips', root).innerHTML = chipDefs().map(([k, l]) => `<button class="chip ${f === k ? 'active' : ''}" data-f="${k}">${l}<span class="n">${c[k]}</span></button>`).join('');
     $$('.chip', root).forEach((b) => (b.onclick = () => {
       filter = b.dataset.f;
+      keepHere.clear(); animateNext = true;
       try { if (!isPast()) localStorage.setItem('istakip.filter', filter); } catch (e) { /* yoksay */ }
       renderChips(); renderList();
     }));
@@ -201,7 +206,7 @@
   function visible(it) {
     const f = activeFilter();
     if (f === 'todo') return it.status === 'pending' || it.status === 'overdue' || it.status === 'upcoming' || (data.on_leave && it.status === 'leave')
-      || (recentChecked.has(App.itemKey(it)) && it.completion && it.completion.status === 'done');
+      || keepHere.has(App.itemKey(it)) || (recentChecked.has(App.itemKey(it)) && it.completion && it.completion.status === 'done');
     if (f === 'done') return it.status === 'done' || it.status === 'issue';
     if (f === 'open') return ['pending', 'overdue', 'missed'].includes(it.status);
     return true;
@@ -254,7 +259,8 @@
       return;
     }
     const groups = new Map();
-    items.sort((a, b) => (ORDER[a.status] - ORDER[b.status]) || String(a.due_time || '99').localeCompare(String(b.due_time || '99')) || a.task.localeCompare(b.task, 'tr'));
+    // Sıra yalnızca saate bağlı: bir iş tamamlandığında yeri değişmez.
+    items.sort((a, b) => String(a.due_time || '99').localeCompare(String(b.due_time || '99')) || a.task.localeCompare(b.task, 'tr') || (a.slot || 0) - (b.slot || 0));
     items.forEach((it) => { if (!groups.has(it.location)) groups.set(it.location, []); groups.get(it.location).push(it); });
     let html = leaveNote;
     let gi = 0;
@@ -262,9 +268,10 @@
       const all = data.items.filter((i) => i.location === loc);
       const closed = all.filter((i) => i.status === 'done' || i.status === 'issue').length;
       html += `<section class="loc-group" style="animation-delay:${gi++ * 0.05}s"><div class="loc-head">${icon('pin')}<h3>${h(loc)}</h3><span class="cnt">${closed}/${all.length}</span></div>
-        <div class="tasks stagger">${list.map(taskCard).join('')}</div></section>`;
+        <div class="tasks${animateNext ? ' stagger' : ''}">${list.map(taskCard).join('')}</div></section>`;
     }
     area.innerHTML = html;
+    animateNext = false;
   }
 
   /** Yöneticinin kontrol ettiği işler için bir kez gösterilen kutlama */
@@ -322,7 +329,8 @@
       try {
         Object.assign(it, await App.replaceItem(it));
         recentChecked.delete(key);
-        setTimeout(() => renderList(), activeFilter() === 'todo' ? 650 : 0);
+        keepHere.add(key);
+        setTimeout(() => renderList(), 450);
         App.toast('Değiştirildi: ' + it.task, '', {
           action: 'Geri al',
           onAction: async () => { try { Object.assign(it, await App.replaceItem(it, true)); recentChecked.add(key); renderList(); } catch (e) { App.err(e); } },
@@ -349,9 +357,10 @@
       Object.assign(it, res);
       const cons = it.kind === 'consumable';
       if (cons) recentChecked.add(key);
+      keepHere.add(key);
       recalc();
       renderHero(); renderChips();
-      setTimeout(() => { renderList(); if (data.tally.pending + data.tally.overdue + data.tally.upcoming === 0) render(); }, activeFilter() === 'todo' && !cons ? 550 : 0);
+      setTimeout(() => { renderList(); if (data.tally.pending + data.tally.overdue + data.tally.upcoming === 0) render(); }, 450);
       App.api('my_history').then((hh) => { history = hh; renderStrip(); }).catch(() => {});
       App.toast(cons ? 'Kontrol edildi: ' + it.task + ' · değiştirdiyseniz tekrar dokunun' : 'Tamamlandı: ' + it.task, '', {
         action: 'Geri al',
@@ -371,7 +380,7 @@
     const it = findItem(card.dataset.key);
     if (!it) return;
     if (e.target.closest('.tick')) quickToggle(card, it);
-    else App.taskSheet(it, () => { celebrated = false; load(); });
+    else App.taskSheet(it, () => { celebrated = false; keepHere.add(App.itemKey(it)); load(); });
   });
 
   document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
