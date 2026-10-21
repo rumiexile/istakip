@@ -239,12 +239,111 @@
       <span class="chev">${icon('chev')}</span></div>`;
   }
 
+  /* ---------- ihtiyaç olduğunda yapılan işler ---------- */
+  const odList = () => data.on_demand || [];
+  const canAddOd = () => !isPast() || me.role === 'admin';
+
+  function odCard(it) {
+    const last = it.entries[it.entries.length - 1];
+    const day = isPast() ? 'Bu gün' : 'Bugün';
+    const sub = `<span class="od-tag">${icon('refresh')} İhtiyaç olduğunda</span>`
+      + (it.count ? `<span class="od-count">${day} ${it.count} kez · son ${h(App.fmtTime(last.at))}</span>` : `<span>${day} henüz yapılmadı</span>`)
+      + (!it.user_id ? '<span>Ortak</span>' : '');
+    return `<div class="task glass od${it.count ? ' has' : ''}" data-od="${it.plan_id}" style="${it.color ? '--c:' + h(it.color) : ''}">
+      <span class="stripe"></span>
+      <span class="od-num" aria-label="${it.count} kez">${it.count}</span>
+      <div class="t-body"><div class="t-title">${h(it.task)}</div><div class="t-sub">${sub}</div></div>
+      ${canAddOd() ? `<button class="btn sm od-add" type="button" data-odadd aria-label="Yapıldı olarak kaydet">${icon('plus')}<span>Yapıldı</span></button>` : `<span class="chev">${icon('chev')}</span>`}</div>`;
+  }
+
+  function odSection() {
+    const f = activeFilter();
+    if (f === 'open') return '';
+    const list = odList().filter((it) => f !== 'done' || it.count);
+    if (!list.length) return '';
+    const groups = new Map();
+    list.forEach((it) => { if (!groups.has(it.location)) groups.set(it.location, []); groups.get(it.location).push(it); });
+    return `<section class="loc-group od-group"><div class="loc-head">${icon('refresh')}<h3>İhtiyaç olduğunda</h3><span class="cnt">${list.reduce((n, i) => n + i.count, 0)} kayıt</span></div>
+      <p class="muted small od-hint">Düzenli değil; iş çıktıkça (ör. toplantı oldukça) <b>Yapıldı</b>’ya dokunun. İşaretlenmeyen gün eksik sayılmaz.</p>
+      <div class="tasks${animateNext ? ' stagger' : ''}">${list.map(odCard).join('')}</div></section>`;
+  }
+
+  async function odAdd(card, it, btn) {
+    btn.classList.add('loading'); btn.disabled = true;
+    try {
+      const res = await App.completeItem(it, 'done');
+      Object.assign(it, res);
+      const r = btn.getBoundingClientRect();
+      App.confetti(r.left + r.width / 2, r.top + r.height / 2, 16);
+      if (navigator.vibrate) navigator.vibrate(12);
+      renderList(); renderChips();
+      const fresh = $(`.task[data-od="${it.plan_id}"]`, root);
+      if (fresh) { fresh.classList.add('just-done'); }
+      const e = it.entries[it.entries.length - 1];
+      App.toast(`Kaydedildi: ${it.task} (${isPast() ? 'bu gün' : 'bugün'} ${it.count}. kez)`, '', {
+        action: 'Geri al',
+        onAction: async () => { try { await App.uncompleteItem({ plan_id: it.plan_id, occ_date: e.occ_date, slot: e.slot }); load(); } catch (er) { App.err(er); } },
+      });
+    } catch (er) { App.err(er); btn.classList.remove('loading'); btn.disabled = false; }
+  }
+
+  function odSheet(it) {
+    const mine = (e) => App.canUndo({ completion: e });
+    const entries = it.entries.slice().reverse().map((e) => `<div class="row od-entry">
+      <span class="dot" style="background:${e.status === 'issue' ? 'var(--issue)' : 'var(--ok)'}"></span>
+      <div><div class="title">${h(App.fmtTime(e.at))} · ${h(e.by || '')}${e.inspected ? ' ' + App.star({ completion: e }) : ''}</div>
+        ${e.note ? `<div class="sub"><span>${h(e.note)}</span></div>` : ''}${e.photo ? `<img class="photo-thumb" src="${h(App.photoUrl(e))}" alt="Fotoğraf" loading="lazy">` : ''}</div>
+      ${mine(e) ? `<div class="actions"><button type="button" class="btn sm ghost danger" data-undo="${e.slot}">Geri al</button></div>` : '<span></span>'}</div>`).join('');
+    const body = `<div class="sheet-task">
+      <div class="meta"><span class="badge plain upcoming">İhtiyaç olduğunda</span><span class="tag">${icon('pin')}${h(it.location)}</span>${it.user ? `<span class="tag">${icon('user')}${h(it.user)}</span>` : ''}</div>
+      ${it.task_desc ? `<p class="muted">${h(it.task_desc)}</p>` : ''}
+      ${it.note ? `<div class="alert info">${h(it.note)}</div>` : ''}
+      ${canAddOd() ? `<label class="field"><span>Not (isteğe bağlı)</span><textarea name="note" placeholder="Örn. Kurul toplantısı, 12 kişi"></textarea></label>
+        <label class="photo-drop">${icon('camera')}<span>Fotoğraf ekle (isteğe bağlı)</span><input type="file" accept="image/*" capture="environment" hidden></label>
+        <div class="big-actions"><button class="btn warn" data-act="issue">${icon('flag')}<span>Sorun var</span></button>
+          <button class="btn success" data-act="done">${icon('plus')}<span>Yapıldı</span></button></div>` : ''}
+      <div class="field"><span>${isPast() ? 'Bu günün kayıtları' : 'Bugünkü kayıtlar'} (${it.count})</span>
+        ${entries ? `<div class="list">${entries}</div>` : '<p class="muted small">Henüz kayıt yok.</p>'}</div></div>`;
+    const m = App.modal({ title: it.task, body });
+    let photo = null;
+    const drop = $('.photo-drop', m.body);
+    if (drop) {
+      const input = drop.querySelector('input');
+      input.onchange = async () => {
+        if (!input.files[0]) return;
+        photo = await App.shrinkImage(input.files[0]);
+        drop.innerHTML = `<img src="${URL.createObjectURL(photo)}" alt=""><span>Değiştirmek için dokunun</span>`;
+        drop.appendChild(input);
+      };
+    }
+    $$('[data-act]', m.body).forEach((b) => (b.onclick = async () => {
+      const st = b.dataset.act, note = $('textarea', m.body).value.trim();
+      if (st === 'issue' && !note) { App.toast('Lütfen sorunu kısaca yazın', 'bad'); return; }
+      b.classList.add('loading');
+      try {
+        Object.assign(it, await App.completeItem(it, st, note, photo));
+        if (st === 'done') { const r = b.getBoundingClientRect(); App.confetti(r.left + r.width / 2, r.top, 26); }
+        App.toast(st === 'issue' ? 'Sorun bildirildi' : `Kaydedildi (${it.count}. kez)`, st === 'issue' ? 'info' : '');
+        m.close(); renderList();
+      } catch (er) { App.err(er); b.classList.remove('loading'); }
+    }));
+    $$('[data-undo]', m.body).forEach((b) => (b.onclick = async () => {
+      try { await App.uncompleteItem({ plan_id: it.plan_id, occ_date: data.date, slot: +b.dataset.undo }); App.toast('Kayıt geri alındı', 'info'); m.close(); load(); } catch (er) { App.err(er); }
+    }));
+  }
+
   function renderList() {
     const area = $('.list-area', root);
     const items = data.items.filter(visible);
     const past = isPast();
+    const od = odSection();
     const leaveNote = data.on_leave && data.items.length
       ? `<div class="alert leave">${icon('calendar')}<span>${past ? 'Bu gün izinliydiniz' : 'Bugün izinli olarak işaretlisiniz'}. Yapılmayan işleriniz <b>yapılmadı</b> sayılmaz.</span></div>` : '';
+    if (!data.items.length && od) {
+      area.innerHTML = od;
+      animateNext = false;
+      return;
+    }
     if (!data.items.length) {
       area.innerHTML = `<div class="glass empty"><div class="big">${data.on_leave ? '🏖️' : data.workday ? '☕' : '🌴'}</div>
         <b>${data.on_leave ? 'İzinli' : data.workday ? (past ? 'Bu gün size atanmış iş yoktu' : 'Bugün size atanmış iş yok') : (past ? 'İş günü değildi' : 'Bugün iş günü değil')}</b>
@@ -255,7 +354,8 @@
       const allDone = activeFilter() === 'todo' || (past && activeFilter() === 'open');
       area.innerHTML = leaveNote + `<div class="glass done-banner"><div class="big">${allDone ? '🎉' : '🗒️'}</div>
         <b>${allDone ? (past ? 'Bu günün tüm işleri tamamlanmış.' : 'Tebrikler! Bugünkü tüm işler tamam.') : 'Burada bir şey yok.'}</b>
-        <span class="muted">${allDone && !past ? 'Emeğiniz için teşekkürler.' : ''}</span></div>`;
+        <span class="muted">${allDone && !past ? 'Emeğiniz için teşekkürler.' : ''}</span></div>` + od;
+      animateNext = false;
       return;
     }
     const groups = new Map();
@@ -270,7 +370,7 @@
       html += `<section class="loc-group" style="animation-delay:${gi++ * 0.05}s"><div class="loc-head">${icon('pin')}<h3>${h(loc)}</h3><span class="cnt">${closed}/${all.length}</span></div>
         <div class="tasks${animateNext ? ' stagger' : ''}">${list.map(taskCard).join('')}</div></section>`;
     }
-    area.innerHTML = html;
+    area.innerHTML = html + od;
     animateNext = false;
   }
 
@@ -377,6 +477,13 @@
   root.addEventListener('click', (e) => {
     const card = e.target.closest('.task');
     if (!card) return;
+    if (card.dataset.od) {
+      const it = odList().find((i) => String(i.plan_id) === card.dataset.od);
+      if (!it) return;
+      const add = e.target.closest('[data-odadd]');
+      if (add) odAdd(card, it, add); else odSheet(it);
+      return;
+    }
     const it = findItem(card.dataset.key);
     if (!it) return;
     if (e.target.closest('.tick')) quickToggle(card, it);

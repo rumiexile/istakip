@@ -986,3 +986,20 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
 .qr-sheet.four .qr-loc { margin-top: 4mm; font-size: 11pt; padding: 1.5mm 5mm; }
 .qr-sheet.four .qr-url { font-size: 6pt; }
 @media print { #print-root .qr-sheet * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+
+/* ---------- ihtiyaç olduğunda yapılan işler ---------- */
+.od-group .loc-head .ico { color: var(--info); }
+.od-hint { margin: -2px 4px 10px; }
+.task.od { grid-template-columns: auto minmax(0, 1fr) auto; }
+.od-num { width: 44px; height: 44px; border-radius: 14px; flex: none; display: grid; place-items: center; font-weight: 800; font-size: 17px;
+  font-variant-numeric: tabular-nums; color: var(--info); border: 2px dashed color-mix(in srgb, var(--info) 45%, transparent); background: var(--glass-strong);
+  transition: transform .4s var(--spring), background .35s, color .35s; }
+.task.od.has .od-num { border-style: solid; border-color: transparent; color: #fff; background: linear-gradient(135deg, #3b82f6, #06b6d4); box-shadow: 0 8px 18px -8px #3b82f6; }
+.task.od.just-done .od-num { animation: odBump .6s var(--spring); }
+@keyframes odBump { 40% { transform: scale(1.25) rotate(-8deg); } }
+.task .t-sub .od-tag { color: var(--info); font-weight: 700; display: inline-flex; align-items: center; gap: 3px; }
+.task .t-sub .od-tag .ico { width: 13px; height: 13px; }
+.task .t-sub .od-count { color: var(--text-2); font-weight: 600; }
+.od-add { flex: none; color: #fff; border-color: rgba(255,255,255,.35); background: linear-gradient(135deg, #3b82f6, #06b6d4); }
+.od-add:hover { box-shadow: 0 10px 22px -10px #3b82f6; }
+.od-entry .photo-thumb { max-width: 160px; }

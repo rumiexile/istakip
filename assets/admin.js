@@ -234,6 +234,13 @@
               <div class="sub"><span>${h(it.location)}</span><span>${h(it.completion.by || '')}</span></div></div>
             <span class="small muted nowrap">${h(App.relDay(it.completion.at))} ${h(App.fmtTime(it.completion.at))}</span></div>`).join('') + '</div>'
             : '<p class="muted small">Son 7 günde bildirilen sorun yok. 👍</p>'}</div>
+        ${data.on_demand && data.on_demand.length ? `<div class="glass card"><div class="card-head"><h3>İhtiyaç olduğunda</h3><span class="badge plain upcoming">${data.on_demand.reduce((n, o) => n + o.count, 0)} kayıt</span></div>
+          <div class="list">${data.on_demand.map((o) => `<div class="row">
+            <span class="od-num${o.count ? ' on' : ''}" style="width:34px;height:34px;font-size:14px;${o.count ? 'color:#fff;border-style:solid;border-color:transparent;background:linear-gradient(135deg,#3b82f6,#06b6d4)' : ''}">${o.count}</span>
+            <div><div class="title">${h(o.task)}</div><div class="sub"><span>${h(o.location)}</span><span>${h(o.user || 'Ortak')}</span>
+              ${o.entries.length ? `<span>${o.entries.map((e) => h(App.fmtTime(e.at)) + (e.note ? ' 💬' : '')).join(', ')}</span>` : '<span>Bugün yapılmadı</span>'}</div>
+              ${o.entries.filter((e) => e.note).map((e) => `<div class="muted small">💬 ${h(App.fmtTime(e.at))} · ${h(e.note)}</div>`).join('')}</div><span></span></div>`).join('')}</div>
+          <p class="muted small" style="margin-top:8px">Düzenli olmayan işler; yapılmadığı gün eksik sayılmaz.</p></div>` : ''}
         <div class="glass card"><div class="card-head"><h3>Mekanlara göre</h3></div>${bars(data.by_location, 'Veri yok')}</div>
         <div class="glass card"><div class="card-head"><h3>Personele göre</h3></div>${bars(data.by_user, 'Veri yok')}</div>
         <div class="glass card" data-missed><div class="card-head"><h3>Son 7 günde yapılmayanlar</h3><span class="badge missed">${data.missed_count}</span></div>
@@ -1205,6 +1212,13 @@
             ${['done:ok', 'issue:issue', 'missed:bad', 'leave:leave', 'open:open'].map((k) => { const [f, c] = k.split(':'); return d[f] ? `<i class="${c}" style="height:${(d[f] * 100) / max}%;animation-delay:${i * 0.02}s"></i>` : ''; }).join('')}</div>`).join('')}</div>
           <div class="axis">${r.daily.map((d, i) => `<span>${r.daily.length <= 16 || i % Math.ceil(r.daily.length / 12) === 0 ? h(App.fmtShort(d.date)) : ''}</span>`).join('')}</div></div>
         <div class="grid cols-2" style="margin-bottom:16px">${table(r.by_user, 'Personele göre', 'Personel')}${table(r.by_location, 'Mekanlara göre', 'Mekan')}</div>
+        ${r.on_demand && r.on_demand.length ? `<div class="glass card" style="margin-bottom:16px"><div class="card-head"><h3>İhtiyaç olduğunda yapılan işler</h3>
+          <span class="muted small">Takvime bağlı olmayan işler; oran hesabına girmez</span></div>
+          <div class="table-wrap"><table><thead><tr><th>İş</th><th>Mekan</th><th>Kaç kez</th><th>Kim</th><th>Son</th></tr></thead><tbody>
+          ${r.on_demand.map((o) => `<tr><td><b>${h(o.task)}</b></td><td>${h(o.location)}</td><td><b style="color:var(--info)">${o.count}</b></td>
+            <td class="small">${Object.entries(o.by_user).map(([n, c]) => `${h(n)} (${c})`).join(', ')}</td>
+            <td class="small nowrap">${o.last_at ? h(App.fmtDate(o.last_at.slice(0, 10))) + ' ' + h(App.fmtTime(o.last_at)) : '—'}</td></tr>`).join('')}
+          </tbody></table></div></div>` : ''}
         ${r.consumables && r.consumables.length ? `<div class="glass card" style="margin-bottom:16px"><div class="card-head"><h3>Sarf malzemeleri</h3>
           <span class="muted small">Seçilen dönemde kaç kez kontrol edildi, kaç kez değiştirildi</span></div>
           <div class="table-wrap"><table><thead><tr><th>Malzeme</th><th>Kontrol edildi</th><th>Değiştirildi</th><th>Sorun</th><th>Yapılmadı</th><th>En çok değişen mekanlar</th></tr></thead><tbody>

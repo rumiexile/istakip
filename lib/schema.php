@@ -137,7 +137,7 @@ function schema_statements(string $driver): array
     return $out;
 }
 
-const SCHEMA_VERSION = 8;
+const SCHEMA_VERSION = 9;
 
 function schema_install(PDO $pdo, string $driver): void
 {
@@ -237,6 +237,9 @@ function schema_upgrade(PDO $pdo, string $driver, int $from): void
             }
         }
     }
+    if ($from < 9) {
+        schema_make_on_demand($pdo, ['Toplantıların ikramlarının hazırlanması ve sunumu']);
+    }
     if ($from < 8) {
         schema_merge_toilet_check($pdo);
     }
@@ -321,6 +324,44 @@ function schema_merge_toilet_check(PDO $pdo): void
     } catch (Throwable $e) {
         $pdo->rollBack();
         throw $e;
+    }
+}
+
+/**
+ * v9: Takvime bağlı olmayan işleri "İhtiyaç olduğunda" türüne çevirir. Her gün planlı eski atama dün itibarıyla
+ * kapanır (geçmiş korunur), aynı mekan/kişi için "ihtiyaç olduğunda" ataması bugün başlar.
+ * Yalnızca hâlâ "Her gün" olan işlere dokunur; yönetici sıklığı değiştirdiyse olduğu gibi kalır.
+ */
+function schema_make_on_demand(PDO $pdo, array $names): void
+{
+    $today = date('Y-m-d');
+    $yesterday = date('Y-m-d', strtotime('-1 day'));
+    $now = date('Y-m-d H:i:s');
+    $find = $pdo->prepare("SELECT id FROM tasks WHERE name = ? AND active = 1 AND freq_type = 'daily'");
+    $od = "freq_type = 'on_demand', freq_interval = 1, weekdays = NULL, month_day = NULL, due_time = NULL, times = NULL";
+    foreach ($names as $n) {
+        $find->execute([$n]);
+        $tid = (int)$find->fetchColumn();
+        if (!$tid) {
+            continue;
+        }
+        $pdo->beginTransaction();
+        try {
+            $pdo->prepare("UPDATE tasks SET $od WHERE id = ?")->execute([$tid]);
+            $pdo->prepare("UPDATE package_items SET $od WHERE task_id = ? AND freq_type = 'daily'")->execute([$tid]);
+            $plans = $pdo->prepare("SELECT * FROM plans WHERE task_id = ? AND active = 1 AND freq_type = 'daily'");
+            $plans->execute([$tid]);
+            foreach ($plans->fetchAll() as $p) {
+                $pdo->prepare('UPDATE plans SET active = 0, end_date = ? WHERE id = ?')->execute([$yesterday, $p['id']]);
+                $pdo->prepare("INSERT INTO plans (task_id, location_id, user_id, package_id, freq_type, freq_interval, weekdays, month_day, due_time, times, start_date, end_date, note, active, created_at)
+                               VALUES (?, ?, ?, ?, 'on_demand', 1, NULL, NULL, NULL, NULL, ?, ?, ?, 1, ?)")
+                    ->execute([$tid, $p['location_id'], $p['user_id'], $p['package_id'], max($today, substr((string)$p['start_date'], 0, 10)), $p['end_date'] ?: null, $p['note'], $now]);
+            }
+            $pdo->commit();
+        } catch (Throwable $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
     }
 }
 
@@ -426,7 +467,7 @@ function schema_seed(PDO $pdo): void
             ['Detaylı Çay Ocağı Temizliği', 'weekly', 1, '5', null, '16:00'],
             ['Makam ikram tabağı kontrolü', 'daily', 1, null, null, '09:30'],
             ['Çay ocağı rulosunun değiştirilmesi', 'daily', 1, null, null, '09:30'],
-            ['Toplantıların ikramlarının hazırlanması ve sunumu', 'daily', 1, null, null, null],
+            ['Toplantıların ikramlarının hazırlanması ve sunumu', 'on_demand', 1, null, null, null],
         ]],
         ['Koridor İş Paketi', '#0f766e', 'Koridor sorumlusunun odalar, tuvaletler, çay servisi ve toplantı odası işleri', [
             ['Çay demleme', 'daily', 1, null, null, '08:15', '08:15,13:00'],

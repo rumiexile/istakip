@@ -414,7 +414,8 @@
     const r = (val, lbl) => `<label><input type="radio" name="${prefix}_type" value="${val}" ${t === val ? 'checked' : ''}><span>${lbl}</span></label>`;
     const days = [1, 2, 3, 4, 5, 6, 7].map((d) => `<label><input type="checkbox" name="${prefix}_wd" value="${d}" ${wd.includes(String(d)) ? 'checked' : ''}><span>${App.DAY_SHORT[d]}</span></label>`).join('');
     return `<div class="freq" data-freq="${prefix}">
-      <div class="seg">${r('daily', 'Her gün')}${r('every_n_days', 'X günde 1')}${r('weekly', 'Haftalık')}${r('monthly', 'Aylık')}</div>
+      <div class="seg">${r('daily', 'Her gün')}${r('every_n_days', 'X günde 1')}${r('weekly', 'Haftalık')}${r('monthly', 'Aylık')}${r('on_demand', 'İhtiyaç olduğunda')}</div>
+      <small class="muted" data-show="on_demand">Toplantı ikramı gibi düzenli olmayan işler için. Takvime bağlı değildir: personel iş çıktıkça istediği kadar işaretler; işaretlenmeyen gün “yapılmadı” sayılmaz ve başarı oranını etkilemez. Raporda kaç kez yapıldığı görünür.</small>
       <div class="inline" data-show="every_n_days"><input type="number" min="2" max="365" name="${prefix}_n_days" value="${t === 'every_n_days' ? v.freq_interval || 2 : 2}"> iş gününde bir</div>
       <div data-show="weekly" class="freq">
         <div class="days">${days}</div>
@@ -466,6 +467,7 @@
       const sync = () => {
         const t = (f.querySelector(`input[name=${p}_type]:checked`) || {}).value;
         App.$$(':scope > [data-show]', f).forEach((s) => { s.hidden = s.dataset.show !== t; });
+        if (tf) tf.hidden = t === 'on_demand';
       };
       f.addEventListener('change', sync); sync();
     });
@@ -479,6 +481,7 @@
     if (t === 'every_n_days') o.freq_interval = +val('n_days') || 2;
     if (t === 'weekly') { o.freq_interval = +val('n_weeks') || 1; o.weekdays = App.$$(`input[name=${p}_wd]:checked`, f).map((i) => i.value).join(','); }
     if (t === 'monthly') { o.freq_interval = +val('n_months') || 1; o.month_day = +val('md') || 1; }
+    if (t === 'on_demand') { o.due_time = null; o.times = null; }
     return o;
   };
 

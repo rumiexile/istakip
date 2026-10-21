@@ -3,7 +3,7 @@
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v18';
+  const KEY = 'istakip-demo-v19';
   const REPORT_CATS = { clean: 'Temizlik gerekiyor', supply: 'Malzeme bitti', broken: 'Arıza / tamir', climate: 'Isıtma / soğutma', other: 'Diğer' };
   const store = {
     get() {
@@ -86,6 +86,7 @@
       return t;
     }
     isDue(p, n) {
+      if (p.freq_type === 'on_demand') return false;
       if (n < p._start || (p._end !== null && n > p._end) || !this.isWorkday(n)) return false;
       switch (p.freq_type) {
         case 'every_n_days': return this.workdaysBetween(p._first, n) % p._n === 0;
@@ -162,6 +163,7 @@
           return (n === 1 ? 'Her hafta' : n + ' haftada 1') + (d ? ' · ' + d : '');
         }
         case 'monthly': return (n === 1 ? 'Her ay' : n + ' ayda 1') + ' · ayın ' + (+p.month_day) + '. günü';
+        case 'on_demand': return 'İhtiyaç olduğunda';
         default: return 'Her gün';
       }
     }
@@ -211,7 +213,7 @@
         ['Detaylı Çay Ocağı Temizliği', 'weekly', 1, '5', null, '16:00'],
         ['Makam ikram tabağı kontrolü', 'daily', 1, null, null, '09:30'],
         ['Çay ocağı rulosunun değiştirilmesi', 'daily', 1, null, null, '09:30'],
-        ['Toplantıların ikramlarının hazırlanması ve sunumu', 'daily', 1, null, null, null]]],
+        ['Toplantıların ikramlarının hazırlanması ve sunumu', 'on_demand', 1, null, null, null]]],
       ['Koridor İş Paketi', '#0f766e', 'Koridor sorumlusunun odalar, tuvaletler, çay servisi ve toplantı odası işleri', [
         ['Çay demleme', 'daily', 1, null, null, '08:15', '08:15,13:00'],
         ['Odalarda masa üstü, pencere önü temizliği ve düzeni', 'daily', 1, null, null, '09:00'],
@@ -336,6 +338,21 @@
         }
       }));
     });
+    // "İhtiyaç olduğunda" işler: toplantı olan günlerde 1–2 kayıt
+    const r3 = rng(20261021);
+    const meetings = ['Kurul toplantısı', 'Birim toplantısı', 'Misafir ziyareti', 'Komisyon toplantısı', null];
+    S.plans.filter((p0) => p0.freq_type === 'on_demand').forEach((p0) => {
+      for (let o = sch.prep(p0)._start; o <= today; o++) {
+        if (!sch.isWorkday(o) || (p0.user_id && onLeave.has(p0.user_id + '|' + ymd(o)))) continue;
+        const k = Math.floor(r3() * 3);
+        [600, 840].slice(0, k).forEach((mins, slot) => {
+          mins += Math.floor(r3() * 50);
+          if (o === today && mins > +hm.slice(0, 2) * 60 + +hm.slice(3)) return;
+          add('completions', { plan_id: p0.id, occ_date: ymd(o), slot, user_id: p0.user_id || aysel.id, status: 'done',
+            note: meetings[Math.floor(r3() * meetings.length)], photo: null, created_at: ymd(o) + ' ' + pad(Math.floor(mins / 60)) + ':' + pad(mins % 60) + ':00' });
+        });
+      }
+    });
     return S;
   }
 
@@ -375,6 +392,18 @@
       return Object.assign({}, p, { task_name: t.name, task_desc: t.description, task_kind: t.kind || 'normal', location_name: l.name, location_sort: l.sort_order,
         user_name: u ? u.name : null, package_name: k ? k.name : null, package_color: k ? k.color : null });
     }).sort((a, b) => a.location_sort - b.location_sort || cmpTr(a.location_name, b.location_name) || cmpTr(a.due_time, b.due_time) || cmpTr(a.task_name, b.task_name));
+  }
+  /** "İhtiyaç olduğunda" işler ve aralıktaki işaretlemeleri (api.php on_demand_items karşılığı) */
+  function onDemandItems(plans, from, to) {
+    return plans.filter((p) => p.freq_type === 'on_demand' && p.start_date <= to && (!p.end_date || p.end_date >= from)).map((p) => {
+      const entries = S.completions.filter((c) => c.plan_id === p.id && c.occ_date >= from && c.occ_date <= to)
+        .sort((a, b) => cmpTr(a.created_at, b.created_at) || a.id - b.id)
+        .map((c) => { const u = byId('users', c.user_id), iu = c.inspected_by ? byId('users', c.inspected_by) : null;
+          return { id: c.id, slot: c.slot || 0, occ_date: c.occ_date, by: u ? u.name : null, by_id: c.user_id, at: c.created_at, status: c.status, note: c.note, photo: !!c.photo,
+            inspected: c.inspected_at ? { by: iu ? iu.name : null, at: c.inspected_at } : null }; });
+      return { plan_id: p.id, occ_date: to, task: p.task_name, task_desc: p.task_desc, location: p.location_name, location_id: p.location_id, user: p.user_name, user_id: p.user_id,
+        package: p.package_name, color: p.package_color, kind: p.task_kind || 'normal', note: p.note, freq: Sched.label(p), on_demand: true, count: entries.length, entries };
+    });
   }
   function cmap(from, to) {
     const m = {};
@@ -519,7 +548,8 @@
         const p = byId('plans', c.plan_id), t = p && byId('tasks', p.task_id), l = p && byId('locations', p.location_id), iu = byId('users', c.inspected_by);
         return { id: c.id, occ_date: c.occ_date, slot: c.slot || 0, inspected_at: c.inspected_at, task: t ? t.name : '', location: l ? l.name : '', inspected_name: iu ? iu.name : null };
       }).sort((a, b2) => cmpTr(b2.inspected_at, a.inspected_at));
-      return { date: D, today: ymd(today), workday: sc.isWorkday(day), on_leave: !!lv, leave_note: lv ? lv.note : null, items, tally: tally(items), inspections };
+      return { date: D, today: ymd(today), workday: sc.isWorkday(day), on_leave: !!lv, leave_note: lv ? lv.note : null, items, tally: tally(items), inspections,
+        on_demand: onDemandItems(plans, D, D) };
     },
     async inspections_seen() {
       const u = me();
@@ -573,6 +603,16 @@
       if (!p) err('İş bulunamadı.');
       if (status === 'replaced' && p.task_kind !== 'consumable') status = 'done';
       if (u.role !== 'admin' && p.user_id !== null && p.user_id !== u.id) err('Bu iş size atanmamış.');
+      if (p.freq_type === 'on_demand') {
+        const td = dn(localToday()), o = dn(occ);
+        if (o > td || (u.role !== 'admin' && o !== td)) err('Bu iş yalnızca bugün için işaretlenebilir.');
+        if (status === 'issue' && !note) err('Sorun bildirirken kısa bir açıklama yazın.');
+        const used = S.completions.filter((c) => c.plan_id === planId && c.occ_date === occ).map((c) => c.slot || 0);
+        const c = { id: nid(), plan_id: planId, occ_date: occ, slot: used.length ? Math.max(...used) + 1 : 0, user_id: u.id, status, note, photo: null, created_at: nowStr() };
+        if (b.photo && b.photo.size) { const url = await fileToDataUrl(b.photo); if (url) { c.photo = 'demo'; S.photos[c.id] = url; } }
+        S.completions.push(c); save();
+        return onDemandItems([p], occ, occ)[0];
+      }
       const slot = +b.slot || 0;
       const sc = sched(), all = sc.slots(sc.prep(p)), [today, hm] = todayCtx(), o = dn(occ);
       if (!all[slot]) err('Bu iş için böyle bir kontrol yok.');
@@ -643,7 +683,7 @@
         const p = pmap[c.plan_id], ps = sc.slots(p)[c.slot || 0] || p;
         return itemOut(ps, dn(c.occ_date), c, 'issue');
       }).sort((a, b2) => cmpTr(b2.completion.at, a.completion.at));
-      return { date: ymd(day), issues: issues.slice(0, 100), issue_count: issues.length, today: ymd(today), now: hm, workday: sc.isWorkday(day), items, tally: tally(items),
+      return { date: ymd(day), on_demand: onDemandItems(plansQuery((p) => p.active), ymd(day), ymd(day)), issues: issues.slice(0, 100), issue_count: issues.length, today: ymd(today), now: hm, workday: sc.isWorkday(day), items, tally: tally(items),
         by_location: groupTally(items, 'location', '-'), by_user: groupTally(items, 'user', 'Ortak (herkes)'),
         missed: missed.slice(0, 200), missed_count: missed.length,
         staff_count: S.users.filter((u) => u.active && u.role === 'staff').length,
@@ -658,10 +698,11 @@
       if (from > to) [from, to] = [to, from];
       if (to - from > 92) err('Rapor aralığı en fazla 93 gün olabilir.');
       const cm = cmap(ymd(from), ymd(to)), lv = lmap(ymd(from), ymd(to));
-      const items = [];
+      const items = [], odPlans = [];
       plansQuery((p) => p.start_date <= ymd(to)).forEach((p0) => {
         if (q.user_id && p0.user_id !== +q.user_id) return;
         if (q.location_id && p0.location_id !== +q.location_id) return;
+        if (p0.freq_type === 'on_demand') { odPlans.push(p0); return; }
         const p = sc.prep(p0);
         sc.occurrences(p, from, to).forEach((o) => {
           sc.slots(p).forEach((ps) => {
@@ -694,7 +735,11 @@
       return { from: ymd(from), to: ymd(to), summary: Object.assign(tally(items), { late_done: lateDone }),
         consumables: Object.values(cons).sort((a, c) => c.replaced - a.replaced || cmpTr(a.name, c.name)),
         by_user: groupTally(items, 'user', 'Ortak (herkes)'), by_location: groupTally(items, 'location', '-'), by_task: groupTally(items, 'task', '-'),
-        daily: Object.values(daily), problems: problems.slice(0, 300), problem_count: problems.length };
+        daily: Object.values(daily), problems: problems.slice(0, 300), problem_count: problems.length,
+        on_demand: onDemandItems(odPlans, ymd(from), ymd(to)).filter((i) => i.count).map((i) => {
+          const by_user = {}; i.entries.forEach((e) => { by_user[e.by] = (by_user[e.by] || 0) + 1; });
+          const { entries, ...rest } = i; return Object.assign(rest, { by_user, last_at: entries.length ? entries[entries.length - 1].at : null });
+        }) };
     },
     async locations() {
       return S.locations.filter((l) => l.active).sort((a, b) => a.sort_order - b.sort_order || cmpTr(a.name, b.name))

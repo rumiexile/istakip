@@ -143,6 +143,9 @@ function freq_from(array $src): array
     if ($type === 'daily') {
         $n = 1;
     }
+    if ($type === 'on_demand') {
+        return ['freq_type' => 'on_demand', 'freq_interval' => 1, 'weekdays' => null, 'month_day' => null, 'due_time' => null, 'times' => null];
+    }
     $t = trim((string)($src['due_time'] ?? ''));
     if ($t !== '' && !preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $t)) {
         fail('Saat SS:DD biçiminde olmalı.');
@@ -322,6 +325,44 @@ function item_out(array $p, int $occ, ?array $c, string $status): array
             'inspected' => !empty($c['inspected_at']) ? ['by' => $c['inspected_name'], 'at' => $c['inspected_at']] : null,
         ] : null,
     ];
+}
+
+/**
+ * "İhtiyaç olduğunda" yapılan işler: takvimsiz; tarih aralığındaki tüm işaretlemeleriyle birlikte.
+ * Bu işler oran ve gecikme hesabına girmez.
+ */
+function on_demand_items(array $plans, string $from, string $to): array
+{
+    $plans = array_values(array_filter($plans, fn($p) => Sched::onDemand($p)
+        && substr((string)$p['start_date'], 0, 10) <= $to && (empty($p['end_date']) || substr((string)$p['end_date'], 0, 10) >= $from)));
+    if (!$plans) {
+        return [];
+    }
+    $ids = implode(',', array_map(fn($p) => (int)$p['id'], $plans));
+    $by = [];
+    foreach (q("SELECT c.id, c.plan_id, c.occ_date, c.slot, c.user_id, c.status, c.note, c.photo, c.created_at, c.inspected_at,
+                       u.name AS by_name, iu.name AS inspected_name
+                FROM completions c LEFT JOIN users u ON u.id = c.user_id LEFT JOIN users iu ON iu.id = c.inspected_by
+                WHERE c.plan_id IN ($ids) AND c.occ_date BETWEEN ? AND ? ORDER BY c.created_at, c.id", [$from, $to])->fetchAll() as $c) {
+        $by[(int)$c['plan_id']][] = [
+            'id' => (int)$c['id'], 'slot' => (int)$c['slot'], 'occ_date' => substr((string)$c['occ_date'], 0, 10),
+            'by' => $c['by_name'], 'by_id' => (int)$c['user_id'], 'at' => $c['created_at'], 'status' => $c['status'],
+            'note' => $c['note'], 'photo' => (bool)$c['photo'],
+            'inspected' => !empty($c['inspected_at']) ? ['by' => $c['inspected_name'], 'at' => $c['inspected_at']] : null,
+        ];
+    }
+    $out = [];
+    foreach ($plans as $p) {
+        $e = $by[(int)$p['id']] ?? [];
+        $out[] = [
+            'plan_id' => (int)$p['id'], 'occ_date' => $to, 'task' => $p['task_name'], 'task_desc' => $p['task_desc'],
+            'location' => $p['location_name'], 'location_id' => (int)$p['location_id'],
+            'user' => $p['user_name'], 'user_id' => $p['user_id'] !== null ? (int)$p['user_id'] : null,
+            'package' => $p['package_name'], 'color' => $p['package_color'] ?: null, 'kind' => $p['task_kind'] ?? 'normal',
+            'note' => $p['note'], 'freq' => Sched::label($p), 'on_demand' => true, 'count' => count($e), 'entries' => $e,
+        ];
+    }
+    return $out;
 }
 
 /**
@@ -578,6 +619,7 @@ try {
                 'leave_note' => $leave['note'] ?? null,
                 'items' => $items,
                 'tally' => tally($items),
+                'on_demand' => on_demand_items($plans, Sched::ymd($day), Sched::ymd($day)),
                 // Yöneticinin kontrol ettiği, personelin henüz görmediği işler (bildirim)
                 'inspections' => q("SELECT c.id, c.occ_date, c.slot, c.inspected_at, t.name AS task, l.name AS location, iu.name AS inspected_name
                     FROM completions c JOIN plans p ON p.id = c.plan_id JOIN tasks t ON t.id = p.task_id JOIN locations l ON l.id = p.location_id
@@ -717,6 +759,28 @@ try {
             }
             if ($u['role'] !== 'admin' && $p['user_id'] !== null && (int)$p['user_id'] !== (int)$u['id']) {
                 fail('Bu iş size atanmamış.', 403);
+            }
+            if (Sched::onDemand($p)) {
+                // İhtiyaç olduğunda: gün içinde istendiği kadar işaretlenir; her işaretleme ayrı bir kayıttır.
+                [$today] = today_ctx();
+                $o = Sched::dn($occ);
+                if ($o > $today || ($u['role'] !== 'admin' && $o !== $today)) {
+                    fail('Bu iş yalnızca bugün için işaretlenebilir.');
+                }
+                if (substr((string)$p['start_date'], 0, 10) > $occ || (!empty($p['end_date']) && substr((string)$p['end_date'], 0, 10) < $occ)) {
+                    fail('Bu tarih için böyle bir iş yok.');
+                }
+                if ($status === 'issue' && !$note) {
+                    fail('Sorun bildirirken kısa bir açıklama yazın.');
+                }
+                $slot = (int)q('SELECT COALESCE(MAX(slot), -1) + 1 FROM completions WHERE plan_id = ? AND occ_date = ?', [$planId, $occ])->fetchColumn();
+                if ($slot >= 100) {
+                    fail('Bu iş bugün çok fazla kez işaretlendi.');
+                }
+                $photo = handle_upload();
+                q('INSERT INTO completions (plan_id, occ_date, slot, user_id, status, note, photo, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                    [$planId, $occ, $slot, $u['id'], $status, $note, $photo, now_str()]);
+                out(on_demand_items([$p], $occ, $occ)[0]);
             }
             $S = Sched::fromSettings();
             $slot = i_in('slot', 0);
@@ -862,6 +926,7 @@ try {
                 'workday' => $S->isWorkday($day),
                 'items' => $items,
                 'tally' => tally($items),
+                'on_demand' => on_demand_items($plans, Sched::ymd($day), Sched::ymd($day)),
                 'by_location' => group_tally($items, 'location', '-'),
                 'by_user' => group_tally($items, 'user', 'Ortak (herkes)'),
                 'missed' => array_slice($missed, 0, 200),
@@ -891,11 +956,16 @@ try {
             $cmap = completions_map(Sched::ymd($from), Sched::ymd($to));
             $leaves = leaves_map(Sched::ymd($from), Sched::ymd($to));
             $items = [];
+            $odPlans = [];
             foreach (plans_query('p.start_date <= ?', [Sched::ymd($to)]) as $p) {
                 if ($userF && (int)$p['user_id'] !== $userF) {
                     continue;
                 }
                 if ($locF && (int)$p['location_id'] !== $locF) {
+                    continue;
+                }
+                if (Sched::onDemand($p)) {
+                    $odPlans[] = $p;
                     continue;
                 }
                 $p = $S->prep($p);
@@ -907,6 +977,7 @@ try {
                 }
             }
             usort($items, fn($a, $b) => strcmp($a['occ_date'], $b['occ_date']) ?: strcmp($a['location'], $b['location']));
+            $onDemand = array_values(array_filter(on_demand_items($odPlans, Sched::ymd($from), Sched::ymd($to)), fn($i) => $i['count'] > 0));
 
             if ($action === 'report_csv') {
                 $labels = ['done' => 'Yapıldı', 'issue' => 'Sorun bildirildi', 'pending' => 'Bekliyor',
@@ -924,6 +995,12 @@ try {
                         ($c['status'] ?? '') === 'replaced' ? 'Değiştirildi' : ($i['kind'] === 'consumable' && $i['status'] === 'done' ? 'Kontrol edildi' : ($labels[$i['status']] ?? $i['status'])),
                         $c['by'] ?? '', $c['at'] ?? '', ($c['late'] ?? false) ? 'Evet' : '', $c['note'] ?? '',
                     ], ';');
+                }
+                foreach ($onDemand as $i) {
+                    foreach ($i['entries'] as $e) {
+                        fputcsv($fh, [$e['occ_date'], $i['location'], $i['task'], $i['freq'], '', $i['user'] ?? 'Ortak',
+                            $e['status'] === 'issue' ? 'Sorun bildirildi' : 'Yapıldı', $e['by'] ?? '', $e['at'], '', $e['note'] ?? ''], ';');
+                    }
                 }
                 fclose($fh);
                 exit;
@@ -960,6 +1037,10 @@ try {
                 'daily' => array_values($daily),
                 'problems' => array_slice($problems, 0, 300),
                 'problem_count' => count($problems),
+                'on_demand' => array_map(fn($i) => array_diff_key($i, ['entries' => 1]) + [
+                    'by_user' => array_count_values(array_map(fn($e) => (string)$e['by'], $i['entries'])),
+                    'last_at' => $i['entries'] ? end($i['entries'])['at'] : null,
+                ], $onDemand),
             ]);
         }
 

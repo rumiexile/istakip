@@ -11,7 +11,7 @@ declare(strict_types=1);
  */
 final class Sched
 {
-    public const TYPES = ['daily', 'every_n_days', 'weekly', 'monthly'];
+    public const TYPES = ['daily', 'every_n_days', 'weekly', 'monthly', 'on_demand'];
     public const DAY_SHORT = [1 => 'Pzt', 2 => 'Sal', 3 => 'Çar', 4 => 'Per', 5 => 'Cum', 6 => 'Cmt', 7 => 'Paz'];
 
     /** @var array<int,bool> */
@@ -133,8 +133,17 @@ final class Sched
         return $t;
     }
 
+    /** "İhtiyaç olduğunda" yapılan işler takvime bağlı değildir: hiçbir güne planlanmaz, gecikmez, "yapılmadı" sayılmaz. */
+    public static function onDemand(array $p): bool
+    {
+        return ($p['freq_type'] ?? '') === 'on_demand';
+    }
+
     public function isDue(array $p, int $dn): bool
     {
+        if (self::onDemand($p)) {
+            return false;
+        }
         if ($dn < $p['_start'] || ($p['_end'] !== null && $dn > $p['_end']) || !$this->isWorkday($dn)) {
             return false;
         }
@@ -322,6 +331,8 @@ final class Sched
             case 'monthly':
                 $md = (int)$p['month_day'];
                 return ($n === 1 ? 'Her ay' : "$n ayda 1") . " · ayın $md. günü";
+            case 'on_demand':
+                return 'İhtiyaç olduğunda';
             default:
                 return 'Her gün';
         }

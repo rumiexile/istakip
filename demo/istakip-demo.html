@@ -1013,6 +1013,23 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
 .qr-sheet.four .qr-url { font-size: 6pt; }
 @media print { #print-root .qr-sheet * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 
+/* ---------- ihtiyaç olduğunda yapılan işler ---------- */
+.od-group .loc-head .ico { color: var(--info); }
+.od-hint { margin: -2px 4px 10px; }
+.task.od { grid-template-columns: auto minmax(0, 1fr) auto; }
+.od-num { width: 44px; height: 44px; border-radius: 14px; flex: none; display: grid; place-items: center; font-weight: 800; font-size: 17px;
+  font-variant-numeric: tabular-nums; color: var(--info); border: 2px dashed color-mix(in srgb, var(--info) 45%, transparent); background: var(--glass-strong);
+  transition: transform .4s var(--spring), background .35s, color .35s; }
+.task.od.has .od-num { border-style: solid; border-color: transparent; color: #fff; background: linear-gradient(135deg, #3b82f6, #06b6d4); box-shadow: 0 8px 18px -8px #3b82f6; }
+.task.od.just-done .od-num { animation: odBump .6s var(--spring); }
+@keyframes odBump { 40% { transform: scale(1.25) rotate(-8deg); } }
+.task .t-sub .od-tag { color: var(--info); font-weight: 700; display: inline-flex; align-items: center; gap: 3px; }
+.task .t-sub .od-tag .ico { width: 13px; height: 13px; }
+.task .t-sub .od-count { color: var(--text-2); font-weight: 600; }
+.od-add { flex: none; color: #fff; border-color: rgba(255,255,255,.35); background: linear-gradient(135deg, #3b82f6, #06b6d4); }
+.od-add:hover { box-shadow: 0 10px 22px -10px #3b82f6; }
+.od-entry .photo-thumb { max-width: 160px; }
+
 
 .demo-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 10px 16px 0; padding: 8px 10px 8px 14px; border-radius: 20px; font-size: 13px; position: relative; z-index: 50; }
 :root { --logo-1: #6BBDEB; --logo-2: #1A7EC1; --logo-3: #27568F; }
@@ -1058,7 +1075,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v18';
+  const KEY = 'istakip-demo-v19';
   const REPORT_CATS = { clean: 'Temizlik gerekiyor', supply: 'Malzeme bitti', broken: 'Arıza / tamir', climate: 'Isıtma / soğutma', other: 'Diğer' };
   const store = {
     get() {
@@ -1141,6 +1158,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
       return t;
     }
     isDue(p, n) {
+      if (p.freq_type === 'on_demand') return false;
       if (n < p._start || (p._end !== null && n > p._end) || !this.isWorkday(n)) return false;
       switch (p.freq_type) {
         case 'every_n_days': return this.workdaysBetween(p._first, n) % p._n === 0;
@@ -1217,6 +1235,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
           return (n === 1 ? 'Her hafta' : n + ' haftada 1') + (d ? ' · ' + d : '');
         }
         case 'monthly': return (n === 1 ? 'Her ay' : n + ' ayda 1') + ' · ayın ' + (+p.month_day) + '. günü';
+        case 'on_demand': return 'İhtiyaç olduğunda';
         default: return 'Her gün';
       }
     }
@@ -1266,7 +1285,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
         ['Detaylı Çay Ocağı Temizliği', 'weekly', 1, '5', null, '16:00'],
         ['Makam ikram tabağı kontrolü', 'daily', 1, null, null, '09:30'],
         ['Çay ocağı rulosunun değiştirilmesi', 'daily', 1, null, null, '09:30'],
-        ['Toplantıların ikramlarının hazırlanması ve sunumu', 'daily', 1, null, null, null]]],
+        ['Toplantıların ikramlarının hazırlanması ve sunumu', 'on_demand', 1, null, null, null]]],
       ['Koridor İş Paketi', '#0f766e', 'Koridor sorumlusunun odalar, tuvaletler, çay servisi ve toplantı odası işleri', [
         ['Çay demleme', 'daily', 1, null, null, '08:15', '08:15,13:00'],
         ['Odalarda masa üstü, pencere önü temizliği ve düzeni', 'daily', 1, null, null, '09:00'],
@@ -1391,6 +1410,21 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
         }
       }));
     });
+    // "İhtiyaç olduğunda" işler: toplantı olan günlerde 1–2 kayıt
+    const r3 = rng(20261021);
+    const meetings = ['Kurul toplantısı', 'Birim toplantısı', 'Misafir ziyareti', 'Komisyon toplantısı', null];
+    S.plans.filter((p0) => p0.freq_type === 'on_demand').forEach((p0) => {
+      for (let o = sch.prep(p0)._start; o <= today; o++) {
+        if (!sch.isWorkday(o) || (p0.user_id && onLeave.has(p0.user_id + '|' + ymd(o)))) continue;
+        const k = Math.floor(r3() * 3);
+        [600, 840].slice(0, k).forEach((mins, slot) => {
+          mins += Math.floor(r3() * 50);
+          if (o === today && mins > +hm.slice(0, 2) * 60 + +hm.slice(3)) return;
+          add('completions', { plan_id: p0.id, occ_date: ymd(o), slot, user_id: p0.user_id || aysel.id, status: 'done',
+            note: meetings[Math.floor(r3() * meetings.length)], photo: null, created_at: ymd(o) + ' ' + pad(Math.floor(mins / 60)) + ':' + pad(mins % 60) + ':00' });
+        });
+      }
+    });
     return S;
   }
 
@@ -1430,6 +1464,18 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
       return Object.assign({}, p, { task_name: t.name, task_desc: t.description, task_kind: t.kind || 'normal', location_name: l.name, location_sort: l.sort_order,
         user_name: u ? u.name : null, package_name: k ? k.name : null, package_color: k ? k.color : null });
     }).sort((a, b) => a.location_sort - b.location_sort || cmpTr(a.location_name, b.location_name) || cmpTr(a.due_time, b.due_time) || cmpTr(a.task_name, b.task_name));
+  }
+  /** "İhtiyaç olduğunda" işler ve aralıktaki işaretlemeleri (api.php on_demand_items karşılığı) */
+  function onDemandItems(plans, from, to) {
+    return plans.filter((p) => p.freq_type === 'on_demand' && p.start_date <= to && (!p.end_date || p.end_date >= from)).map((p) => {
+      const entries = S.completions.filter((c) => c.plan_id === p.id && c.occ_date >= from && c.occ_date <= to)
+        .sort((a, b) => cmpTr(a.created_at, b.created_at) || a.id - b.id)
+        .map((c) => { const u = byId('users', c.user_id), iu = c.inspected_by ? byId('users', c.inspected_by) : null;
+          return { id: c.id, slot: c.slot || 0, occ_date: c.occ_date, by: u ? u.name : null, by_id: c.user_id, at: c.created_at, status: c.status, note: c.note, photo: !!c.photo,
+            inspected: c.inspected_at ? { by: iu ? iu.name : null, at: c.inspected_at } : null }; });
+      return { plan_id: p.id, occ_date: to, task: p.task_name, task_desc: p.task_desc, location: p.location_name, location_id: p.location_id, user: p.user_name, user_id: p.user_id,
+        package: p.package_name, color: p.package_color, kind: p.task_kind || 'normal', note: p.note, freq: Sched.label(p), on_demand: true, count: entries.length, entries };
+    });
   }
   function cmap(from, to) {
     const m = {};
@@ -1574,7 +1620,8 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
         const p = byId('plans', c.plan_id), t = p && byId('tasks', p.task_id), l = p && byId('locations', p.location_id), iu = byId('users', c.inspected_by);
         return { id: c.id, occ_date: c.occ_date, slot: c.slot || 0, inspected_at: c.inspected_at, task: t ? t.name : '', location: l ? l.name : '', inspected_name: iu ? iu.name : null };
       }).sort((a, b2) => cmpTr(b2.inspected_at, a.inspected_at));
-      return { date: D, today: ymd(today), workday: sc.isWorkday(day), on_leave: !!lv, leave_note: lv ? lv.note : null, items, tally: tally(items), inspections };
+      return { date: D, today: ymd(today), workday: sc.isWorkday(day), on_leave: !!lv, leave_note: lv ? lv.note : null, items, tally: tally(items), inspections,
+        on_demand: onDemandItems(plans, D, D) };
     },
     async inspections_seen() {
       const u = me();
@@ -1628,6 +1675,16 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
       if (!p) err('İş bulunamadı.');
       if (status === 'replaced' && p.task_kind !== 'consumable') status = 'done';
       if (u.role !== 'admin' && p.user_id !== null && p.user_id !== u.id) err('Bu iş size atanmamış.');
+      if (p.freq_type === 'on_demand') {
+        const td = dn(localToday()), o = dn(occ);
+        if (o > td || (u.role !== 'admin' && o !== td)) err('Bu iş yalnızca bugün için işaretlenebilir.');
+        if (status === 'issue' && !note) err('Sorun bildirirken kısa bir açıklama yazın.');
+        const used = S.completions.filter((c) => c.plan_id === planId && c.occ_date === occ).map((c) => c.slot || 0);
+        const c = { id: nid(), plan_id: planId, occ_date: occ, slot: used.length ? Math.max(...used) + 1 : 0, user_id: u.id, status, note, photo: null, created_at: nowStr() };
+        if (b.photo && b.photo.size) { const url = await fileToDataUrl(b.photo); if (url) { c.photo = 'demo'; S.photos[c.id] = url; } }
+        S.completions.push(c); save();
+        return onDemandItems([p], occ, occ)[0];
+      }
       const slot = +b.slot || 0;
       const sc = sched(), all = sc.slots(sc.prep(p)), [today, hm] = todayCtx(), o = dn(occ);
       if (!all[slot]) err('Bu iş için böyle bir kontrol yok.');
@@ -1698,7 +1755,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
         const p = pmap[c.plan_id], ps = sc.slots(p)[c.slot || 0] || p;
         return itemOut(ps, dn(c.occ_date), c, 'issue');
       }).sort((a, b2) => cmpTr(b2.completion.at, a.completion.at));
-      return { date: ymd(day), issues: issues.slice(0, 100), issue_count: issues.length, today: ymd(today), now: hm, workday: sc.isWorkday(day), items, tally: tally(items),
+      return { date: ymd(day), on_demand: onDemandItems(plansQuery((p) => p.active), ymd(day), ymd(day)), issues: issues.slice(0, 100), issue_count: issues.length, today: ymd(today), now: hm, workday: sc.isWorkday(day), items, tally: tally(items),
         by_location: groupTally(items, 'location', '-'), by_user: groupTally(items, 'user', 'Ortak (herkes)'),
         missed: missed.slice(0, 200), missed_count: missed.length,
         staff_count: S.users.filter((u) => u.active && u.role === 'staff').length,
@@ -1713,10 +1770,11 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
       if (from > to) [from, to] = [to, from];
       if (to - from > 92) err('Rapor aralığı en fazla 93 gün olabilir.');
       const cm = cmap(ymd(from), ymd(to)), lv = lmap(ymd(from), ymd(to));
-      const items = [];
+      const items = [], odPlans = [];
       plansQuery((p) => p.start_date <= ymd(to)).forEach((p0) => {
         if (q.user_id && p0.user_id !== +q.user_id) return;
         if (q.location_id && p0.location_id !== +q.location_id) return;
+        if (p0.freq_type === 'on_demand') { odPlans.push(p0); return; }
         const p = sc.prep(p0);
         sc.occurrences(p, from, to).forEach((o) => {
           sc.slots(p).forEach((ps) => {
@@ -1749,7 +1807,11 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
       return { from: ymd(from), to: ymd(to), summary: Object.assign(tally(items), { late_done: lateDone }),
         consumables: Object.values(cons).sort((a, c) => c.replaced - a.replaced || cmpTr(a.name, c.name)),
         by_user: groupTally(items, 'user', 'Ortak (herkes)'), by_location: groupTally(items, 'location', '-'), by_task: groupTally(items, 'task', '-'),
-        daily: Object.values(daily), problems: problems.slice(0, 300), problem_count: problems.length };
+        daily: Object.values(daily), problems: problems.slice(0, 300), problem_count: problems.length,
+        on_demand: onDemandItems(odPlans, ymd(from), ymd(to)).filter((i) => i.count).map((i) => {
+          const by_user = {}; i.entries.forEach((e) => { by_user[e.by] = (by_user[e.by] || 0) + 1; });
+          const { entries, ...rest } = i; return Object.assign(rest, { by_user, last_at: entries.length ? entries[entries.length - 1].at : null });
+        }) };
     },
     async locations() {
       return S.locations.filter((l) => l.active).sort((a, b) => a.sort_order - b.sort_order || cmpTr(a.name, b.name))
@@ -2487,7 +2549,8 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
     const r = (val, lbl) => `<label><input type="radio" name="${prefix}_type" value="${val}" ${t === val ? 'checked' : ''}><span>${lbl}</span></label>`;
     const days = [1, 2, 3, 4, 5, 6, 7].map((d) => `<label><input type="checkbox" name="${prefix}_wd" value="${d}" ${wd.includes(String(d)) ? 'checked' : ''}><span>${App.DAY_SHORT[d]}</span></label>`).join('');
     return `<div class="freq" data-freq="${prefix}">
-      <div class="seg">${r('daily', 'Her gün')}${r('every_n_days', 'X günde 1')}${r('weekly', 'Haftalık')}${r('monthly', 'Aylık')}</div>
+      <div class="seg">${r('daily', 'Her gün')}${r('every_n_days', 'X günde 1')}${r('weekly', 'Haftalık')}${r('monthly', 'Aylık')}${r('on_demand', 'İhtiyaç olduğunda')}</div>
+      <small class="muted" data-show="on_demand">Toplantı ikramı gibi düzenli olmayan işler için. Takvime bağlı değildir: personel iş çıktıkça istediği kadar işaretler; işaretlenmeyen gün “yapılmadı” sayılmaz ve başarı oranını etkilemez. Raporda kaç kez yapıldığı görünür.</small>
       <div class="inline" data-show="every_n_days"><input type="number" min="2" max="365" name="${prefix}_n_days" value="${t === 'every_n_days' ? v.freq_interval || 2 : 2}"> iş gününde bir</div>
       <div data-show="weekly" class="freq">
         <div class="days">${days}</div>
@@ -2539,6 +2602,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
       const sync = () => {
         const t = (f.querySelector(`input[name=${p}_type]:checked`) || {}).value;
         App.$$(':scope > [data-show]', f).forEach((s) => { s.hidden = s.dataset.show !== t; });
+        if (tf) tf.hidden = t === 'on_demand';
       };
       f.addEventListener('change', sync); sync();
     });
@@ -2552,6 +2616,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
     if (t === 'every_n_days') o.freq_interval = +val('n_days') || 2;
     if (t === 'weekly') { o.freq_interval = +val('n_weeks') || 1; o.weekdays = App.$$(`input[name=${p}_wd]:checked`, f).map((i) => i.value).join(','); }
     if (t === 'monthly') { o.freq_interval = +val('n_months') || 1; o.month_day = +val('md') || 1; }
+    if (t === 'on_demand') { o.due_time = null; o.times = null; }
     return o;
   };
 
@@ -2977,6 +3042,13 @@ window.__runAdmin = function () {
               <div class="sub"><span>${h(it.location)}</span><span>${h(it.completion.by || '')}</span></div></div>
             <span class="small muted nowrap">${h(App.relDay(it.completion.at))} ${h(App.fmtTime(it.completion.at))}</span></div>`).join('') + '</div>'
             : '<p class="muted small">Son 7 günde bildirilen sorun yok. 👍</p>'}</div>
+        ${data.on_demand && data.on_demand.length ? `<div class="glass card"><div class="card-head"><h3>İhtiyaç olduğunda</h3><span class="badge plain upcoming">${data.on_demand.reduce((n, o) => n + o.count, 0)} kayıt</span></div>
+          <div class="list">${data.on_demand.map((o) => `<div class="row">
+            <span class="od-num${o.count ? ' on' : ''}" style="width:34px;height:34px;font-size:14px;${o.count ? 'color:#fff;border-style:solid;border-color:transparent;background:linear-gradient(135deg,#3b82f6,#06b6d4)' : ''}">${o.count}</span>
+            <div><div class="title">${h(o.task)}</div><div class="sub"><span>${h(o.location)}</span><span>${h(o.user || 'Ortak')}</span>
+              ${o.entries.length ? `<span>${o.entries.map((e) => h(App.fmtTime(e.at)) + (e.note ? ' 💬' : '')).join(', ')}</span>` : '<span>Bugün yapılmadı</span>'}</div>
+              ${o.entries.filter((e) => e.note).map((e) => `<div class="muted small">💬 ${h(App.fmtTime(e.at))} · ${h(e.note)}</div>`).join('')}</div><span></span></div>`).join('')}</div>
+          <p class="muted small" style="margin-top:8px">Düzenli olmayan işler; yapılmadığı gün eksik sayılmaz.</p></div>` : ''}
         <div class="glass card"><div class="card-head"><h3>Mekanlara göre</h3></div>${bars(data.by_location, 'Veri yok')}</div>
         <div class="glass card"><div class="card-head"><h3>Personele göre</h3></div>${bars(data.by_user, 'Veri yok')}</div>
         <div class="glass card" data-missed><div class="card-head"><h3>Son 7 günde yapılmayanlar</h3><span class="badge missed">${data.missed_count}</span></div>
@@ -3948,6 +4020,13 @@ window.__runAdmin = function () {
             ${['done:ok', 'issue:issue', 'missed:bad', 'leave:leave', 'open:open'].map((k) => { const [f, c] = k.split(':'); return d[f] ? `<i class="${c}" style="height:${(d[f] * 100) / max}%;animation-delay:${i * 0.02}s"></i>` : ''; }).join('')}</div>`).join('')}</div>
           <div class="axis">${r.daily.map((d, i) => `<span>${r.daily.length <= 16 || i % Math.ceil(r.daily.length / 12) === 0 ? h(App.fmtShort(d.date)) : ''}</span>`).join('')}</div></div>
         <div class="grid cols-2" style="margin-bottom:16px">${table(r.by_user, 'Personele göre', 'Personel')}${table(r.by_location, 'Mekanlara göre', 'Mekan')}</div>
+        ${r.on_demand && r.on_demand.length ? `<div class="glass card" style="margin-bottom:16px"><div class="card-head"><h3>İhtiyaç olduğunda yapılan işler</h3>
+          <span class="muted small">Takvime bağlı olmayan işler; oran hesabına girmez</span></div>
+          <div class="table-wrap"><table><thead><tr><th>İş</th><th>Mekan</th><th>Kaç kez</th><th>Kim</th><th>Son</th></tr></thead><tbody>
+          ${r.on_demand.map((o) => `<tr><td><b>${h(o.task)}</b></td><td>${h(o.location)}</td><td><b style="color:var(--info)">${o.count}</b></td>
+            <td class="small">${Object.entries(o.by_user).map(([n, c]) => `${h(n)} (${c})`).join(', ')}</td>
+            <td class="small nowrap">${o.last_at ? h(App.fmtDate(o.last_at.slice(0, 10))) + ' ' + h(App.fmtTime(o.last_at)) : '—'}</td></tr>`).join('')}
+          </tbody></table></div></div>` : ''}
         ${r.consumables && r.consumables.length ? `<div class="glass card" style="margin-bottom:16px"><div class="card-head"><h3>Sarf malzemeleri</h3>
           <span class="muted small">Seçilen dönemde kaç kez kontrol edildi, kaç kez değiştirildi</span></div>
           <div class="table-wrap"><table><thead><tr><th>Malzeme</th><th>Kontrol edildi</th><th>Değiştirildi</th><th>Sorun</th><th>Yapılmadı</th><th>En çok değişen mekanlar</th></tr></thead><tbody>
@@ -4255,12 +4334,111 @@ window.__runStaff = function () {
       <span class="chev">${icon('chev')}</span></div>`;
   }
 
+  /* ---------- ihtiyaç olduğunda yapılan işler ---------- */
+  const odList = () => data.on_demand || [];
+  const canAddOd = () => !isPast() || me.role === 'admin';
+
+  function odCard(it) {
+    const last = it.entries[it.entries.length - 1];
+    const day = isPast() ? 'Bu gün' : 'Bugün';
+    const sub = `<span class="od-tag">${icon('refresh')} İhtiyaç olduğunda</span>`
+      + (it.count ? `<span class="od-count">${day} ${it.count} kez · son ${h(App.fmtTime(last.at))}</span>` : `<span>${day} henüz yapılmadı</span>`)
+      + (!it.user_id ? '<span>Ortak</span>' : '');
+    return `<div class="task glass od${it.count ? ' has' : ''}" data-od="${it.plan_id}" style="${it.color ? '--c:' + h(it.color) : ''}">
+      <span class="stripe"></span>
+      <span class="od-num" aria-label="${it.count} kez">${it.count}</span>
+      <div class="t-body"><div class="t-title">${h(it.task)}</div><div class="t-sub">${sub}</div></div>
+      ${canAddOd() ? `<button class="btn sm od-add" type="button" data-odadd aria-label="Yapıldı olarak kaydet">${icon('plus')}<span>Yapıldı</span></button>` : `<span class="chev">${icon('chev')}</span>`}</div>`;
+  }
+
+  function odSection() {
+    const f = activeFilter();
+    if (f === 'open') return '';
+    const list = odList().filter((it) => f !== 'done' || it.count);
+    if (!list.length) return '';
+    const groups = new Map();
+    list.forEach((it) => { if (!groups.has(it.location)) groups.set(it.location, []); groups.get(it.location).push(it); });
+    return `<section class="loc-group od-group"><div class="loc-head">${icon('refresh')}<h3>İhtiyaç olduğunda</h3><span class="cnt">${list.reduce((n, i) => n + i.count, 0)} kayıt</span></div>
+      <p class="muted small od-hint">Düzenli değil; iş çıktıkça (ör. toplantı oldukça) <b>Yapıldı</b>’ya dokunun. İşaretlenmeyen gün eksik sayılmaz.</p>
+      <div class="tasks${animateNext ? ' stagger' : ''}">${list.map(odCard).join('')}</div></section>`;
+  }
+
+  async function odAdd(card, it, btn) {
+    btn.classList.add('loading'); btn.disabled = true;
+    try {
+      const res = await App.completeItem(it, 'done');
+      Object.assign(it, res);
+      const r = btn.getBoundingClientRect();
+      App.confetti(r.left + r.width / 2, r.top + r.height / 2, 16);
+      if (navigator.vibrate) navigator.vibrate(12);
+      renderList(); renderChips();
+      const fresh = $(`.task[data-od="${it.plan_id}"]`, root);
+      if (fresh) { fresh.classList.add('just-done'); }
+      const e = it.entries[it.entries.length - 1];
+      App.toast(`Kaydedildi: ${it.task} (${isPast() ? 'bu gün' : 'bugün'} ${it.count}. kez)`, '', {
+        action: 'Geri al',
+        onAction: async () => { try { await App.uncompleteItem({ plan_id: it.plan_id, occ_date: e.occ_date, slot: e.slot }); load(); } catch (er) { App.err(er); } },
+      });
+    } catch (er) { App.err(er); btn.classList.remove('loading'); btn.disabled = false; }
+  }
+
+  function odSheet(it) {
+    const mine = (e) => App.canUndo({ completion: e });
+    const entries = it.entries.slice().reverse().map((e) => `<div class="row od-entry">
+      <span class="dot" style="background:${e.status === 'issue' ? 'var(--issue)' : 'var(--ok)'}"></span>
+      <div><div class="title">${h(App.fmtTime(e.at))} · ${h(e.by || '')}${e.inspected ? ' ' + App.star({ completion: e }) : ''}</div>
+        ${e.note ? `<div class="sub"><span>${h(e.note)}</span></div>` : ''}${e.photo ? `<img class="photo-thumb" src="${h(App.photoUrl(e))}" alt="Fotoğraf" loading="lazy">` : ''}</div>
+      ${mine(e) ? `<div class="actions"><button type="button" class="btn sm ghost danger" data-undo="${e.slot}">Geri al</button></div>` : '<span></span>'}</div>`).join('');
+    const body = `<div class="sheet-task">
+      <div class="meta"><span class="badge plain upcoming">İhtiyaç olduğunda</span><span class="tag">${icon('pin')}${h(it.location)}</span>${it.user ? `<span class="tag">${icon('user')}${h(it.user)}</span>` : ''}</div>
+      ${it.task_desc ? `<p class="muted">${h(it.task_desc)}</p>` : ''}
+      ${it.note ? `<div class="alert info">${h(it.note)}</div>` : ''}
+      ${canAddOd() ? `<label class="field"><span>Not (isteğe bağlı)</span><textarea name="note" placeholder="Örn. Kurul toplantısı, 12 kişi"></textarea></label>
+        <label class="photo-drop">${icon('camera')}<span>Fotoğraf ekle (isteğe bağlı)</span><input type="file" accept="image/*" capture="environment" hidden></label>
+        <div class="big-actions"><button class="btn warn" data-act="issue">${icon('flag')}<span>Sorun var</span></button>
+          <button class="btn success" data-act="done">${icon('plus')}<span>Yapıldı</span></button></div>` : ''}
+      <div class="field"><span>${isPast() ? 'Bu günün kayıtları' : 'Bugünkü kayıtlar'} (${it.count})</span>
+        ${entries ? `<div class="list">${entries}</div>` : '<p class="muted small">Henüz kayıt yok.</p>'}</div></div>`;
+    const m = App.modal({ title: it.task, body });
+    let photo = null;
+    const drop = $('.photo-drop', m.body);
+    if (drop) {
+      const input = drop.querySelector('input');
+      input.onchange = async () => {
+        if (!input.files[0]) return;
+        photo = await App.shrinkImage(input.files[0]);
+        drop.innerHTML = `<img src="${URL.createObjectURL(photo)}" alt=""><span>Değiştirmek için dokunun</span>`;
+        drop.appendChild(input);
+      };
+    }
+    $$('[data-act]', m.body).forEach((b) => (b.onclick = async () => {
+      const st = b.dataset.act, note = $('textarea', m.body).value.trim();
+      if (st === 'issue' && !note) { App.toast('Lütfen sorunu kısaca yazın', 'bad'); return; }
+      b.classList.add('loading');
+      try {
+        Object.assign(it, await App.completeItem(it, st, note, photo));
+        if (st === 'done') { const r = b.getBoundingClientRect(); App.confetti(r.left + r.width / 2, r.top, 26); }
+        App.toast(st === 'issue' ? 'Sorun bildirildi' : `Kaydedildi (${it.count}. kez)`, st === 'issue' ? 'info' : '');
+        m.close(); renderList();
+      } catch (er) { App.err(er); b.classList.remove('loading'); }
+    }));
+    $$('[data-undo]', m.body).forEach((b) => (b.onclick = async () => {
+      try { await App.uncompleteItem({ plan_id: it.plan_id, occ_date: data.date, slot: +b.dataset.undo }); App.toast('Kayıt geri alındı', 'info'); m.close(); load(); } catch (er) { App.err(er); }
+    }));
+  }
+
   function renderList() {
     const area = $('.list-area', root);
     const items = data.items.filter(visible);
     const past = isPast();
+    const od = odSection();
     const leaveNote = data.on_leave && data.items.length
       ? `<div class="alert leave">${icon('calendar')}<span>${past ? 'Bu gün izinliydiniz' : 'Bugün izinli olarak işaretlisiniz'}. Yapılmayan işleriniz <b>yapılmadı</b> sayılmaz.</span></div>` : '';
+    if (!data.items.length && od) {
+      area.innerHTML = od;
+      animateNext = false;
+      return;
+    }
     if (!data.items.length) {
       area.innerHTML = `<div class="glass empty"><div class="big">${data.on_leave ? '🏖️' : data.workday ? '☕' : '🌴'}</div>
         <b>${data.on_leave ? 'İzinli' : data.workday ? (past ? 'Bu gün size atanmış iş yoktu' : 'Bugün size atanmış iş yok') : (past ? 'İş günü değildi' : 'Bugün iş günü değil')}</b>
@@ -4271,7 +4449,8 @@ window.__runStaff = function () {
       const allDone = activeFilter() === 'todo' || (past && activeFilter() === 'open');
       area.innerHTML = leaveNote + `<div class="glass done-banner"><div class="big">${allDone ? '🎉' : '🗒️'}</div>
         <b>${allDone ? (past ? 'Bu günün tüm işleri tamamlanmış.' : 'Tebrikler! Bugünkü tüm işler tamam.') : 'Burada bir şey yok.'}</b>
-        <span class="muted">${allDone && !past ? 'Emeğiniz için teşekkürler.' : ''}</span></div>`;
+        <span class="muted">${allDone && !past ? 'Emeğiniz için teşekkürler.' : ''}</span></div>` + od;
+      animateNext = false;
       return;
     }
     const groups = new Map();
@@ -4286,7 +4465,7 @@ window.__runStaff = function () {
       html += `<section class="loc-group" style="animation-delay:${gi++ * 0.05}s"><div class="loc-head">${icon('pin')}<h3>${h(loc)}</h3><span class="cnt">${closed}/${all.length}</span></div>
         <div class="tasks${animateNext ? ' stagger' : ''}">${list.map(taskCard).join('')}</div></section>`;
     }
-    area.innerHTML = html;
+    area.innerHTML = html + od;
     animateNext = false;
   }
 
@@ -4393,6 +4572,13 @@ window.__runStaff = function () {
   root.addEventListener('click', (e) => {
     const card = e.target.closest('.task');
     if (!card) return;
+    if (card.dataset.od) {
+      const it = odList().find((i) => String(i.plan_id) === card.dataset.od);
+      if (!it) return;
+      const add = e.target.closest('[data-odadd]');
+      if (add) odAdd(card, it, add); else odSheet(it);
+      return;
+    }
     const it = findItem(card.dataset.key);
     if (!it) return;
     if (e.target.closest('.tick')) quickToggle(card, it);

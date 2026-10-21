@@ -31,6 +31,9 @@ siteyi açıp işleri işaretler. Yönetici de geciken ve yapılmayan işleri an
 - **X günde 1**: örn. 2 günde 1 halı kenarı paspası, 3 günde 1 çöp. Çalışma günü üzerinden sayılır.
 - **Haftalık / X haftada 1**: belirli günler, örn. 2 haftada bir Çarşamba asansör temizliği
 - **Aylık / X ayda 1**: ayın belirli günü, örn. ayda 1 cam silme. Gün tatile denk gelirse bir sonraki iş gününe kayar.
+- **İhtiyaç olduğunda**: toplantı ikramı gibi düzenli olmayan işler. Takvime bağlı değildir; personel iş çıktıkça
+  “Yapıldı”ya dokunur (gün içinde istediği kadar, not ve fotoğrafla). İşaretlenmeyen gün “yapılmadı” sayılmaz, başarı
+  oranını etkilemez; Günlük Durum ve Raporlar'da kaç kez yapıldığı ayrıca görünür.
 - İsteğe bağlı **hedef saat**: saat geçince iş “gecikti” olarak görünür.
 - **Günde birden çok kez**: sıklık editöründe “Saat ekle” ile birden fazla saat girilir (ör. Tuvalet Genel Kontrol 10:00, 11:00, 12:00, 14:00, 15:00, 16:00, 17:00; çay demleme 08:15 ve 13:00).
   Personel her saat için ayrı bir kontrol işaretler (1/4, 2/4…). Her kontrol bir önceki kontrolün saatinde açılır; bir sonraki
