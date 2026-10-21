@@ -137,7 +137,7 @@ function schema_statements(string $driver): array
     return $out;
 }
 
-const SCHEMA_VERSION = 12;
+const SCHEMA_VERSION = 13;
 
 function schema_install(PDO $pdo, string $driver): void
 {
@@ -236,6 +236,9 @@ function schema_upgrade(PDO $pdo, string $driver, int $from): void
                 $pdo->exec('ALTER TABLE completions ADD UNIQUE KEY uq_compl_slot (plan_id, occ_date, slot)');
             }
         }
+    }
+    if ($from < 13) {
+        schema_meal_rotation($pdo);
     }
     if ($from < 12) {
         // "Su/Damacana kontrolü" → "Su/Damacana Değişimi", ihtiyaç olduğunda
@@ -379,6 +382,50 @@ function schema_make_on_demand(PDO $pdo, array $names, string $type = 'on_demand
     }
 }
 
+/**
+ * v13: "Yemek görevi" her gün tek kişide değil, haftalık nöbetle yapılır (12:00):
+ * Pazartesi Aysel Akman, Salı Deniz Karabulut, Çarşamba Gülnaz Yalçın, Perşembe Yalçın Bıçakcı, Cuma Mumin Tekin.
+ * Her gün planlı eski atama dün itibarıyla kapanır (geçmiş korunur). Yönetici sıklığı değiştirdiyse dokunulmaz.
+ */
+function schema_meal_rotation(PDO $pdo): void
+{
+    $tid = (int)$pdo->query("SELECT id FROM tasks WHERE name = 'Yemek görevi' AND active = 1")->fetchColumn();
+    if (!$tid) {
+        return;
+    }
+    $old = $pdo->prepare("SELECT * FROM plans WHERE task_id = ? AND active = 1 AND freq_type = 'daily' ORDER BY id");
+    $old->execute([$tid]);
+    $plans = $old->fetchAll();
+    if (!$plans) {
+        return;
+    }
+    $rota = [1 => 'aysel.akman', 2 => 'deniz.karabulut', 3 => 'gulnaz.yalcin', 4 => 'yalcin.bicakci', 5 => 'mumin.tekin'];
+    $uid = $pdo->prepare('SELECT id FROM users WHERE username = ? AND active = 1');
+    $today = date('Y-m-d');
+    $yesterday = date('Y-m-d', strtotime('-1 day'));
+    $now = date('Y-m-d H:i:s');
+    $pdo->beginTransaction();
+    try {
+        $pdo->prepare("UPDATE package_items SET freq_type = 'weekly', freq_interval = 1, weekdays = '1', month_day = NULL, times = NULL
+                       WHERE task_id = ? AND freq_type = 'daily'")->execute([$tid]);
+        $ins = $pdo->prepare("INSERT INTO plans (task_id, location_id, user_id, package_id, freq_type, freq_interval, weekdays, month_day, due_time, times, start_date, end_date, note, active, created_at)
+                              VALUES (?, ?, ?, ?, 'weekly', 1, ?, NULL, ?, NULL, ?, NULL, ?, 1, ?)");
+        foreach ($plans as $p) {
+            $pdo->prepare('UPDATE plans SET active = 0, end_date = ? WHERE id = ?')->execute([$yesterday, $p['id']]);
+            foreach ($rota as $day => $username) {
+                $uid->execute([$username]);
+                $u = $uid->fetchColumn();
+                $ins->execute([$tid, $p['location_id'], $u ?: $p['user_id'], $p['package_id'], (string)$day, $p['due_time'] ?: '12:00',
+                    max($today, substr((string)$p['start_date'], 0, 10)), $p['note'], $now]);
+            }
+        }
+        $pdo->commit();
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        throw $e;
+    }
+}
+
 function looks_consumable(string $name): bool
 {
     $n = mb_strtolower(str_replace(['İ', 'I'], ['i', 'ı'], $name));
@@ -477,7 +524,7 @@ function schema_seed(PDO $pdo): void
             ['Çaydanlıkların detaylı temizliği', 'weekly', 1, '5', null, '15:00'],
             ['Kahve makinesi temizliği', 'daily', 1, null, null, '16:00'],
             ['Çay Ocağı Zemin Temizliği', 'daily', 1, null, null, '17:00'],
-            ['Yemek görevi', 'daily', 1, null, null, '12:00'],
+            ['Yemek görevi', 'weekly', 1, '1', null, '12:00'],
             ['Detaylı Çay Ocağı Temizliği', 'weekly', 1, '5', null, '16:00'],
             ['Makam ikram tabağı kontrolü', 'daily', 1, null, null, '09:30'],
             ['Çay ocağı rulosunun değiştirilmesi', 'on_demand', 1, null, null, null],
@@ -574,6 +621,11 @@ const DEMO_ASSIGNMENTS = [
     ['Koridor İş Paketi', 'Uzman Yardımcıları Koridoru', 'deniz.karabulut', null],
     ['Koridor İş Paketi', 'Makam Koridoru', 'gulnaz.yalcin', null],
     ['Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', 'aysel.akman', null],
+    // Yemek görevi nöbeti (12:00): Pazartesi Aysel (paketten), Salı Deniz, Çarşamba Gülnaz, Perşembe Yalçın, Cuma Mumin
+    ['Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', 'deniz.karabulut', ['Yemek görevi'], null, '2'],
+    ['Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', 'gulnaz.yalcin', ['Yemek görevi'], null, '3'],
+    ['Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', 'yalcin.bicakci', ['Yemek görevi'], null, '4'],
+    ['Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', 'mumin.tekin', ['Yemek görevi'], null, '5'],
 ];
 
 /** Kış dönemi: 1 Aralık – 15 Mart. Dönem içindeysek bugünden, değilsek ilk 1 Aralık'tan başlar. */
@@ -603,7 +655,7 @@ function schema_seed_assignments(PDO $pdo): int
     $loc = array_column($pdo->query('SELECT id, name FROM locations WHERE active = 1')->fetchAll(), 'id', 'name');
     $usr = array_column($pdo->query('SELECT id, username FROM users WHERE active = 1')->fetchAll(), 'id', 'username');
     $items = $pdo->prepare('SELECT pi.*, t.name AS task_name FROM package_items pi JOIN tasks t ON t.id = pi.task_id WHERE pi.package_id = ? ORDER BY pi.sort_order');
-    $dup = $pdo->prepare('SELECT 1 FROM plans WHERE active = 1 AND task_id = ? AND location_id = ?');
+    $dup = $pdo->prepare("SELECT 1 FROM plans WHERE active = 1 AND task_id = ? AND location_id = ? AND COALESCE(weekdays, '') = ?");
     $ins = $pdo->prepare('INSERT INTO plans (task_id, location_id, user_id, package_id, freq_type, freq_interval, weekdays, month_day, due_time, times, start_date, end_date, active, created_at)
                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)');
     $created = 0;
@@ -611,6 +663,7 @@ function schema_seed_assignments(PDO $pdo): int
     foreach (DEMO_ASSIGNMENTS as $row) {
         [$pname, $lname, $username, $only] = $row;
         [$start, $end] = ($row[4] ?? null) === 'winter' ? winter_window($today) : [$today, null];
+        $days = $row[5] ?? null; // haftalık nöbet: paketteki gün yerine bu gün(ler)
         if (!isset($pkg[$pname], $loc[$lname]) || ($username !== null && !isset($usr[$username]))) {
             continue;
         }
@@ -619,12 +672,13 @@ function schema_seed_assignments(PDO $pdo): int
             if ($only !== null && !in_array($it['task_name'], $only, true)) {
                 continue;
             }
-            $dup->execute([$it['task_id'], $loc[$lname]]);
+            $wd = $days ?? $it['weekdays'];
+            $dup->execute([$it['task_id'], $loc[$lname], (string)$wd]);
             if ($dup->fetchColumn()) {
                 continue;
             }
             $ins->execute([$it['task_id'], $loc[$lname], $username === null ? null : $usr[$username], $pkg[$pname],
-                $it['freq_type'], $it['freq_interval'], $it['weekdays'], $it['month_day'], $it['due_time'], $it['times'], $start, $end, $now]);
+                $days ? 'weekly' : $it['freq_type'], $days ? 1 : $it['freq_interval'], $wd, $it['month_day'], $it['due_time'], $it['times'], $start, $end, $now]);
             $pairs[] = [$loc[$lname], (int)$it['task_id']];
             $created++;
         }

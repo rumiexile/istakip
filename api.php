@@ -902,6 +902,10 @@ try {
             $date = d_in('date') ?? Sched::ymd($today);
             $day = min(Sched::dn($date), $today);
             $plans = plans_query('p.active = 1');
+            if ($day < $today) {
+                // Geçmiş günlerde, sonradan kapatılmış atamalar da görünsün (personel ekranıyla aynı).
+                $plans = plans_query('p.start_date <= ? AND (p.end_date IS NULL OR p.end_date >= ?)', [Sched::ymd($day), Sched::ymd($day)]);
+            }
             $items = day_items($S, $plans, $day);
 
             // Son 7 günde yapılmayan işler

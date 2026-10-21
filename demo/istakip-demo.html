@@ -1086,7 +1086,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v22';
+  const KEY = 'istakip-demo-v23';
   const REPORT_CATS = { clean: 'Temizlik gerekiyor', supply: 'Malzeme bitti', broken: 'Arıza / tamir', climate: 'Isıtma / soğutma', other: 'Diğer' };
   const store = {
     get() {
@@ -1293,7 +1293,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
         ['Çaydanlıkların detaylı temizliği', 'weekly', 1, '5', null, '15:00'],
         ['Kahve makinesi temizliği', 'daily', 1, null, null, '16:00'],
         ['Çay Ocağı Zemin Temizliği', 'daily', 1, null, null, '17:00'],
-        ['Yemek görevi', 'daily', 1, null, null, '12:00'],
+        ['Yemek görevi', 'weekly', 1, '1', null, '12:00'],
         ['Detaylı Çay Ocağı Temizliği', 'weekly', 1, '5', null, '16:00'],
         ['Makam ikram tabağı kontrolü', 'daily', 1, null, null, '09:30'],
         ['Çay ocağı rulosunun değiştirilmesi', 'on_demand', 1, null, null, null],
@@ -1349,13 +1349,13 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
       if (md <= '03-15') return [t, y + '-03-15'];
       return [y + '-12-01', (y + 1) + '-03-15'];
     };
-    const apply = (pkgName, locName, user, only, season) => {
+    const apply = (pkgName, locName, user, only, season, days) => {
       const [s0, e0] = season === 'winter' ? winter() : [start, null];
       S.package_items.filter((i) => i.package_id === pk[pkgName].id).forEach((it) => {
         const tname = S.tasks.find((t) => t.id === it.task_id).name;
         if (only && !only.includes(tname)) return;
         add('plans', { task_id: it.task_id, location_id: L[locName].id, user_id: user ? user.id : null, package_id: pk[pkgName].id,
-          freq_type: it.freq_type, freq_interval: it.freq_interval, weekdays: it.weekdays, month_day: it.month_day, due_time: it.due_time, times: it.times,
+          freq_type: days ? 'weekly' : it.freq_type, freq_interval: days ? 1 : it.freq_interval, weekdays: days || it.weekdays, month_day: it.month_day, due_time: it.due_time, times: it.times,
           start_date: s0, end_date: e0, note: null, active: 1, created_at: now });
       });
     };
@@ -1365,6 +1365,11 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
     apply('Koridor İş Paketi', 'Uzman Yardımcıları Koridoru', deniz);
     apply('Koridor İş Paketi', 'Makam Koridoru', gulnaz);
     apply('Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', aysel);
+    // Yemek görevi nöbeti (lib/schema.php DEMO_ASSIGNMENTS ile aynı)
+    apply('Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', deniz, ['Yemek görevi'], null, '2');
+    apply('Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', gulnaz, ['Yemek görevi'], null, '3');
+    apply('Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', yalcin, ['Yemek görevi'], null, '4');
+    apply('Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', mumin, ['Yemek görevi'], null, '5');
 
     // Hangi mekanda hangi işler yapılır (lib/schema.php ile aynı)
     Object.entries({
@@ -1754,7 +1759,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
       needAdmin();
       const sc = sched(), [today, hm] = todayCtx();
       const day = Math.min(validDate(q.date) ? dn(q.date) : today, today);
-      const items = dayItems(sc, plansQuery((p) => p.active), day);
+      const items = dayItems(sc, day < today ? plansQuery((p) => p.start_date <= ymd(day) && (!p.end_date || p.end_date >= ymd(day))) : plansQuery((p) => p.active), day);
       const missed = [];
       const from = day - 7, cm = cmap(ymd(from), ymd(day)), lv = lmap(ymd(from), ymd(day));
       plansQuery((p) => p.start_date <= ymd(day)).forEach((p0) => {
