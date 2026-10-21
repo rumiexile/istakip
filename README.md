@@ -32,7 +32,7 @@ siteyi açıp işleri işaretler. Yönetici de geciken ve yapılmayan işleri an
 - **Haftalık / X haftada 1**: belirli günler, örn. 2 haftada bir Çarşamba asansör temizliği
 - **Aylık / X ayda 1**: ayın belirli günü, örn. ayda 1 cam silme. Gün tatile denk gelirse bir sonraki iş gününe kayar.
 - İsteğe bağlı **hedef saat**: saat geçince iş “gecikti” olarak görünür.
-- **Günde birden çok kez**: sıklık editöründe “Saat ekle” ile birden fazla saat girilir (ör. saatlik lavabo kontrolü 09:00–17:00, çay demleme 08:15 ve 13:00).
+- **Günde birden çok kez**: sıklık editöründe “Saat ekle” ile birden fazla saat girilir (ör. Tuvalet Genel Kontrol 10:00, 11:00, 12:00, 14:00, 15:00, 16:00, 17:00; çay demleme 08:15 ve 13:00).
   Personel her saat için ayrı bir kontrol işaretler (1/4, 2/4…). Her kontrol bir önceki kontrolün saatinde açılır; bir sonraki
   kontrolün saati geldiğinde hâlâ yapılmamışsa “yapılmadı” sayılır. Böylece kontroller sonradan topluca işaretlenemez.
 
@@ -51,7 +51,7 @@ hâlâ yapılmamışsa o tekrar **yapılmadı** olarak kaydedilir ve raporlara d
    - Alternatif olarak bir alt alan adı (örn. `istakip.siteniz.com`) açıp kök klasörünü bu klasör olarak gösterebilirsiniz.
 3. **Kurulum sihirbazı:** Tarayıcıda `https://siteniz.com/istakip/install.php` adresini açın.
    Veritabanı bilgilerini, kurum adını ve yönetici hesabını girin. “Örnek verileri yükle” seçeneği,
-   10 mekanı ve dört iş paketini getirir: **Çay Ocağı Ana Sorumluluk Paketi** (12 iş), **Koridor İş Paketi** (16 iş), **Bahçe Sorumluluk Paketi** (9 iş) ve **Fotokopi Alanı Paketi** (1 iş).
+   10 mekanı ve dört iş paketini getirir: **Çay Ocağı Ana Sorumluluk Paketi** (12 iş), **Koridor İş Paketi** (15 iş), **Bahçe Sorumluluk Paketi** (9 iş) ve **Fotokopi Alanı Paketi** (1 iş).
    “Ön tanımlı personeli ekle” seçeneği şu kişileri ekler: Aysel Akman, Deniz Karabulut, Gülnaz Yalçın,
    Mahmut Demirel, Mumin Tekin, Yalçın Bıçakcı. Kullanıcı adları `ad.soyad` biçimindedir (örn. `aysel.akman`).
    Geçici şifreler kurulum bitince **bir kez** gösterilir. Not alıp personele iletin.

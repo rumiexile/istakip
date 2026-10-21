@@ -137,7 +137,7 @@ function schema_statements(string $driver): array
     return $out;
 }
 
-const SCHEMA_VERSION = 7;
+const SCHEMA_VERSION = 8;
 
 function schema_install(PDO $pdo, string $driver): void
 {
@@ -237,6 +237,9 @@ function schema_upgrade(PDO $pdo, string $driver, int $from): void
             }
         }
     }
+    if ($from < 8) {
+        schema_merge_toilet_check($pdo);
+    }
     if ($from < 7) {
         // Dış kullanıcı sorun bildirimi: her mekanın karekod anahtarı (reports tablosu yukarıda kurulur).
         try {
@@ -257,13 +260,77 @@ function schema_upgrade(PDO $pdo, string $driver, int $from): void
     }
 }
 
+/**
+ * v8: "Tuvalet kağıdı ve havlu kağıt kontrolü" ile "Saatlik lavaboların yapılması" tek işte birleşir:
+ * "Tuvalet Genel Kontrol", her gün 10:00, 11:00, 12:00, 14:00, 15:00, 16:00, 17:00.
+ * Eski atamalar dün itibarıyla kapanır (geçmiş kayıtlar korunur), aynı mekan/kişi için yenisi bugün başlar.
+ * Yönetici bu birleştirmeyi zaten yaptıysa ya da eski işler yoksa hiçbir şey değişmez.
+ */
+function schema_merge_toilet_check(PDO $pdo): void
+{
+    $name = 'Tuvalet Genel Kontrol';
+    $times = '10:00,11:00,12:00,14:00,15:00,16:00,17:00';
+    $find = $pdo->prepare('SELECT id FROM tasks WHERE name = ? AND active = 1');
+    $old = [];
+    foreach (['Saatlik lavaboların yapılması', 'Tuvalet kağıdı ve havlu kağıt kontrolü'] as $n) {
+        $find->execute([$n]);
+        if ($id = $find->fetchColumn()) {
+            $old[] = (int)$id;
+        }
+    }
+    $find->execute([$name]);
+    if (!$old || $find->fetchColumn()) {
+        return;
+    }
+    $now = date('Y-m-d H:i:s');
+    $today = date('Y-m-d');
+    $yesterday = date('Y-m-d', strtotime('-1 day'));
+    $in = implode(',', $old);
+    $pdo->beginTransaction();
+    try {
+        $pdo->prepare("INSERT INTO tasks (name, freq_type, freq_interval, weekdays, month_day, due_time, times, kind, active, created_at)
+                       VALUES (?, 'daily', 1, NULL, NULL, '10:00', ?, 'consumable', 1, ?)")->execute([$name, $times, $now]);
+        $new = (int)$pdo->lastInsertId();
+
+        // Paketler: eski işlerin yerine tek satır (ilk eski işin sırasında)
+        foreach ($pdo->query("SELECT package_id, MIN(sort_order) AS so FROM package_items WHERE task_id IN ($in) GROUP BY package_id")->fetchAll() as $r) {
+            $pdo->prepare("DELETE FROM package_items WHERE package_id = ? AND task_id IN ($in)")->execute([$r['package_id']]);
+            $pdo->prepare("INSERT INTO package_items (package_id, task_id, freq_type, freq_interval, weekdays, month_day, due_time, times, sort_order)
+                           VALUES (?, ?, 'daily', 1, NULL, NULL, '10:00', ?, ?)")->execute([$r['package_id'], $new, $times, (int)$r['so']]);
+        }
+
+        // Mekan ↔ iş bağlantıları
+        $locs = $pdo->query("SELECT DISTINCT location_id FROM location_tasks WHERE task_id IN ($in)")->fetchAll(PDO::FETCH_COLUMN);
+        $pdo->exec("DELETE FROM location_tasks WHERE task_id IN ($in)");
+        link_pairs($pdo, array_map(fn($l) => [(int)$l, $new], $locs));
+
+        // Atamalar: her mekan + kişi + paket için bir yeni atama
+        $groups = [];
+        foreach ($pdo->query("SELECT * FROM plans WHERE active = 1 AND task_id IN ($in) ORDER BY id")->fetchAll() as $p) {
+            $key = $p['location_id'] . '|' . ($p['user_id'] ?? '') . '|' . ($p['package_id'] ?? '');
+            $groups[$key] = $groups[$key] ?? $p;
+            $pdo->prepare('UPDATE plans SET active = 0, end_date = ? WHERE id = ?')->execute([$yesterday, $p['id']]);
+        }
+        $ins = $pdo->prepare("INSERT INTO plans (task_id, location_id, user_id, package_id, freq_type, freq_interval, weekdays, month_day, due_time, times, start_date, end_date, note, active, created_at)
+                              VALUES (?, ?, ?, ?, 'daily', 1, NULL, NULL, '10:00', ?, ?, NULL, NULL, 1, ?)");
+        foreach ($groups as $p) {
+            $ins->execute([$new, $p['location_id'], $p['user_id'], $p['package_id'], $times, max($today, substr((string)$p['start_date'], 0, 10)), $now]);
+        }
+        $pdo->exec("UPDATE tasks SET active = 0 WHERE id IN ($in)");
+        $pdo->commit();
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        throw $e;
+    }
+}
+
 function looks_consumable(string $name): bool
 {
     $n = mb_strtolower(str_replace(['İ', 'I'], ['i', 'ı'], $name));
     if (str_contains($n, 'temizl')) {
         return false; // "… çevresi temizliği" gibi temizlik işleri sarf malzemesi değildir.
     }
-    return (bool)preg_match('/tuvalet ka[gğ]ı|havlu|sabun|sebil|damacana|rulo|ikram taba[gğ]ı|ö[gğ]ütücü|\bpil\b/u', $n);
+    return (bool)preg_match('/genel kontrol|tuvalet ka[gğ]ı|havlu|sabun|sebil|damacana|rulo|ikram taba[gğ]ı|ö[gğ]ütücü|\bpil\b/u', $n);
 }
 
 /** @param array<int,array{0:int,1:int}> $pairs [mekan, iş] */
@@ -368,9 +435,8 @@ function schema_seed(PDO $pdo): void
             ['Tuvalet klozet temizliği', 'daily', 1, null, null, '10:00'],
             ['Tuvalet lavabo temizliği', 'daily', 1, null, null, '10:00'],
             ['Tuvalet ayna temizliği', 'daily', 1, null, null, '10:00'],
-            ['Tuvalet kağıdı ve havlu kağıt kontrolü', 'daily', 1, null, null, '09:30'],
             ['Sabunluk kontrolü', 'daily', 1, null, null, '09:30'],
-            ['Saatlik lavaboların yapılması', 'daily', 1, null, null, '09:00', '09:00,10:00,11:00,12:00,13:00,14:00,15:00,16:00,17:00'],
+            ['Tuvalet Genel Kontrol', 'daily', 1, null, null, '10:00', '10:00,11:00,12:00,14:00,15:00,16:00,17:00'],
             ['Detaylı tuvalet temizliği', 'weekly', 1, '5', null, '15:00'],
             ['Koridor pencere küpeşte önü temizliği', 'weekly', 1, '2,4', null, '14:00'],
             ['Çay servis hizmetleri', 'daily', 1, null, null, null],
@@ -425,8 +491,8 @@ function schema_seed(PDO $pdo): void
 
     // Hangi mekanda hangi işler yapılır
     $map = [
-        'Uzman Yardımcıları Koridoru' => ['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Tuvalet kağıdı ve havlu kağıt kontrolü', 'Sabunluk kontrolü', 'Saatlik lavaboların yapılması', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği', 'Misafir alanı temizliği'],
-        'Makam Koridoru' => ['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Tuvalet kağıdı ve havlu kağıt kontrolü', 'Sabunluk kontrolü', 'Saatlik lavaboların yapılması', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği', 'Misafir alanı temizliği'],
+        'Uzman Yardımcıları Koridoru' => ['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Sabunluk kontrolü', 'Tuvalet Genel Kontrol', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği', 'Misafir alanı temizliği'],
+        'Makam Koridoru' => ['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Sabunluk kontrolü', 'Tuvalet Genel Kontrol', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği', 'Misafir alanı temizliği'],
         'Çay Ocağı' => ['Çay hazırlama', 'Bulaşık Yıkama', 'Çay malzeme eksiklerinin tedarik edilmesi', 'Su/Damacana kontrolü', 'Çaydanlıkların detaylı temizliği', 'Kahve makinesi temizliği', 'Çay Ocağı Zemin Temizliği', 'Yemek görevi', 'Detaylı Çay Ocağı Temizliği', 'Makam ikram tabağı kontrolü', 'Çay ocağı rulosunun değiştirilmesi', 'Toplantıların ikramlarının hazırlanması ve sunumu'],
         'Bahçe ve Otopark' => ['Girişin temizliği, halı temizliği', 'Bahçe çöplerinin toplanması', 'Çiçeklerin bakımı, budama', 'Sulama', 'Yaprak temizliği', 'Ofis ve koridor saksı çiçeklerinin bakımı', 'Kar küreme ve tuzlama işlemleri', 'Bahçe ilaçlaması', 'Depo düzenlemesi'],
         'Fotokopi Alanı' => ['Fotokopi makinesinin çevre temizliği'],

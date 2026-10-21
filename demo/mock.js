@@ -3,7 +3,7 @@
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v17';
+  const KEY = 'istakip-demo-v18';
   const REPORT_CATS = { clean: 'Temizlik gerekiyor', supply: 'Malzeme bitti', broken: 'Arıza / tamir', climate: 'Isıtma / soğutma', other: 'Diğer' };
   const store = {
     get() {
@@ -173,7 +173,7 @@
   function looksConsumable(name) {
     const n = name.toLocaleLowerCase('tr');
     if (n.includes('temizl')) return false;
-    return /tuvalet ka[gğ]ı|havlu|sabun|sebil|damacana|rulo|ikram tabağı|ö[gğ]ütücü|(^|\s)pil(\s|$)/.test(n);
+    return /genel kontrol|tuvalet ka[gğ]ı|havlu|sabun|sebil|damacana|rulo|ikram tabağı|ö[gğ]ütücü|(^|\s)pil(\s|$)/.test(n);
   }
 
   /* ---------- örnek veri ---------- */
@@ -219,9 +219,8 @@
         ['Tuvalet klozet temizliği', 'daily', 1, null, null, '10:00'],
         ['Tuvalet lavabo temizliği', 'daily', 1, null, null, '10:00'],
         ['Tuvalet ayna temizliği', 'daily', 1, null, null, '10:00'],
-        ['Tuvalet kağıdı ve havlu kağıt kontrolü', 'daily', 1, null, null, '09:30'],
         ['Sabunluk kontrolü', 'daily', 1, null, null, '09:30'],
-        ['Saatlik lavaboların yapılması', 'daily', 1, null, null, '09:00', '09:00,10:00,11:00,12:00,13:00,14:00,15:00,16:00,17:00'],
+        ['Tuvalet Genel Kontrol', 'daily', 1, null, null, '10:00', '10:00,11:00,12:00,14:00,15:00,16:00,17:00'],
         ['Detaylı tuvalet temizliği', 'weekly', 1, '5', null, '15:00'],
         ['Koridor pencere küpeşte önü temizliği', 'weekly', 1, '2,4', null, '14:00'],
         ['Çay servis hizmetleri', 'daily', 1, null, null, null],
@@ -283,8 +282,8 @@
 
     // Hangi mekanda hangi işler yapılır (lib/schema.php ile aynı)
     Object.entries({
-      'Uzman Yardımcıları Koridoru': ['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Tuvalet kağıdı ve havlu kağıt kontrolü', 'Sabunluk kontrolü', 'Saatlik lavaboların yapılması', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği', 'Misafir alanı temizliği'],
-      'Makam Koridoru': ['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Tuvalet kağıdı ve havlu kağıt kontrolü', 'Sabunluk kontrolü', 'Saatlik lavaboların yapılması', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği', 'Misafir alanı temizliği'],
+      'Uzman Yardımcıları Koridoru': ['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Sabunluk kontrolü', 'Tuvalet Genel Kontrol', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği', 'Misafir alanı temizliği'],
+      'Makam Koridoru': ['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Sabunluk kontrolü', 'Tuvalet Genel Kontrol', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği', 'Misafir alanı temizliği'],
       'Çay Ocağı': ['Çay hazırlama', 'Bulaşık Yıkama', 'Çay malzeme eksiklerinin tedarik edilmesi', 'Su/Damacana kontrolü', 'Çaydanlıkların detaylı temizliği', 'Kahve makinesi temizliği', 'Çay Ocağı Zemin Temizliği', 'Yemek görevi', 'Detaylı Çay Ocağı Temizliği', 'Makam ikram tabağı kontrolü', 'Çay ocağı rulosunun değiştirilmesi', 'Toplantıların ikramlarının hazırlanması ve sunumu'],
       'Bahçe ve Otopark': ['Girişin temizliği, halı temizliği', 'Bahçe çöplerinin toplanması', 'Çiçeklerin bakımı, budama', 'Sulama', 'Yaprak temizliği', 'Ofis ve koridor saksı çiçeklerinin bakımı', 'Kar küreme ve tuzlama işlemleri', 'Bahçe ilaçlaması', 'Depo düzenlemesi'],
       'Fotokopi Alanı': ['Fotokopi makinesinin çevre temizliği'],
