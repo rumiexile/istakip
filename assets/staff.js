@@ -243,44 +243,40 @@
   const odList = () => data.on_demand || [];
   const canAddOd = () => !isPast() || me.role === 'admin';
 
+  /** "İhtiyaç olduğunda" iş kartı: diğer görevlerle aynı kart; yuvarlağa her dokunuş bir kayıt ekler. */
   function odCard(it) {
     const last = it.entries[it.entries.length - 1];
     const day = isPast() ? 'Bu gün' : 'Bugün';
-    const sub = `<span class="od-tag">${icon('refresh')} İhtiyaç olduğunda</span>`
-      + (it.count ? `<span class="od-count">${day} ${it.count} kez · son ${h(App.fmtTime(last.at))}</span>` : `<span>${day} henüz yapılmadı</span>`)
-      + (!it.user_id ? '<span>Ortak</span>' : '');
-    return `<div class="task glass od${it.count ? ' has' : ''}" data-od="${it.plan_id}" style="${it.color ? '--c:' + h(it.color) : ''}">
+    let sub = '<span class="od-tag">İhtiyaç olduğunda</span>';
+    sub += it.count ? `<span>${day} ${it.count} kez · son ${h(App.fmtTime(last.at))}</span>` : `<span>${canAddOd() ? 'Yaptıkça dokunun' : day + ' yapılmadı'}</span>`;
+    if (!it.user_id) sub += '<span>Ortak</span>';
+    return `<div class="task glass is-od${it.count ? ' has' : ''}" data-od="${it.plan_id}" style="${it.color ? '--c:' + h(it.color) : ''}">
       <span class="stripe"></span>
-      <span class="od-num" aria-label="${it.count} kez">${it.count}</span>
+      <button class="tick${it.count ? ' on' : ''}${canAddOd() ? '' : ' locked'}" aria-label="Yapıldı olarak kaydet"><svg viewBox="0 0 24 24">${it.count ? '<path d="M5 12.5l4.5 4.5L19 7.5"/>' : '<path d="M12 6v12M6 12h12"/>'}</svg>${it.count ? `<span class="od-badge">${it.count}</span>` : ''}<span class="burst"></span></button>
       <div class="t-body"><div class="t-title">${h(it.task)}</div><div class="t-sub">${sub}</div></div>
-      ${canAddOd() ? `<button class="btn sm od-add" type="button" data-odadd aria-label="Yapıldı olarak kaydet">${icon('plus')}<span>Yapıldı</span></button>` : `<span class="chev">${icon('chev')}</span>`}</div>`;
+      <span class="chev">${icon('chev')}</span></div>`;
   }
 
-  function odSection() {
-    const f = activeFilter();
-    if (f === 'open') return '';
-    const list = odList().filter((it) => f !== 'done' || it.count);
-    if (!list.length) return '';
-    const groups = new Map();
-    list.forEach((it) => { if (!groups.has(it.location)) groups.set(it.location, []); groups.get(it.location).push(it); });
-    return `<section class="loc-group od-group"><div class="loc-head">${icon('refresh')}<h3>İhtiyaç olduğunda</h3><span class="cnt">${list.reduce((n, i) => n + i.count, 0)} kayıt</span></div>
-      <p class="muted small od-hint">Düzenli değil; iş çıktıkça (ör. toplantı oldukça) <b>Yapıldı</b>’ya dokunun. İşaretlenmeyen gün eksik sayılmaz.</p>
-      <div class="tasks${animateNext ? ' stagger' : ''}">${list.map(odCard).join('')}</div></section>`;
+  /** Sürekli görev kartı: aynı kart, işaretleme yok. */
+  function rtCard(it) {
+    return `<div class="task glass is-rt" data-rt="${it._i}" style="${it.color ? '--c:' + h(it.color) : ''}">
+      <span class="stripe"></span>
+      <span class="tick rt-tick" aria-hidden="true"><b>∞</b></span>
+      <div class="t-body"><div class="t-title">${h(it.task)}</div><div class="t-sub"><span class="rt-tag">Sürekli görev</span><span>İşaretlemeye gerek yok</span>${!it.user_id ? '<span>Ortak</span>' : ''}</div></div>
+      <span class="chev">${icon('chev')}</span></div>`;
   }
 
-  /* ---------- sürekli görevler (takip edilmez) ---------- */
-  function routineSection() {
+  /** Filtreye göre listede gösterilecek "ihtiyaç olduğunda" ve sürekli görevler */
+  function extraCards() {
     const f = activeFilter();
-    const list = data.routine || [];
-    if (!list.length || f === 'open' || f === 'done') return '';
-    return `<section class="loc-group rt-group"><div class="loc-head"><span class="rt-ico" aria-hidden="true">∞</span><h3>Sürekli görevler</h3><span class="cnt">${list.length}</span></div>
-      <p class="muted small od-hint">Gün boyu zaten yaptığınız işler; işaretlemenize gerek yok.</p>
-      <div class="rt-list">${list.map((it, i) => `<button type="button" class="rt-item glass" data-rt="${i}" style="${it.color ? '--c:' + h(it.color) : ''}">
-        <span class="rt-dot"></span><span class="rt-text"><b>${h(it.task)}</b><small>${h(it.location)}</small></span></button>`).join('')}</div></section>`;
+    const od = f === 'open' ? [] : odList().filter((it) => f !== 'done' || it.count);
+    const rt = f === 'open' || f === 'done' ? [] : (data.routine || []).map((it, i) => Object.assign(it, { _i: i }));
+    return { od, rt };
   }
 
   async function odAdd(card, it, btn) {
-    btn.classList.add('loading'); btn.disabled = true;
+    if (btn.disabled) return;
+    btn.disabled = true; btn.classList.add('on');
     try {
       const res = await App.completeItem(it, 'done');
       Object.assign(it, res);
@@ -295,7 +291,7 @@
         action: 'Geri al',
         onAction: async () => { try { await App.uncompleteItem({ plan_id: it.plan_id, occ_date: e.occ_date, slot: e.slot }); load(); } catch (er) { App.err(er); } },
       });
-    } catch (er) { App.err(er); btn.classList.remove('loading'); btn.disabled = false; }
+    } catch (er) { App.err(er); btn.disabled = false; renderList(); }
   }
 
   function odSheet(it) {
@@ -347,7 +343,8 @@
     const area = $('.list-area', root);
     const items = data.items.filter(visible);
     const past = isPast();
-    const od = odSection() + routineSection();
+    const extra = extraCards();
+    const od = extra.od.length || extra.rt.length ? groupsHtml([], extra) : '';
     const leaveNote = data.on_leave && data.items.length
       ? `<div class="alert leave">${icon('calendar')}<span>${past ? 'Bu gün izinliydiniz' : 'Bugün izinli olarak işaretlisiniz'}. Yapılmayan işleriniz <b>yapılmadı</b> sayılmaz.</span></div>` : '';
     if (!data.items.length && od) {
@@ -369,20 +366,27 @@
       animateNext = false;
       return;
     }
+    area.innerHTML = leaveNote + groupsHtml(items, extra);
+    animateNext = false;
+  }
+
+  /** Mekan grupları: önce saatli görevler (saate göre), sonra ihtiyaç olduğunda ve sürekli görevler — hepsi aynı kart. */
+  function groupsHtml(items, extra) {
     const groups = new Map();
+    const put = (loc, html) => { if (!groups.has(loc)) groups.set(loc, []); groups.get(loc).push(html); };
     // Sıra yalnızca saate bağlı: bir iş tamamlandığında yeri değişmez.
-    items.sort((a, b) => String(a.due_time || '99').localeCompare(String(b.due_time || '99')) || a.task.localeCompare(b.task, 'tr') || (a.slot || 0) - (b.slot || 0));
-    items.forEach((it) => { if (!groups.has(it.location)) groups.set(it.location, []); groups.get(it.location).push(it); });
-    let html = leaveNote;
-    let gi = 0;
-    for (const [loc, list] of groups) {
+    items.slice().sort((a, b) => String(a.due_time || '99').localeCompare(String(b.due_time || '99')) || a.task.localeCompare(b.task, 'tr') || (a.slot || 0) - (b.slot || 0))
+      .forEach((it) => put(it.location, taskCard(it)));
+    extra.od.forEach((it) => put(it.location, odCard(it)));
+    extra.rt.forEach((it) => put(it.location, rtCard(it)));
+    let html = '', gi = 0;
+    for (const [loc, cards] of groups) {
       const all = data.items.filter((i) => i.location === loc);
       const closed = all.filter((i) => i.status === 'done' || i.status === 'issue').length;
-      html += `<section class="loc-group" style="animation-delay:${gi++ * 0.05}s"><div class="loc-head">${icon('pin')}<h3>${h(loc)}</h3><span class="cnt">${closed}/${all.length}</span></div>
-        <div class="tasks${animateNext ? ' stagger' : ''}">${list.map(taskCard).join('')}</div></section>`;
+      html += `<section class="loc-group" style="animation-delay:${gi++ * 0.05}s"><div class="loc-head">${icon('pin')}<h3>${h(loc)}</h3>${all.length ? `<span class="cnt">${closed}/${all.length}</span>` : ''}</div>
+        <div class="tasks${animateNext ? ' stagger' : ''}">${cards.join('')}</div></section>`;
     }
-    area.innerHTML = html + od;
-    animateNext = false;
+    return html;
   }
 
   /** Yöneticinin kontrol ettiği işler için bir kez gösterilen kutlama */
@@ -499,8 +503,8 @@
     if (card.dataset.od) {
       const it = odList().find((i) => String(i.plan_id) === card.dataset.od);
       if (!it) return;
-      const add = e.target.closest('[data-odadd]');
-      if (add) odAdd(card, it, add); else odSheet(it);
+      const add = e.target.closest('.tick');
+      if (add && canAddOd()) odAdd(card, it, add); else odSheet(it);
       return;
     }
     const it = findItem(card.dataset.key);

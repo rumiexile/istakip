@@ -1014,3 +1014,17 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
 .rt-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--c, var(--muted)); opacity: .8; }
 .rt-text b { display: block; font-size: 14px; font-weight: 650; }
 .rt-text small { color: var(--muted); font-size: 12px; }
+
+/* ihtiyaç olduğunda / sürekli görev: diğer kartlarla aynı tasarım */
+.task.is-od .tick svg { stroke: var(--info); stroke-dashoffset: 0; }
+.task.is-od .tick { --c: var(--info); }
+.task.is-od .tick.on svg { stroke: #fff; }
+.task.is-od .tick.locked { cursor: default; }
+.od-badge { position: absolute; top: -6px; right: -8px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; display: grid; place-items: center;
+  font-size: 11px; font-weight: 800; color: #fff; background: var(--info); border: 2px solid var(--bg); box-sizing: content-box; animation: starIn .5s var(--spring) both; }
+.task.is-od.just-done .od-badge { animation: odBump .6s var(--spring); }
+.task .t-sub .od-tag { color: var(--info); font-weight: 700; }
+.task .t-sub .rt-tag { color: var(--muted); font-weight: 700; }
+.rt-tick { border-style: dashed; cursor: default; opacity: .7; }
+.rt-tick b { font-size: 20px; line-height: 1; color: var(--muted); font-weight: 800; }
+.rt-tick:hover { transform: none; box-shadow: none; }
