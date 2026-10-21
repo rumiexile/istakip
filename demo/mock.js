@@ -3,7 +3,7 @@
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v26';
+  const KEY = 'istakip-demo-v27';
   const REPORT_CATS = { clean: 'Temizlik gerekiyor', supply: 'Malzeme bitti', broken: 'Arıza / tamir', climate: 'Isıtma / soğutma', other: 'Diğer' };
   const store = {
     get() {
@@ -206,7 +206,7 @@
         ['Çay hazırlama', 'routine', 1, null, null, null],
         ['Bulaşık Yıkama', 'routine', 1, null, null, null],
         ['Makam Odaları Çay İkram Hizmetleri', 'routine', 1, null, null, null],
-        ['Çay malzeme eksiklerinin tedarik edilmesi', 'weekly', 1, '1', null, '10:00'],
+        ['Çay malzeme eksiklerinin tedarik edilmesi', 'on_demand', 1, null, null, null],
         ['Su/Damacana Değişimi', 'on_demand', 1, null, null, null],
         ['Çaydanlıkların detaylı temizliği', 'weekly', 1, '5', null, '15:00'],
         ['Kahve makinesi temizliği', 'daily', 1, null, null, '16:00'],

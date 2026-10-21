@@ -137,7 +137,7 @@ function schema_statements(string $driver): array
     return $out;
 }
 
-const SCHEMA_VERSION = 16;
+const SCHEMA_VERSION = 17;
 
 function schema_install(PDO $pdo, string $driver): void
 {
@@ -249,6 +249,9 @@ function schema_upgrade(PDO $pdo, string $driver, int $from): void
     if ($from < 16) {
         schema_add_routine($pdo, 'Makam Odaları Çay İkram Hizmetleri', 'Çay Ocağı Ana Sorumluluk Paketi', 'Çay Ocağı', 'aysel.akman');
     }
+    if ($from < 17) {
+        schema_make_on_demand($pdo, ['Çay malzeme eksiklerinin tedarik edilmesi'], 'on_demand', ['weekly']);
+    }
     if ($from < 12) {
         // "Su/Damacana kontrolü" → "Su/Damacana Değişimi", ihtiyaç olduğunda
         $has = $pdo->query("SELECT COUNT(*) FROM tasks WHERE name = 'Su/Damacana Değişimi' AND active = 1")->fetchColumn();
@@ -358,12 +361,13 @@ function schema_merge_toilet_check(PDO $pdo): void
  * kapanır (geçmiş korunur), aynı mekan/kişi için "ihtiyaç olduğunda" ataması bugün başlar.
  * Yalnızca hâlâ "Her gün" olan işlere dokunur; yönetici sıklığı değiştirdiyse olduğu gibi kalır.
  */
-function schema_make_on_demand(PDO $pdo, array $names, string $type = 'on_demand'): void
+function schema_make_on_demand(PDO $pdo, array $names, string $type = 'on_demand', array $fromTypes = ['daily']): void
 {
     $today = date('Y-m-d');
     $yesterday = date('Y-m-d', strtotime('-1 day'));
     $now = date('Y-m-d H:i:s');
-    $find = $pdo->prepare("SELECT id FROM tasks WHERE name = ? AND active = 1 AND freq_type = 'daily'");
+    $in = implode(',', array_map(fn($t) => $pdo->quote($t), $fromTypes));
+    $find = $pdo->prepare("SELECT id FROM tasks WHERE name = ? AND active = 1 AND freq_type IN ($in)");
     $od = "freq_type = '$type', freq_interval = 1, weekdays = NULL, month_day = NULL, due_time = NULL, times = NULL";
     foreach ($names as $n) {
         $find->execute([$n]);
@@ -374,8 +378,8 @@ function schema_make_on_demand(PDO $pdo, array $names, string $type = 'on_demand
         $pdo->beginTransaction();
         try {
             $pdo->prepare("UPDATE tasks SET $od WHERE id = ?")->execute([$tid]);
-            $pdo->prepare("UPDATE package_items SET $od WHERE task_id = ? AND freq_type = 'daily'")->execute([$tid]);
-            $plans = $pdo->prepare("SELECT * FROM plans WHERE task_id = ? AND active = 1 AND freq_type = 'daily'");
+            $pdo->prepare("UPDATE package_items SET $od WHERE task_id = ? AND freq_type IN ($in)")->execute([$tid]);
+            $plans = $pdo->prepare("SELECT * FROM plans WHERE task_id = ? AND active = 1 AND freq_type IN ($in)");
             $plans->execute([$tid]);
             foreach ($plans->fetchAll() as $p) {
                 $pdo->prepare('UPDATE plans SET active = 0, end_date = ? WHERE id = ?')->execute([$yesterday, $p['id']]);
@@ -636,7 +640,7 @@ function schema_seed(PDO $pdo): void
             ['Çay hazırlama', 'routine', 1, null, null, null],
             ['Bulaşık Yıkama', 'routine', 1, null, null, null],
             ['Makam Odaları Çay İkram Hizmetleri', 'routine', 1, null, null, null],
-            ['Çay malzeme eksiklerinin tedarik edilmesi', 'weekly', 1, '1', null, '10:00'],
+            ['Çay malzeme eksiklerinin tedarik edilmesi', 'on_demand', 1, null, null, null],
             ['Su/Damacana Değişimi', 'on_demand', 1, null, null, null],
             ['Çaydanlıkların detaylı temizliği', 'weekly', 1, '5', null, '15:00'],
             ['Kahve makinesi temizliği', 'daily', 1, null, null, '16:00'],
