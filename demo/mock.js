@@ -3,7 +3,7 @@
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v21';
+  const KEY = 'istakip-demo-v22';
   const REPORT_CATS = { clean: 'Temizlik gerekiyor', supply: 'Malzeme bitti', broken: 'Arıza / tamir', climate: 'Isıtma / soğutma', other: 'Diğer' };
   const store = {
     get() {
@@ -206,7 +206,7 @@
         ['Çay hazırlama', 'routine', 1, null, null, null],
         ['Bulaşık Yıkama', 'routine', 1, null, null, null],
         ['Çay malzeme eksiklerinin tedarik edilmesi', 'weekly', 1, '1', null, '10:00'],
-        ['Su/Damacana kontrolü', 'daily', 1, null, null, '09:00'],
+        ['Su/Damacana Değişimi', 'on_demand', 1, null, null, null],
         ['Çaydanlıkların detaylı temizliği', 'weekly', 1, '5', null, '15:00'],
         ['Kahve makinesi temizliği', 'daily', 1, null, null, '16:00'],
         ['Çay Ocağı Zemin Temizliği', 'daily', 1, null, null, '17:00'],
@@ -287,7 +287,7 @@
     Object.entries({
       'Uzman Yardımcıları Koridoru': ['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Sabunluk kontrolü', 'Tuvalet Genel Kontrol', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği', 'Misafir alanı temizliği'],
       'Makam Koridoru': ['Çay demleme', 'Odalarda masa üstü, pencere önü temizliği ve düzeni', 'Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği', 'Sabunluk kontrolü', 'Tuvalet Genel Kontrol', 'Detaylı tuvalet temizliği', 'Koridor pencere küpeşte önü temizliği', 'Çay servis hizmetleri', 'Başkanlık yemek getirme', 'Toplantı odalarında temizlik ve düzen oluşturulması', 'Detaylı oda temizliği', 'Misafir alanı temizliği'],
-      'Çay Ocağı': ['Çay hazırlama', 'Bulaşık Yıkama', 'Çay malzeme eksiklerinin tedarik edilmesi', 'Su/Damacana kontrolü', 'Çaydanlıkların detaylı temizliği', 'Kahve makinesi temizliği', 'Çay Ocağı Zemin Temizliği', 'Yemek görevi', 'Detaylı Çay Ocağı Temizliği', 'Makam ikram tabağı kontrolü', 'Çay ocağı rulosunun değiştirilmesi', 'Toplantıların ikramlarının hazırlanması ve sunumu'],
+      'Çay Ocağı': ['Çay hazırlama', 'Bulaşık Yıkama', 'Çay malzeme eksiklerinin tedarik edilmesi', 'Su/Damacana Değişimi', 'Çaydanlıkların detaylı temizliği', 'Kahve makinesi temizliği', 'Çay Ocağı Zemin Temizliği', 'Yemek görevi', 'Detaylı Çay Ocağı Temizliği', 'Makam ikram tabağı kontrolü', 'Çay ocağı rulosunun değiştirilmesi', 'Toplantıların ikramlarının hazırlanması ve sunumu'],
       'Bahçe ve Otopark': ['Girişin temizliği, halı temizliği', 'Bahçe çöplerinin toplanması', 'Çiçeklerin bakımı, budama', 'Sulama', 'Yaprak temizliği', 'Ofis ve koridor saksı çiçeklerinin bakımı', 'Kar küreme ve tuzlama işlemleri', 'Bahçe ilaçlaması', 'Depo düzenlemesi'],
       'Fotokopi Alanı': ['Fotokopi makinesinin çevre temizliği'],
     }).forEach(([loc, tasks]) => tasks.forEach((t) => {
