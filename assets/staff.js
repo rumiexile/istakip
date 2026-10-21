@@ -268,6 +268,17 @@
       <div class="tasks${animateNext ? ' stagger' : ''}">${list.map(odCard).join('')}</div></section>`;
   }
 
+  /* ---------- sürekli görevler (takip edilmez) ---------- */
+  function routineSection() {
+    const f = activeFilter();
+    const list = data.routine || [];
+    if (!list.length || f === 'open' || f === 'done') return '';
+    return `<section class="loc-group rt-group"><div class="loc-head"><span class="rt-ico" aria-hidden="true">∞</span><h3>Sürekli görevler</h3><span class="cnt">${list.length}</span></div>
+      <p class="muted small od-hint">Gün boyu zaten yaptığınız işler; işaretlemenize gerek yok.</p>
+      <div class="rt-list">${list.map((it, i) => `<button type="button" class="rt-item glass" data-rt="${i}" style="${it.color ? '--c:' + h(it.color) : ''}">
+        <span class="rt-dot"></span><span class="rt-text"><b>${h(it.task)}</b><small>${h(it.location)}</small></span></button>`).join('')}</div></section>`;
+  }
+
   async function odAdd(card, it, btn) {
     btn.classList.add('loading'); btn.disabled = true;
     try {
@@ -336,7 +347,7 @@
     const area = $('.list-area', root);
     const items = data.items.filter(visible);
     const past = isPast();
-    const od = odSection();
+    const od = odSection() + routineSection();
     const leaveNote = data.on_leave && data.items.length
       ? `<div class="alert leave">${icon('calendar')}<span>${past ? 'Bu gün izinliydiniz' : 'Bugün izinli olarak işaretlisiniz'}. Yapılmayan işleriniz <b>yapılmadı</b> sayılmaz.</span></div>` : '';
     if (!data.items.length && od) {
@@ -475,6 +486,14 @@
   }
 
   root.addEventListener('click', (e) => {
+    const rt = e.target.closest('[data-rt]');
+    if (rt) {
+      const it = (data.routine || [])[+rt.dataset.rt];
+      if (it) App.modal({ title: it.task, body: `<div class="sheet-task"><div class="meta"><span class="badge plain upcoming">Sürekli görev</span><span class="tag">${icon('pin')}${h(it.location)}</span></div>
+        ${it.task_desc ? `<p class="muted">${h(it.task_desc)}</p>` : ''}${it.note ? `<div class="alert info">${h(it.note)}</div>` : ''}
+        <p>Bu görev gün boyu zaten yapılan işlerdendir; günlük işaretleme ya da takip gerekmez.</p></div>`, actions: [{ label: 'Tamam', cls: 'primary' }] });
+      return;
+    }
     const card = e.target.closest('.task');
     if (!card) return;
     if (card.dataset.od) {

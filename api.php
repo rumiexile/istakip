@@ -143,8 +143,8 @@ function freq_from(array $src): array
     if ($type === 'daily') {
         $n = 1;
     }
-    if ($type === 'on_demand') {
-        return ['freq_type' => 'on_demand', 'freq_interval' => 1, 'weekdays' => null, 'month_day' => null, 'due_time' => null, 'times' => null];
+    if ($type === 'on_demand' || $type === 'routine') {
+        return ['freq_type' => $type, 'freq_interval' => 1, 'weekdays' => null, 'month_day' => null, 'due_time' => null, 'times' => null];
     }
     $t = trim((string)($src['due_time'] ?? ''));
     if ($t !== '' && !preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $t)) {
@@ -331,6 +331,21 @@ function item_out(array $p, int $occ, ?array $c, string $status): array
  * "İhtiyaç olduğunda" yapılan işler: takvimsiz; tarih aralığındaki tüm işaretlemeleriyle birlikte.
  * Bu işler oran ve gecikme hesabına girmez.
  */
+/** Sürekli görevler: tarihte geçerli atamalar, işaretlemesiz. */
+function routine_items(array $plans, string $ymd): array
+{
+    $out = [];
+    foreach ($plans as $p) {
+        if (!Sched::routine($p) || substr((string)$p['start_date'], 0, 10) > $ymd || (!empty($p['end_date']) && substr((string)$p['end_date'], 0, 10) < $ymd)) {
+            continue;
+        }
+        $out[] = ['plan_id' => (int)$p['id'], 'task' => $p['task_name'], 'task_desc' => $p['task_desc'], 'location' => $p['location_name'],
+            'user' => $p['user_name'], 'user_id' => $p['user_id'] !== null ? (int)$p['user_id'] : null, 'color' => $p['package_color'] ?: null,
+            'note' => $p['note'], 'freq' => Sched::label($p)];
+    }
+    return $out;
+}
+
 function on_demand_items(array $plans, string $from, string $to): array
 {
     $plans = array_values(array_filter($plans, fn($p) => Sched::onDemand($p)
@@ -620,6 +635,7 @@ try {
                 'items' => $items,
                 'tally' => tally($items),
                 'on_demand' => on_demand_items($plans, Sched::ymd($day), Sched::ymd($day)),
+                'routine' => routine_items($plans, Sched::ymd($day)),
                 // Yöneticinin kontrol ettiği, personelin henüz görmediği işler (bildirim)
                 'inspections' => q("SELECT c.id, c.occ_date, c.slot, c.inspected_at, t.name AS task, l.name AS location, iu.name AS inspected_name
                     FROM completions c JOIN plans p ON p.id = c.plan_id JOIN tasks t ON t.id = p.task_id JOIN locations l ON l.id = p.location_id
@@ -759,6 +775,9 @@ try {
             }
             if ($u['role'] !== 'admin' && $p['user_id'] !== null && (int)$p['user_id'] !== (int)$u['id']) {
                 fail('Bu iş size atanmamış.', 403);
+            }
+            if (Sched::routine($p)) {
+                fail('Bu sürekli bir görevdir; günlük işaretlemeye gerek yok.');
             }
             if (Sched::onDemand($p)) {
                 // İhtiyaç olduğunda: gün içinde istendiği kadar işaretlenir; her işaretleme ayrı bir kayıttır.
@@ -966,6 +985,9 @@ try {
                 }
                 if (Sched::onDemand($p)) {
                     $odPlans[] = $p;
+                    continue;
+                }
+                if (Sched::routine($p)) {
                     continue;
                 }
                 $p = $S->prep($p);

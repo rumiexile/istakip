@@ -1003,3 +1003,14 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
 .od-add { flex: none; color: #fff; border-color: rgba(255,255,255,.35); background: linear-gradient(135deg, #3b82f6, #06b6d4); }
 .od-add:hover { box-shadow: 0 10px 22px -10px #3b82f6; }
 .od-entry .photo-thumb { max-width: 160px; }
+
+/* ---------- sürekli görevler (takip edilmez) ---------- */
+.rt-ico { width: 18px; text-align: center; font-weight: 800; font-size: 18px; line-height: 1; color: var(--muted); }
+.rt-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.rt-item { display: inline-flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 16px; cursor: pointer; text-align: left; font: inherit; color: inherit;
+  transition: transform .35s var(--spring); }
+.rt-item:hover { transform: translateY(-2px); }
+.rt-item:active { transform: scale(.97); }
+.rt-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--c, var(--muted)); opacity: .8; }
+.rt-text b { display: block; font-size: 14px; font-weight: 650; }
+.rt-text small { color: var(--muted); font-size: 12px; }

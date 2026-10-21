@@ -3,7 +3,7 @@
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v19';
+  const KEY = 'istakip-demo-v20';
   const REPORT_CATS = { clean: 'Temizlik gerekiyor', supply: 'Malzeme bitti', broken: 'Arıza / tamir', climate: 'Isıtma / soğutma', other: 'Diğer' };
   const store = {
     get() {
@@ -86,7 +86,7 @@
       return t;
     }
     isDue(p, n) {
-      if (p.freq_type === 'on_demand') return false;
+      if (p.freq_type === 'on_demand' || p.freq_type === 'routine') return false;
       if (n < p._start || (p._end !== null && n > p._end) || !this.isWorkday(n)) return false;
       switch (p.freq_type) {
         case 'every_n_days': return this.workdaysBetween(p._first, n) % p._n === 0;
@@ -164,6 +164,7 @@
         }
         case 'monthly': return (n === 1 ? 'Her ay' : n + ' ayda 1') + ' · ayın ' + (+p.month_day) + '. günü';
         case 'on_demand': return 'İhtiyaç olduğunda';
+        case 'routine': return 'Sürekli görev';
         default: return 'Her gün';
       }
     }
@@ -202,8 +203,8 @@
       .forEach((n, i) => { L[n] = add('locations', { name: n, description: null, sort_order: i, active: 1, created_at: now }); });
     const P = [
       ['Çay Ocağı Ana Sorumluluk Paketi', '#b45309', 'Çay ocağı ana sorumlusunun günlük ve haftalık işleri', [
-        ['Çay hazırlama', 'daily', 1, null, null, '08:30', '08:30,13:30'],
-        ['Bulaşık Yıkama', 'daily', 1, null, null, '16:30'],
+        ['Çay hazırlama', 'routine', 1, null, null, null],
+        ['Bulaşık Yıkama', 'routine', 1, null, null, null],
         ['Çay malzeme eksiklerinin tedarik edilmesi', 'weekly', 1, '1', null, '10:00'],
         ['Su/Damacana kontrolü', 'daily', 1, null, null, '09:00'],
         ['Çaydanlıkların detaylı temizliği', 'weekly', 1, '5', null, '15:00'],
@@ -549,7 +550,9 @@
         return { id: c.id, occ_date: c.occ_date, slot: c.slot || 0, inspected_at: c.inspected_at, task: t ? t.name : '', location: l ? l.name : '', inspected_name: iu ? iu.name : null };
       }).sort((a, b2) => cmpTr(b2.inspected_at, a.inspected_at));
       return { date: D, today: ymd(today), workday: sc.isWorkday(day), on_leave: !!lv, leave_note: lv ? lv.note : null, items, tally: tally(items), inspections,
-        on_demand: onDemandItems(plans, D, D) };
+        on_demand: onDemandItems(plans, D, D),
+        routine: plans.filter((p) => p.freq_type === 'routine').map((p) => ({ plan_id: p.id, task: p.task_name, task_desc: p.task_desc, location: p.location_name,
+          user: p.user_name, user_id: p.user_id, color: p.package_color, note: p.note, freq: Sched.label(p) })) };
     },
     async inspections_seen() {
       const u = me();
@@ -603,6 +606,7 @@
       if (!p) err('İş bulunamadı.');
       if (status === 'replaced' && p.task_kind !== 'consumable') status = 'done';
       if (u.role !== 'admin' && p.user_id !== null && p.user_id !== u.id) err('Bu iş size atanmamış.');
+      if (p.freq_type === 'routine') err('Bu sürekli bir görevdir; günlük işaretlemeye gerek yok.');
       if (p.freq_type === 'on_demand') {
         const td = dn(localToday()), o = dn(occ);
         if (o > td || (u.role !== 'admin' && o !== td)) err('Bu iş yalnızca bugün için işaretlenebilir.');
@@ -703,6 +707,7 @@
         if (q.user_id && p0.user_id !== +q.user_id) return;
         if (q.location_id && p0.location_id !== +q.location_id) return;
         if (p0.freq_type === 'on_demand') { odPlans.push(p0); return; }
+        if (p0.freq_type === 'routine') return;
         const p = sc.prep(p0);
         sc.occurrences(p, from, to).forEach((o) => {
           sc.slots(p).forEach((ps) => {

@@ -1030,6 +1030,17 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
 .od-add:hover { box-shadow: 0 10px 22px -10px #3b82f6; }
 .od-entry .photo-thumb { max-width: 160px; }
 
+/* ---------- sürekli görevler (takip edilmez) ---------- */
+.rt-ico { width: 18px; text-align: center; font-weight: 800; font-size: 18px; line-height: 1; color: var(--muted); }
+.rt-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.rt-item { display: inline-flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 16px; cursor: pointer; text-align: left; font: inherit; color: inherit;
+  transition: transform .35s var(--spring); }
+.rt-item:hover { transform: translateY(-2px); }
+.rt-item:active { transform: scale(.97); }
+.rt-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--c, var(--muted)); opacity: .8; }
+.rt-text b { display: block; font-size: 14px; font-weight: 650; }
+.rt-text small { color: var(--muted); font-size: 12px; }
+
 
 .demo-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 10px 16px 0; padding: 8px 10px 8px 14px; border-radius: 20px; font-size: 13px; position: relative; z-index: 50; }
 :root { --logo-1: #6BBDEB; --logo-2: #1A7EC1; --logo-3: #27568F; }
@@ -1075,7 +1086,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v19';
+  const KEY = 'istakip-demo-v20';
   const REPORT_CATS = { clean: 'Temizlik gerekiyor', supply: 'Malzeme bitti', broken: 'Arıza / tamir', climate: 'Isıtma / soğutma', other: 'Diğer' };
   const store = {
     get() {
@@ -1158,7 +1169,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
       return t;
     }
     isDue(p, n) {
-      if (p.freq_type === 'on_demand') return false;
+      if (p.freq_type === 'on_demand' || p.freq_type === 'routine') return false;
       if (n < p._start || (p._end !== null && n > p._end) || !this.isWorkday(n)) return false;
       switch (p.freq_type) {
         case 'every_n_days': return this.workdaysBetween(p._first, n) % p._n === 0;
@@ -1236,6 +1247,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
         }
         case 'monthly': return (n === 1 ? 'Her ay' : n + ' ayda 1') + ' · ayın ' + (+p.month_day) + '. günü';
         case 'on_demand': return 'İhtiyaç olduğunda';
+        case 'routine': return 'Sürekli görev';
         default: return 'Her gün';
       }
     }
@@ -1274,8 +1286,8 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
       .forEach((n, i) => { L[n] = add('locations', { name: n, description: null, sort_order: i, active: 1, created_at: now }); });
     const P = [
       ['Çay Ocağı Ana Sorumluluk Paketi', '#b45309', 'Çay ocağı ana sorumlusunun günlük ve haftalık işleri', [
-        ['Çay hazırlama', 'daily', 1, null, null, '08:30', '08:30,13:30'],
-        ['Bulaşık Yıkama', 'daily', 1, null, null, '16:30'],
+        ['Çay hazırlama', 'routine', 1, null, null, null],
+        ['Bulaşık Yıkama', 'routine', 1, null, null, null],
         ['Çay malzeme eksiklerinin tedarik edilmesi', 'weekly', 1, '1', null, '10:00'],
         ['Su/Damacana kontrolü', 'daily', 1, null, null, '09:00'],
         ['Çaydanlıkların detaylı temizliği', 'weekly', 1, '5', null, '15:00'],
@@ -1621,7 +1633,9 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
         return { id: c.id, occ_date: c.occ_date, slot: c.slot || 0, inspected_at: c.inspected_at, task: t ? t.name : '', location: l ? l.name : '', inspected_name: iu ? iu.name : null };
       }).sort((a, b2) => cmpTr(b2.inspected_at, a.inspected_at));
       return { date: D, today: ymd(today), workday: sc.isWorkday(day), on_leave: !!lv, leave_note: lv ? lv.note : null, items, tally: tally(items), inspections,
-        on_demand: onDemandItems(plans, D, D) };
+        on_demand: onDemandItems(plans, D, D),
+        routine: plans.filter((p) => p.freq_type === 'routine').map((p) => ({ plan_id: p.id, task: p.task_name, task_desc: p.task_desc, location: p.location_name,
+          user: p.user_name, user_id: p.user_id, color: p.package_color, note: p.note, freq: Sched.label(p) })) };
     },
     async inspections_seen() {
       const u = me();
@@ -1675,6 +1689,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
       if (!p) err('İş bulunamadı.');
       if (status === 'replaced' && p.task_kind !== 'consumable') status = 'done';
       if (u.role !== 'admin' && p.user_id !== null && p.user_id !== u.id) err('Bu iş size atanmamış.');
+      if (p.freq_type === 'routine') err('Bu sürekli bir görevdir; günlük işaretlemeye gerek yok.');
       if (p.freq_type === 'on_demand') {
         const td = dn(localToday()), o = dn(occ);
         if (o > td || (u.role !== 'admin' && o !== td)) err('Bu iş yalnızca bugün için işaretlenebilir.');
@@ -1775,6 +1790,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
         if (q.user_id && p0.user_id !== +q.user_id) return;
         if (q.location_id && p0.location_id !== +q.location_id) return;
         if (p0.freq_type === 'on_demand') { odPlans.push(p0); return; }
+        if (p0.freq_type === 'routine') return;
         const p = sc.prep(p0);
         sc.occurrences(p, from, to).forEach((o) => {
           sc.slots(p).forEach((ps) => {
@@ -2549,8 +2565,9 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
     const r = (val, lbl) => `<label><input type="radio" name="${prefix}_type" value="${val}" ${t === val ? 'checked' : ''}><span>${lbl}</span></label>`;
     const days = [1, 2, 3, 4, 5, 6, 7].map((d) => `<label><input type="checkbox" name="${prefix}_wd" value="${d}" ${wd.includes(String(d)) ? 'checked' : ''}><span>${App.DAY_SHORT[d]}</span></label>`).join('');
     return `<div class="freq" data-freq="${prefix}">
-      <div class="seg">${r('daily', 'Her gün')}${r('every_n_days', 'X günde 1')}${r('weekly', 'Haftalık')}${r('monthly', 'Aylık')}${r('on_demand', 'İhtiyaç olduğunda')}</div>
+      <div class="seg">${r('daily', 'Her gün')}${r('every_n_days', 'X günde 1')}${r('weekly', 'Haftalık')}${r('monthly', 'Aylık')}${r('on_demand', 'İhtiyaç olduğunda')}${r('routine', 'Sürekli (takip yok)')}</div>
       <small class="muted" data-show="on_demand">Toplantı ikramı gibi düzenli olmayan işler için. Takvime bağlı değildir: personel iş çıktıkça istediği kadar işaretler; işaretlenmeyen gün “yapılmadı” sayılmaz ve başarı oranını etkilemez. Raporda kaç kez yapıldığı görünür.</small>
+      <small class="muted" data-show="routine">Bulaşık yıkama, çay hazırlama gibi zaten fiilen yapılan işler için. Personel ekranında bilgi olarak görünür ama işaretlenmez; hiçbir sayıma ve orana girmez. Görev tebliğ belgesinde yer alır.</small>
       <div class="inline" data-show="every_n_days"><input type="number" min="2" max="365" name="${prefix}_n_days" value="${t === 'every_n_days' ? v.freq_interval || 2 : 2}"> iş gününde bir</div>
       <div data-show="weekly" class="freq">
         <div class="days">${days}</div>
@@ -2602,7 +2619,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
       const sync = () => {
         const t = (f.querySelector(`input[name=${p}_type]:checked`) || {}).value;
         App.$$(':scope > [data-show]', f).forEach((s) => { s.hidden = s.dataset.show !== t; });
-        if (tf) tf.hidden = t === 'on_demand';
+        if (tf) tf.hidden = t === 'on_demand' || t === 'routine';
       };
       f.addEventListener('change', sync); sync();
     });
@@ -2616,7 +2633,7 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
     if (t === 'every_n_days') o.freq_interval = +val('n_days') || 2;
     if (t === 'weekly') { o.freq_interval = +val('n_weeks') || 1; o.weekdays = App.$$(`input[name=${p}_wd]:checked`, f).map((i) => i.value).join(','); }
     if (t === 'monthly') { o.freq_interval = +val('n_months') || 1; o.month_day = +val('md') || 1; }
-    if (t === 'on_demand') { o.due_time = null; o.times = null; }
+    if (t === 'on_demand' || t === 'routine') { o.due_time = null; o.times = null; }
     return o;
   };
 
@@ -4363,6 +4380,17 @@ window.__runStaff = function () {
       <div class="tasks${animateNext ? ' stagger' : ''}">${list.map(odCard).join('')}</div></section>`;
   }
 
+  /* ---------- sürekli görevler (takip edilmez) ---------- */
+  function routineSection() {
+    const f = activeFilter();
+    const list = data.routine || [];
+    if (!list.length || f === 'open' || f === 'done') return '';
+    return `<section class="loc-group rt-group"><div class="loc-head"><span class="rt-ico" aria-hidden="true">∞</span><h3>Sürekli görevler</h3><span class="cnt">${list.length}</span></div>
+      <p class="muted small od-hint">Gün boyu zaten yaptığınız işler; işaretlemenize gerek yok.</p>
+      <div class="rt-list">${list.map((it, i) => `<button type="button" class="rt-item glass" data-rt="${i}" style="${it.color ? '--c:' + h(it.color) : ''}">
+        <span class="rt-dot"></span><span class="rt-text"><b>${h(it.task)}</b><small>${h(it.location)}</small></span></button>`).join('')}</div></section>`;
+  }
+
   async function odAdd(card, it, btn) {
     btn.classList.add('loading'); btn.disabled = true;
     try {
@@ -4431,7 +4459,7 @@ window.__runStaff = function () {
     const area = $('.list-area', root);
     const items = data.items.filter(visible);
     const past = isPast();
-    const od = odSection();
+    const od = odSection() + routineSection();
     const leaveNote = data.on_leave && data.items.length
       ? `<div class="alert leave">${icon('calendar')}<span>${past ? 'Bu gün izinliydiniz' : 'Bugün izinli olarak işaretlisiniz'}. Yapılmayan işleriniz <b>yapılmadı</b> sayılmaz.</span></div>` : '';
     if (!data.items.length && od) {
@@ -4570,6 +4598,14 @@ window.__runStaff = function () {
   }
 
   root.addEventListener('click', (e) => {
+    const rt = e.target.closest('[data-rt]');
+    if (rt) {
+      const it = (data.routine || [])[+rt.dataset.rt];
+      if (it) App.modal({ title: it.task, body: `<div class="sheet-task"><div class="meta"><span class="badge plain upcoming">Sürekli görev</span><span class="tag">${icon('pin')}${h(it.location)}</span></div>
+        ${it.task_desc ? `<p class="muted">${h(it.task_desc)}</p>` : ''}${it.note ? `<div class="alert info">${h(it.note)}</div>` : ''}
+        <p>Bu görev gün boyu zaten yapılan işlerdendir; günlük işaretleme ya da takip gerekmez.</p></div>`, actions: [{ label: 'Tamam', cls: 'primary' }] });
+      return;
+    }
     const card = e.target.closest('.task');
     if (!card) return;
     if (card.dataset.od) {
