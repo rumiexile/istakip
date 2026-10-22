@@ -366,10 +366,17 @@ function on_demand_items(array $plans, string $from, string $to): array
             'inspected' => !empty($c['inspected_at']) ? ['by' => $c['inspected_name'], 'at' => $c['inspected_at']] : null,
         ];
     }
+    // Her işin (aralığın sonuna kadar) en son yapıldığı zaman: bugün yapılmadıysa "Son: 19 Ekim 2026, 14:20" için
+    $last = [];
+    foreach (q("SELECT c.plan_id, c.created_at, u.name AS by_name FROM completions c LEFT JOIN users u ON u.id = c.user_id
+                WHERE c.plan_id IN ($ids) AND c.occ_date <= ? ORDER BY c.created_at, c.id", [$to])->fetchAll() as $c) {
+        $last[(int)$c['plan_id']] = ['at' => $c['created_at'], 'by' => $c['by_name']];
+    }
     $out = [];
     foreach ($plans as $p) {
         $e = $by[(int)$p['id']] ?? [];
         $out[] = [
+            'last' => $last[(int)$p['id']] ?? null,
             'plan_id' => (int)$p['id'], 'occ_date' => $to, 'task' => $p['task_name'], 'task_desc' => $p['task_desc'],
             'location' => $p['location_name'], 'location_id' => (int)$p['location_id'],
             'user' => $p['user_name'], 'user_id' => $p['user_id'] !== null ? (int)$p['user_id'] : null,

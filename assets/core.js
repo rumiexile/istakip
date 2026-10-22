@@ -83,6 +83,8 @@
   App.fmtShort = (s) => { const d = App.parseDate(s); return d.getDate() + '.' + String(d.getMonth() + 1).padStart(2, '0'); };
   App.dayName = (s) => DAYS[App.parseDate(s).getDay()];
   App.fmtTime = (dt) => (dt ? dt.slice(11, 16) : '');
+  /** "2026-10-19 14:20:00" → "19 Ekim 2026, 14:20" */
+  App.fmtDateTime = (dt) => { if (!dt) return ''; const d = App.parseDate(dt.slice(0, 10)); return d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear() + (dt.length > 10 ? ', ' + dt.slice(11, 16) : ''); };
   App.relDay = (s) => {
     const diff = Math.round((App.parseDate(App.today()) - App.parseDate(s)) / 864e5);
     if (diff === 0) return 'Bugün';

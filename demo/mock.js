@@ -414,7 +414,9 @@
         .map((c) => { const u = byId('users', c.user_id), iu = c.inspected_by ? byId('users', c.inspected_by) : null;
           return { id: c.id, slot: c.slot || 0, occ_date: c.occ_date, by: u ? u.name : null, by_id: c.user_id, at: c.created_at, status: c.status, note: c.note, photo: !!c.photo,
             inspected: c.inspected_at ? { by: iu ? iu.name : null, at: c.inspected_at } : null }; });
-      return { plan_id: p.id, occ_date: to, task: p.task_name, task_desc: p.task_desc, location: p.location_name, location_id: p.location_id, user: p.user_name, user_id: p.user_id,
+      const lastC = S.completions.filter((c) => c.plan_id === p.id && c.occ_date <= to).sort((a, b) => cmpTr(a.created_at, b.created_at) || a.id - b.id).pop();
+      const lu = lastC ? byId('users', lastC.user_id) : null;
+      return { last: lastC ? { at: lastC.created_at, by: lu ? lu.name : null } : null, plan_id: p.id, occ_date: to, task: p.task_name, task_desc: p.task_desc, location: p.location_name, location_id: p.location_id, user: p.user_name, user_id: p.user_id,
         package: p.package_name, color: p.package_color, kind: p.task_kind || 'normal', note: p.note, freq: Sched.label(p), on_demand: true, count: entries.length, entries };
     });
   }

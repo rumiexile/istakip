@@ -248,7 +248,8 @@
     const last = it.entries[it.entries.length - 1];
     const day = isPast() ? 'Bu gün' : 'Bugün';
     let sub = '<span class="od-tag">İhtiyaç olduğunda</span>';
-    sub += it.count ? `<span>${day} ${it.count} kez · son ${h(App.fmtTime(last.at))}</span>` : `<span>${canAddOd() ? 'Yaptıkça dokunun' : day + ' yapılmadı'}</span>`;
+    sub += it.count ? `<span>${day} ${it.count} kez · son ${h(App.fmtTime(last.at))}</span>`
+      : it.last ? `<span>Son: ${h(App.fmtDateTime(it.last.at))}</span>` : `<span>${canAddOd() ? 'Henüz hiç yapılmadı' : day + ' yapılmadı'}</span>`;
     if (!it.user_id) sub += '<span>Ortak</span>';
     return `<div class="task glass is-od${it.count ? ' has' : ''}" data-od="${it.plan_id}" style="${it.color ? '--c:' + h(it.color) : ''}">
       <span class="stripe"></span>
@@ -310,7 +311,8 @@
         <div class="big-actions"><button class="btn warn" data-act="issue">${icon('flag')}<span>Sorun var</span></button>
           <button class="btn success" data-act="done">${icon('plus')}<span>Yapıldı</span></button></div>` : ''}
       <div class="field"><span>${isPast() ? 'Bu günün kayıtları' : 'Bugünkü kayıtlar'} (${it.count})</span>
-        ${entries ? `<div class="list">${entries}</div>` : '<p class="muted small">Henüz kayıt yok.</p>'}</div></div>`;
+        ${entries ? `<div class="list">${entries}</div>` : `<p class="muted small">${isPast() ? 'Bu gün' : 'Bugün'} kayıt yok.</p>`}</div>
+      <p class="muted small">${it.last ? `En son yapıldığı zaman: <b>${h(App.fmtDateTime(it.last.at))}</b>${it.last.by ? ' · ' + h(it.last.by) : ''}` : 'Bu iş henüz hiç yapılmadı.'}</p></div>`;
     const m = App.modal({ title: it.task, body });
     let photo = null;
     const drop = $('.photo-drop', m.body);

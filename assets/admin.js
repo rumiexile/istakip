@@ -238,7 +238,7 @@
           <div class="list">${data.on_demand.map((o) => `<div class="row">
             <span class="od-num${o.count ? ' on' : ''}" style="width:34px;height:34px;font-size:14px;${o.count ? 'color:#fff;border-style:solid;border-color:transparent;background:linear-gradient(135deg,#3b82f6,#06b6d4)' : ''}">${o.count}</span>
             <div><div class="title">${h(o.task)}</div><div class="sub"><span>${h(o.location)}</span><span>${h(o.user || 'Ortak')}</span>
-              ${o.entries.length ? `<span>${o.entries.map((e) => h(App.fmtTime(e.at)) + (e.note ? ' 💬' : '')).join(', ')}</span>` : '<span>Bugün yapılmadı</span>'}</div>
+              ${o.entries.length ? `<span>${o.entries.map((e) => h(App.fmtTime(e.at)) + (e.note ? ' 💬' : '')).join(', ')}</span>` : `<span>${o.last ? 'Son: ' + h(App.fmtDateTime(o.last.at)) : 'Henüz hiç yapılmadı'}</span>`}</div>
               ${o.entries.filter((e) => e.note).map((e) => `<div class="muted small">💬 ${h(App.fmtTime(e.at))} · ${h(e.note)}</div>`).join('')}</div><span></span></div>`).join('')}</div>
           <p class="muted small" style="margin-top:8px">Düzenli olmayan işler; yapılmadığı gün eksik sayılmaz.</p></div>` : ''}
         <div class="glass card"><div class="card-head"><h3>Mekanlara göre</h3></div>${bars(data.by_location, 'Veri yok')}</div>
@@ -1217,7 +1217,7 @@
           <div class="table-wrap"><table><thead><tr><th>İş</th><th>Mekan</th><th>Kaç kez</th><th>Kim</th><th>Son</th></tr></thead><tbody>
           ${r.on_demand.map((o) => `<tr><td><b>${h(o.task)}</b></td><td>${h(o.location)}</td><td><b style="color:var(--info)">${o.count}</b></td>
             <td class="small">${Object.entries(o.by_user).map(([n, c]) => `${h(n)} (${c})`).join(', ')}</td>
-            <td class="small nowrap">${o.last_at ? h(App.fmtDate(o.last_at.slice(0, 10))) + ' ' + h(App.fmtTime(o.last_at)) : '—'}</td></tr>`).join('')}
+            <td class="small nowrap">${o.last_at ? h(App.fmtDateTime(o.last_at)) : '—'}</td></tr>`).join('')}
           </tbody></table></div></div>` : ''}
         ${r.consumables && r.consumables.length ? `<div class="glass card" style="margin-bottom:16px"><div class="card-head"><h3>Sarf malzemeleri</h3>
           <span class="muted small">Seçilen dönemde kaç kez kontrol edildi, kaç kez değiştirildi</span></div>

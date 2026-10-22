@@ -1511,7 +1511,9 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
         .map((c) => { const u = byId('users', c.user_id), iu = c.inspected_by ? byId('users', c.inspected_by) : null;
           return { id: c.id, slot: c.slot || 0, occ_date: c.occ_date, by: u ? u.name : null, by_id: c.user_id, at: c.created_at, status: c.status, note: c.note, photo: !!c.photo,
             inspected: c.inspected_at ? { by: iu ? iu.name : null, at: c.inspected_at } : null }; });
-      return { plan_id: p.id, occ_date: to, task: p.task_name, task_desc: p.task_desc, location: p.location_name, location_id: p.location_id, user: p.user_name, user_id: p.user_id,
+      const lastC = S.completions.filter((c) => c.plan_id === p.id && c.occ_date <= to).sort((a, b) => cmpTr(a.created_at, b.created_at) || a.id - b.id).pop();
+      const lu = lastC ? byId('users', lastC.user_id) : null;
+      return { last: lastC ? { at: lastC.created_at, by: lu ? lu.name : null } : null, plan_id: p.id, occ_date: to, task: p.task_name, task_desc: p.task_desc, location: p.location_name, location_id: p.location_id, user: p.user_name, user_id: p.user_id,
         package: p.package_name, color: p.package_color, kind: p.task_kind || 'normal', note: p.note, freq: Sched.label(p), on_demand: true, count: entries.length, entries };
     });
   }
@@ -2260,6 +2262,8 @@ tr.group td { background: var(--glass-soft); font-weight: 700; font-size: 13px; 
   App.fmtShort = (s) => { const d = App.parseDate(s); return d.getDate() + '.' + String(d.getMonth() + 1).padStart(2, '0'); };
   App.dayName = (s) => DAYS[App.parseDate(s).getDay()];
   App.fmtTime = (dt) => (dt ? dt.slice(11, 16) : '');
+  /** "2026-10-19 14:20:00" → "19 Ekim 2026, 14:20" */
+  App.fmtDateTime = (dt) => { if (!dt) return ''; const d = App.parseDate(dt.slice(0, 10)); return d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear() + (dt.length > 10 ? ', ' + dt.slice(11, 16) : ''); };
   App.relDay = (s) => {
     const diff = Math.round((App.parseDate(App.today()) - App.parseDate(s)) / 864e5);
     if (diff === 0) return 'Bugün';
@@ -3089,7 +3093,7 @@ window.__runAdmin = function () {
           <div class="list">${data.on_demand.map((o) => `<div class="row">
             <span class="od-num${o.count ? ' on' : ''}" style="width:34px;height:34px;font-size:14px;${o.count ? 'color:#fff;border-style:solid;border-color:transparent;background:linear-gradient(135deg,#3b82f6,#06b6d4)' : ''}">${o.count}</span>
             <div><div class="title">${h(o.task)}</div><div class="sub"><span>${h(o.location)}</span><span>${h(o.user || 'Ortak')}</span>
-              ${o.entries.length ? `<span>${o.entries.map((e) => h(App.fmtTime(e.at)) + (e.note ? ' 💬' : '')).join(', ')}</span>` : '<span>Bugün yapılmadı</span>'}</div>
+              ${o.entries.length ? `<span>${o.entries.map((e) => h(App.fmtTime(e.at)) + (e.note ? ' 💬' : '')).join(', ')}</span>` : `<span>${o.last ? 'Son: ' + h(App.fmtDateTime(o.last.at)) : 'Henüz hiç yapılmadı'}</span>`}</div>
               ${o.entries.filter((e) => e.note).map((e) => `<div class="muted small">💬 ${h(App.fmtTime(e.at))} · ${h(e.note)}</div>`).join('')}</div><span></span></div>`).join('')}</div>
           <p class="muted small" style="margin-top:8px">Düzenli olmayan işler; yapılmadığı gün eksik sayılmaz.</p></div>` : ''}
         <div class="glass card"><div class="card-head"><h3>Mekanlara göre</h3></div>${bars(data.by_location, 'Veri yok')}</div>
@@ -4068,7 +4072,7 @@ window.__runAdmin = function () {
           <div class="table-wrap"><table><thead><tr><th>İş</th><th>Mekan</th><th>Kaç kez</th><th>Kim</th><th>Son</th></tr></thead><tbody>
           ${r.on_demand.map((o) => `<tr><td><b>${h(o.task)}</b></td><td>${h(o.location)}</td><td><b style="color:var(--info)">${o.count}</b></td>
             <td class="small">${Object.entries(o.by_user).map(([n, c]) => `${h(n)} (${c})`).join(', ')}</td>
-            <td class="small nowrap">${o.last_at ? h(App.fmtDate(o.last_at.slice(0, 10))) + ' ' + h(App.fmtTime(o.last_at)) : '—'}</td></tr>`).join('')}
+            <td class="small nowrap">${o.last_at ? h(App.fmtDateTime(o.last_at)) : '—'}</td></tr>`).join('')}
           </tbody></table></div></div>` : ''}
         ${r.consumables && r.consumables.length ? `<div class="glass card" style="margin-bottom:16px"><div class="card-head"><h3>Sarf malzemeleri</h3>
           <span class="muted small">Seçilen dönemde kaç kez kontrol edildi, kaç kez değiştirildi</span></div>
@@ -4386,7 +4390,8 @@ window.__runStaff = function () {
     const last = it.entries[it.entries.length - 1];
     const day = isPast() ? 'Bu gün' : 'Bugün';
     let sub = '<span class="od-tag">İhtiyaç olduğunda</span>';
-    sub += it.count ? `<span>${day} ${it.count} kez · son ${h(App.fmtTime(last.at))}</span>` : `<span>${canAddOd() ? 'Yaptıkça dokunun' : day + ' yapılmadı'}</span>`;
+    sub += it.count ? `<span>${day} ${it.count} kez · son ${h(App.fmtTime(last.at))}</span>`
+      : it.last ? `<span>Son: ${h(App.fmtDateTime(it.last.at))}</span>` : `<span>${canAddOd() ? 'Henüz hiç yapılmadı' : day + ' yapılmadı'}</span>`;
     if (!it.user_id) sub += '<span>Ortak</span>';
     return `<div class="task glass is-od${it.count ? ' has' : ''}" data-od="${it.plan_id}" style="${it.color ? '--c:' + h(it.color) : ''}">
       <span class="stripe"></span>
@@ -4448,7 +4453,8 @@ window.__runStaff = function () {
         <div class="big-actions"><button class="btn warn" data-act="issue">${icon('flag')}<span>Sorun var</span></button>
           <button class="btn success" data-act="done">${icon('plus')}<span>Yapıldı</span></button></div>` : ''}
       <div class="field"><span>${isPast() ? 'Bu günün kayıtları' : 'Bugünkü kayıtlar'} (${it.count})</span>
-        ${entries ? `<div class="list">${entries}</div>` : '<p class="muted small">Henüz kayıt yok.</p>'}</div></div>`;
+        ${entries ? `<div class="list">${entries}</div>` : `<p class="muted small">${isPast() ? 'Bu gün' : 'Bugün'} kayıt yok.</p>`}</div>
+      <p class="muted small">${it.last ? `En son yapıldığı zaman: <b>${h(App.fmtDateTime(it.last.at))}</b>${it.last.by ? ' · ' + h(it.last.by) : ''}` : 'Bu iş henüz hiç yapılmadı.'}</p></div>`;
     const m = App.modal({ title: it.task, body });
     let photo = null;
     const drop = $('.photo-drop', m.body);
