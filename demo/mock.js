@@ -3,7 +3,7 @@
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v30';
+  const KEY = 'istakip-demo-v31';
   const REPORT_CATS = { clean: 'Temizlik gerekiyor', supply: 'Malzeme bitti', broken: 'Arıza / tamir', climate: 'Isıtma / soğutma', other: 'Diğer' };
   const store = {
     get() {
@@ -223,7 +223,7 @@
         ['Çay servis hizmetleri', 'daily', 1, null, null, null],
         ['Toplantı odalarında temizlik ve düzen oluşturulması', 'daily', 1, null, null, '08:30'],
         ['Detaylı oda temizliği', 'weekly', 1, '3', null, '14:00'],
-        ['Misafir alanı temizliği', 'every_n_days', 2, null, null, '11:00']]],
+        ['Misafir alanı temizliği', 'weekly', 1, '2,4', null, '11:00']]],
       ['Tuvalet İş Paketi', '#0e7490', 'Koridordaki tuvaletlerin temizliği, sarf malzemesi ve saatlik kontrolleri', [
         ['Tuvalet zemin temizliği', 'daily', 1, null, null, '10:00'],
         ['Tuvalet klozet temizliği', 'daily', 1, null, null, '10:00'],
@@ -243,7 +243,7 @@
         ['Bahçe ilaçlaması', 'monthly', 1, null, 5, '10:00'],
         ['Depo düzenlemesi', 'weekly', 1, '5', null, '14:00']]],
       ['Fotokopi Alanı Paketi', '#7c3aed', 'Fotokopi alanı ve makine çevresinin düzenli temizliği', [
-        ['Fotokopi makinesinin çevre temizliği', 'weekly', 1, '1,4', null, '15:00']]],
+        ['Fotokopi makinesinin çevre temizliği', 'weekly', 1, '1,3,5', null, '10:00']]],
       ['Yemek Görevi Nöbeti', '#0369a1', 'Mekana bağlı olmayan, her gün farklı personelin yaptığı yemek görevi', [
         ['Yemek görevi', 'weekly', 1, '1', null, '12:00']]],
     ];

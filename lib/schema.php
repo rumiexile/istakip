@@ -137,7 +137,7 @@ function schema_statements(string $driver): array
     return $out;
 }
 
-const SCHEMA_VERSION = 20;
+const SCHEMA_VERSION = 21;
 
 function schema_install(PDO $pdo, string $driver): void
 {
@@ -263,6 +263,10 @@ function schema_upgrade(PDO $pdo, string $driver, int $from): void
             'Koridordaki tuvaletlerin temizliği, sarf malzemesi ve saatlik kontrolleri',
             ['Tuvalet zemin temizliği', 'Tuvalet klozet temizliği', 'Tuvalet lavabo temizliği', 'Tuvalet ayna temizliği',
              'Sabunluk kontrolü', 'Tuvalet Genel Kontrol', 'Detaylı tuvalet temizliği']);
+    }
+    if ($from < 21) {
+        schema_set_freq($pdo, 'Fotokopi makinesinin çevre temizliği', 'weekly', 1, '1,3,5', '10:00');
+        schema_set_freq($pdo, 'Misafir alanı temizliği', 'weekly', 1, '2,4', '11:00');
     }
     if ($from < 12) {
         // "Su/Damacana kontrolü" → "Su/Damacana Değişimi", ihtiyaç olduğunda
@@ -692,6 +696,50 @@ function schema_split_package(PDO $pdo, string $from, string $to, string $color,
     }
 }
 
+/**
+ * v21: Bir işin sıklığını ve saatini değiştirir (iş tanımı, paket satırları, aktif atamalar).
+ * Bugünden önce başlamış atamalar dün itibarıyla kapanıp yeni sıklıkla bugün yeniden başlar (geçmiş korunur);
+ * sıklığı zaten aynı olan atamalara dokunulmaz.
+ */
+function schema_set_freq(PDO $pdo, string $name, string $type, int $n, ?string $weekdays, ?string $due): void
+{
+    $st = $pdo->prepare('SELECT id FROM tasks WHERE name = ? AND active = 1');
+    $st->execute([$name]);
+    $tid = (int)$st->fetchColumn();
+    if (!$tid) {
+        return;
+    }
+    $now = date('Y-m-d H:i:s');
+    $today = date('Y-m-d');
+    $yesterday = date('Y-m-d', strtotime('-1 day'));
+    $set = 'freq_type = ?, freq_interval = ?, weekdays = ?, month_day = NULL, due_time = ?, times = NULL';
+    $vals = [$type, $n, $weekdays, $due];
+    $pdo->beginTransaction();
+    try {
+        $pdo->prepare("UPDATE tasks SET $set WHERE id = ?")->execute([...$vals, $tid]);
+        $pdo->prepare("UPDATE package_items SET $set WHERE task_id = ?")->execute([...$vals, $tid]);
+        $plans = $pdo->prepare('SELECT * FROM plans WHERE task_id = ? AND active = 1');
+        $plans->execute([$tid]);
+        foreach ($plans->fetchAll() as $p) {
+            if ($p['freq_type'] === $type && (int)$p['freq_interval'] === $n && (string)$p['weekdays'] === (string)$weekdays && (string)$p['due_time'] === (string)$due && empty($p['times'])) {
+                continue;
+            }
+            if (substr((string)$p['start_date'], 0, 10) >= $today) {
+                $pdo->prepare("UPDATE plans SET $set WHERE id = ?")->execute([...$vals, $p['id']]);
+                continue;
+            }
+            $pdo->prepare('UPDATE plans SET active = 0, end_date = ? WHERE id = ?')->execute([$yesterday, $p['id']]);
+            $pdo->prepare('INSERT INTO plans (task_id, location_id, user_id, package_id, freq_type, freq_interval, weekdays, month_day, due_time, times, start_date, end_date, note, active, created_at)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, ?, ?, ?, 1, ?)')
+                ->execute([$tid, $p['location_id'], $p['user_id'], $p['package_id'], $type, $n, $weekdays, $due, $today, $p['end_date'] ?: null, $p['note'], $now]);
+        }
+        $pdo->commit();
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        throw $e;
+    }
+}
+
 function looks_consumable(string $name): bool
 {
     $n = mb_strtolower(str_replace(['İ', 'I'], ['i', 'ı'], $name));
@@ -805,7 +853,7 @@ function schema_seed(PDO $pdo): void
             ['Çay servis hizmetleri', 'daily', 1, null, null, null],
             ['Toplantı odalarında temizlik ve düzen oluşturulması', 'daily', 1, null, null, '08:30'],
             ['Detaylı oda temizliği', 'weekly', 1, '3', null, '14:00'],
-            ['Misafir alanı temizliği', 'every_n_days', 2, null, null, '11:00'],
+            ['Misafir alanı temizliği', 'weekly', 1, '2,4', null, '11:00'],
         ]],
         ['Tuvalet İş Paketi', '#0e7490', 'Koridordaki tuvaletlerin temizliği, sarf malzemesi ve saatlik kontrolleri', [
             ['Tuvalet zemin temizliği', 'daily', 1, null, null, '10:00'],
@@ -828,7 +876,7 @@ function schema_seed(PDO $pdo): void
             ['Depo düzenlemesi', 'weekly', 1, '5', null, '14:00'],
         ]],
         ['Fotokopi Alanı Paketi', '#7c3aed', 'Fotokopi alanı ve makine çevresinin düzenli temizliği', [
-            ['Fotokopi makinesinin çevre temizliği', 'weekly', 1, '1,4', null, '15:00'],
+            ['Fotokopi makinesinin çevre temizliği', 'weekly', 1, '1,3,5', null, '10:00'],
         ]],
         ['Yemek Görevi Nöbeti', '#0369a1', 'Mekana bağlı olmayan, her gün farklı personelin yaptığı yemek görevi', [
             ['Yemek görevi', 'weekly', 1, '1', null, '12:00'],
