@@ -137,7 +137,7 @@ function schema_statements(string $driver): array
     return $out;
 }
 
-const SCHEMA_VERSION = 21;
+const SCHEMA_VERSION = 22;
 
 function schema_install(PDO $pdo, string $driver): void
 {
@@ -267,6 +267,9 @@ function schema_upgrade(PDO $pdo, string $driver, int $from): void
     if ($from < 21) {
         schema_set_freq($pdo, 'Fotokopi makinesinin çevre temizliği', 'weekly', 1, '1,3,5', '10:00');
         schema_set_freq($pdo, 'Misafir alanı temizliği', 'weekly', 1, '2,4', '11:00');
+    }
+    if ($from < 22) {
+        schema_make_on_demand($pdo, ['Detaylı oda temizliği'], 'on_demand', ['weekly']);
     }
     if ($from < 12) {
         // "Su/Damacana kontrolü" → "Su/Damacana Değişimi", ihtiyaç olduğunda
@@ -852,7 +855,7 @@ function schema_seed(PDO $pdo): void
             ['Koridor pencere küpeşte önü temizliği', 'weekly', 1, '2,4', null, '14:00'],
             ['Çay servis hizmetleri', 'daily', 1, null, null, null],
             ['Toplantı odalarında temizlik ve düzen oluşturulması', 'daily', 1, null, null, '08:30'],
-            ['Detaylı oda temizliği', 'weekly', 1, '3', null, '14:00'],
+            ['Detaylı oda temizliği', 'on_demand', 1, null, null, null],
             ['Misafir alanı temizliği', 'weekly', 1, '2,4', null, '11:00'],
         ]],
         ['Tuvalet İş Paketi', '#0e7490', 'Koridordaki tuvaletlerin temizliği, sarf malzemesi ve saatlik kontrolleri', [

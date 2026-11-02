@@ -3,7 +3,7 @@
   'use strict';
 
   /* ---------- kalıcılık ---------- */
-  const KEY = 'istakip-demo-v31';
+  const KEY = 'istakip-demo-v32';
   const REPORT_CATS = { clean: 'Temizlik gerekiyor', supply: 'Malzeme bitti', broken: 'Arıza / tamir', climate: 'Isıtma / soğutma', other: 'Diğer' };
   const store = {
     get() {
@@ -222,7 +222,7 @@
         ['Koridor pencere küpeşte önü temizliği', 'weekly', 1, '2,4', null, '14:00'],
         ['Çay servis hizmetleri', 'daily', 1, null, null, null],
         ['Toplantı odalarında temizlik ve düzen oluşturulması', 'daily', 1, null, null, '08:30'],
-        ['Detaylı oda temizliği', 'weekly', 1, '3', null, '14:00'],
+        ['Detaylı oda temizliği', 'on_demand', 1, null, null, null],
         ['Misafir alanı temizliği', 'weekly', 1, '2,4', null, '11:00']]],
       ['Tuvalet İş Paketi', '#0e7490', 'Koridordaki tuvaletlerin temizliği, sarf malzemesi ve saatlik kontrolleri', [
         ['Tuvalet zemin temizliği', 'daily', 1, null, null, '10:00'],
@@ -414,7 +414,9 @@
         .map((c) => { const u = byId('users', c.user_id), iu = c.inspected_by ? byId('users', c.inspected_by) : null;
           return { id: c.id, slot: c.slot || 0, occ_date: c.occ_date, by: u ? u.name : null, by_id: c.user_id, at: c.created_at, status: c.status, note: c.note, photo: !!c.photo,
             inspected: c.inspected_at ? { by: iu ? iu.name : null, at: c.inspected_at } : null }; });
-      const lastC = S.completions.filter((c) => c.plan_id === p.id && c.occ_date <= to).sort((a, b) => cmpTr(a.created_at, b.created_at) || a.id - b.id).pop();
+      // aynı iş + mekanın eski atamaları da sayılır (api.php ile aynı)
+      const same = new Set(S.plans.filter((x) => x.task_id === p.task_id && x.location_id === p.location_id).map((x) => x.id));
+      const lastC = S.completions.filter((c) => same.has(c.plan_id) && c.occ_date <= to).sort((a, b) => cmpTr(a.created_at, b.created_at) || a.id - b.id).pop();
       const lu = lastC ? byId('users', lastC.user_id) : null;
       return { last: lastC ? { at: lastC.created_at, by: lu ? lu.name : null } : null, plan_id: p.id, occ_date: to, task: p.task_name, task_desc: p.task_desc, location: p.location_name, location_id: p.location_id, user: p.user_name, user_id: p.user_id,
         package: p.package_name, color: p.package_color, kind: p.task_kind || 'normal', note: p.note, freq: Sched.label(p), on_demand: true, count: entries.length, entries };

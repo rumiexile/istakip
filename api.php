@@ -367,16 +367,19 @@ function on_demand_items(array $plans, string $from, string $to): array
         ];
     }
     // Her işin (aralığın sonuna kadar) en son yapıldığı zaman: bugün yapılmadıysa "Son: 19 Ekim 2026, 14:20" için
+    // Aynı iş + mekan için eski (kapanmış) atamaların kayıtları da sayılır: sıklık değişince "son" kaybolmasın.
     $last = [];
-    foreach (q("SELECT c.plan_id, c.created_at, u.name AS by_name FROM completions c LEFT JOIN users u ON u.id = c.user_id
-                WHERE c.plan_id IN ($ids) AND c.occ_date <= ? ORDER BY c.created_at, c.id", [$to])->fetchAll() as $c) {
-        $last[(int)$c['plan_id']] = ['at' => $c['created_at'], 'by' => $c['by_name']];
+    $tids = implode(',', array_unique(array_map(fn($p) => (int)$p['task_id'], $plans)));
+    foreach (q("SELECT p.task_id, p.location_id, c.created_at, u.name AS by_name FROM completions c
+                JOIN plans p ON p.id = c.plan_id LEFT JOIN users u ON u.id = c.user_id
+                WHERE p.task_id IN ($tids) AND c.occ_date <= ? ORDER BY c.created_at, c.id", [$to])->fetchAll() as $c) {
+        $last[$c['task_id'] . '|' . $c['location_id']] = ['at' => $c['created_at'], 'by' => $c['by_name']];
     }
     $out = [];
     foreach ($plans as $p) {
         $e = $by[(int)$p['id']] ?? [];
         $out[] = [
-            'last' => $last[(int)$p['id']] ?? null,
+            'last' => $last[$p['task_id'] . '|' . $p['location_id']] ?? null,
             'plan_id' => (int)$p['id'], 'occ_date' => $to, 'task' => $p['task_name'], 'task_desc' => $p['task_desc'],
             'location' => $p['location_name'], 'location_id' => (int)$p['location_id'],
             'user' => $p['user_name'], 'user_id' => $p['user_id'] !== null ? (int)$p['user_id'] : null,
